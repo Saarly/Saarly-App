@@ -80,12 +80,16 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     if (!trimmed) return null;
     if (/^https?:\/\//i.test(trimmed)) return trimmed;
 
-    const path = trimmed.startsWith("storage://")
+    let path = trimmed.startsWith("storage://")
       ? trimmed.replace("storage://", "").split("/").slice(1).join("/")
       : trimmed.replace(/^\/+/, "");
 
+    if (path.startsWith(`${bucket}/`)) {
+      path = path.slice(bucket.length + 1);
+    }
+
     const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
-    return data?.signedUrl ?? null;
+    return data?.signedUrl ?? supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl ?? null;
   }
 
   function productImageValues(product: ProductRow) {
@@ -371,4 +375,3 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     </section>
   );
 }
-

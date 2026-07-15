@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient, createUserScopedClient } from "@/lib/supabase/server";
 
 type AnyRow = Record<string, unknown>;
+type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
+type AdminAuth = {
+  userId: string;
+  role: "admin" | "support_agent";
+  permissions: Record<string, boolean>;
+};
 
 const editableFields: Record<string, string[]> = {
   users: ["role", "is_blocked"],
@@ -32,6 +38,7 @@ const editableFields: Record<string, string[]> = {
     "webhook_signature_header",
     "is_direct_to_merchant_supported"
   ],
+  ads_banners: ["image_url", "target_url", "placement", "sort_order", "starts_at", "ends_at", "is_active"],
   support_agents: ["department", "permissions", "is_active"],
   referral_rewards: ["delivery_status", "delivered_at", "notes"]
 };
@@ -44,7 +51,12 @@ const toggleFieldByTable: Record<string, string> = {
   knowledge_base: "is_active",
   subscription_plans: "is_active",
   payment_settings: "is_enabled",
+  ads_banners: "is_active",
   support_agents: "is_active"
+};
+
+const idColumnByTable: Record<string, string> = {
+  feature_flags: "key"
 };
 
 function jsonError(message: string, status = 400) {
@@ -62,6 +74,51 @@ function requiredText(value: unknown, field: string) {
 function pickAllowed(table: string, values: AnyRow) {
   const allowed = new Set(editableFields[table] ?? []);
   return Object.fromEntries(Object.entries(values).filter(([key]) => allowed.has(key)));
+}
+
+function normalizePermissions(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, enabled]) => [key, enabled === true]));
+}
+
+function permissionKeyFor(action: string, table?: string) {
+  if (action === "create_admin_staff" || action === "update_staff_permissions" || action === "set_staff_active") return "staff";
+  if (action === "send_admin_notification") return "broadcast";
+  if (action === "set_user_password") return "users";
+  if (action === "approve_merchant" || action === "reject_merchant" || action === "suspend_merchant" || action === "delete_merchant") return "merchant_approvals";
+  if (action === "approve_branch" || action === "reject_branch") return "branch_approvals";
+  if (action === "block_user" || action === "unblock_user") return "users";
+  if (action === "deactivate_product" || action === "activate_product" || action === "delete_product") return "store_catalog";
+
+  const tablePermissions: Record<string, string> = {
+    users: "users",
+    merchants: "stores",
+    branches: "branch_approvals",
+    products: "store_catalog",
+    categories: "categories",
+    cities: "cities",
+    feature_flags: "monetization",
+    knowledge_base: "knowledge_base",
+    subscription_plans: "monetization",
+    payment_settings: "monetization",
+    ads_banners: "ads",
+    support_agents: "staff",
+    referral_rewards: "referrals"
+  };
+  return table ? tablePermissions[table] : undefined;
+}
+
+function assertActionAllowed(auth: AdminAuth, action: string, table?: string) {
+  if (auth.role === "admin" && auth.permissions.__limit_admin !== true) {
+    return;
+  }
+
+  const permissionKey = permissionKeyFor(action, table);
+  if (!permissionKey || auth.permissions[permissionKey] !== true) {
+    throw new Error("permission_denied");
+  }
 }
 
 async function requireAdmin(req: NextRequest) {
@@ -86,19 +143,50 @@ async function requireAdmin(req: NextRequest) {
     .single();
 
   if (profileError || !profile || profile.role !== "admin" || profile.is_blocked) {
-    return { error: jsonError("admin_required", 403) };
+    if (profileError || !profile || profile?.role !== "support_agent" || profile?.is_blocked) {
+      return { error: jsonError("admin_required", 403) };
+    }
   }
 
-  return { userId: userData.user.id };
+  let permissions: Record<string, boolean> = {};
+  const { data: staffProfile } = await userClient
+    .from("admin_staff_profiles")
+    .select("permissions, is_active")
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+
+  if (staffProfile?.is_active === false) {
+    return { error: jsonError("admin_required", 403) };
+  }
+  permissions = normalizePermissions(staffProfile?.permissions);
+
+  if (profile.role === "support_agent") {
+    const { data: agentRow } = await userClient
+      .from("support_agents")
+      .select("permissions, is_active")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+
+    if (!agentRow?.is_active) {
+      return { error: jsonError("admin_required", 403) };
+    }
+    permissions = {
+      ...normalizePermissions(agentRow.permissions),
+      ...permissions
+    };
+  }
+
+  return { userId: userData.user.id, role: profile.role as AdminAuth["role"], permissions };
 }
 
-async function getBefore(service: NonNullable<ReturnType<typeof createServiceClient>>, table: string, id: string) {
-  const { data } = await service.from(table).select("*").eq("id", id).maybeSingle();
+async function getBefore(service: ServiceClient, table: string, id: string) {
+  const idColumn = idColumnByTable[table] ?? "id";
+  const { data } = await service.from(table).select("*").eq(idColumn, id).maybeSingle();
   return data as AnyRow | null;
 }
 
 async function writeAudit(
-  service: NonNullable<ReturnType<typeof createServiceClient>>,
+  service: ServiceClient,
   actorId: string,
   action: string,
   table: string,
@@ -145,7 +233,7 @@ function storagePathFromValue(value: unknown, bucket: string) {
 }
 
 async function removeProductImages(
-  service: NonNullable<ReturnType<typeof createServiceClient>>,
+  service: ServiceClient,
   product: AnyRow | null
 ) {
   const rawImages = [
@@ -161,7 +249,7 @@ async function removeProductImages(
 }
 
 async function removeMerchantImages(
-  service: NonNullable<ReturnType<typeof createServiceClient>>,
+  service: ServiceClient,
   merchant: AnyRow | null
 ) {
   const storefrontPath = storagePathFromValue(merchant?.store_front_image_url, "storefront-photos");
@@ -174,7 +262,7 @@ async function removeMerchantImages(
 }
 
 async function resolveNotificationRecipients(
-  service: NonNullable<ReturnType<typeof createServiceClient>>,
+  service: ServiceClient,
   payload: AnyRow | undefined
 ) {
   const audience = String(payload?.audience ?? "all");
@@ -210,7 +298,7 @@ async function resolveNotificationRecipients(
 }
 
 async function sendAdminNotification(
-  service: NonNullable<ReturnType<typeof createServiceClient>>,
+  service: ServiceClient,
   actorId: string,
   payload: AnyRow | undefined
 ) {
@@ -261,6 +349,206 @@ async function sendAdminNotification(
   };
 }
 
+async function ensureStaffProfilesReady(service: ServiceClient) {
+  const { error } = await service.from("admin_staff_profiles").select("user_id").limit(1);
+  if (error) {
+    throw new Error("admin_staff_sql_not_applied");
+  }
+}
+
+function staffAccessLevel(value: unknown) {
+  const text = String(value ?? "limited_admin");
+  if (text === "full_admin" || text === "limited_admin" || text === "support_agent") {
+    return text;
+  }
+  return "limited_admin";
+}
+
+function permissionsForAccess(accessLevel: string, rawPermissions: unknown) {
+  const permissions = normalizePermissions(rawPermissions);
+  if (accessLevel === "full_admin") {
+    return { ...permissions, __full_admin: true, __limit_admin: false };
+  }
+  if (accessLevel === "limited_admin") {
+    return { ...permissions, __limit_admin: true };
+  }
+  return permissions;
+}
+
+async function upsertStaffProfile(
+  service: ServiceClient,
+  userId: string,
+  roleLabel: string,
+  permissions: Record<string, boolean>,
+  isActive = true
+) {
+  const { error } = await service.from("admin_staff_profiles").upsert(
+    {
+      user_id: userId,
+      role_label: roleLabel,
+      permissions,
+      is_active: isActive
+    },
+    { onConflict: "user_id" }
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function upsertSupportAgent(
+  service: ServiceClient,
+  userId: string,
+  roleLabel: string,
+  permissions: Record<string, boolean>,
+  isActive = true
+) {
+  const { error } = await service.from("support_agents").upsert(
+    {
+      user_id: userId,
+      is_active: isActive,
+      department: roleLabel,
+      permissions
+    },
+    { onConflict: "user_id" }
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function createAdminStaff(service: ServiceClient, actorId: string, payload: AnyRow | undefined) {
+  await ensureStaffProfilesReady(service);
+
+  const fullName = requiredText(payload?.full_name, "full_name");
+  const email = requiredText(payload?.email, "email").toLowerCase();
+  const mobile = requiredText(payload?.mobile, "mobile");
+  const password = requiredText(payload?.password, "password");
+  const roleLabel = requiredText(payload?.role_label, "role_label");
+  const accessLevel = staffAccessLevel(payload?.access_level);
+  const internalRole = accessLevel === "support_agent" ? "support_agent" : "admin";
+  const permissions = permissionsForAccess(accessLevel, payload?.permissions);
+
+  if (password.length < 8) {
+    throw new Error("password_must_be_at_least_8_chars");
+  }
+
+  const { data: authData, error: authError } = await service.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName }
+  });
+  if (authError || !authData.user) {
+    throw new Error(authError?.message ?? "auth_user_not_created");
+  }
+
+  const userId = authData.user.id;
+  try {
+    const { error: userError } = await service.from("users").insert({
+      id: userId,
+      full_name: fullName,
+      mobile,
+      primary_email: email,
+      recovery_email: email,
+      role: internalRole,
+      preferred_language: "ar",
+      theme: "light",
+      is_blocked: false
+    });
+    if (userError) {
+      throw new Error(userError.message);
+    }
+
+    await upsertStaffProfile(service, userId, roleLabel, permissions, true);
+
+    if (internalRole === "support_agent") {
+      await upsertSupportAgent(service, userId, roleLabel, permissions, true);
+    }
+
+    await writeAudit(service, actorId, "create_admin_staff", "users", userId, null, {
+      id: userId,
+      email,
+      full_name: fullName,
+      role: internalRole,
+      role_label: roleLabel,
+      access_level: accessLevel,
+      permissions
+    });
+
+    return { id: userId, email, role: internalRole };
+  } catch (error) {
+    await service.auth.admin.deleteUser(userId).catch(() => undefined);
+    throw error;
+  }
+}
+
+async function updateStaffPermissions(service: ServiceClient, actorId: string, targetUserId: string, payload: AnyRow | undefined) {
+  await ensureStaffProfilesReady(service);
+
+  if (actorId === targetUserId && payload?.access_level !== "full_admin") {
+    throw new Error("cannot_limit_your_own_admin_account");
+  }
+
+  const roleLabel = requiredText(payload?.role_label, "role_label");
+  const accessLevel = staffAccessLevel(payload?.access_level);
+  const internalRole = accessLevel === "support_agent" ? "support_agent" : "admin";
+  const permissions = permissionsForAccess(accessLevel, payload?.permissions);
+  const isActive = payload?.is_active !== false;
+
+  const before = await getBefore(service, "users", targetUserId);
+  const { error: userError } = await service
+    .from("users")
+    .update({ role: internalRole, is_blocked: !isActive })
+    .eq("id", targetUserId);
+  if (userError) {
+    throw new Error(userError.message);
+  }
+
+  await upsertStaffProfile(service, targetUserId, roleLabel, permissions, isActive);
+
+  if (internalRole === "support_agent") {
+    await upsertSupportAgent(service, targetUserId, roleLabel, permissions, isActive);
+  } else {
+    await service.from("support_agents").delete().eq("user_id", targetUserId);
+  }
+
+  await writeAudit(service, actorId, "update_staff_permissions", "users", targetUserId, before, {
+    id: targetUserId,
+    role: internalRole,
+    role_label: roleLabel,
+    access_level: accessLevel,
+    permissions,
+    is_active: isActive
+  });
+
+  return { id: targetUserId, role: internalRole, permissions_updated: true };
+}
+
+async function setStaffActive(service: ServiceClient, actorId: string, targetUserId: string, enabled: boolean) {
+  await ensureStaffProfilesReady(service);
+
+  if (actorId === targetUserId && !enabled) {
+    throw new Error("cannot_disable_your_own_account");
+  }
+
+  const before = await getBefore(service, "users", targetUserId);
+  const { error: userError } = await service.from("users").update({ is_blocked: !enabled }).eq("id", targetUserId);
+  if (userError) {
+    throw new Error(userError.message);
+  }
+
+  await service.from("admin_staff_profiles").update({ is_active: enabled }).eq("user_id", targetUserId);
+  await service.from("support_agents").update({ is_active: enabled }).eq("user_id", targetUserId);
+
+  await writeAudit(service, actorId, "set_staff_active", "users", targetUserId, before, {
+    id: targetUserId,
+    is_active: enabled
+  });
+
+  return { id: targetUserId, is_active: enabled };
+}
+
 export async function POST(req: NextRequest) {
   const service = createServiceClient();
   if (!service) {
@@ -288,6 +576,41 @@ export async function POST(req: NextRequest) {
     return jsonError("missing_action");
   }
 
+  try {
+    assertActionAllowed(auth, action, body.table);
+  } catch (permissionError) {
+    return jsonError(permissionError instanceof Error ? permissionError.message : String(permissionError), 403);
+  }
+
+  if (action === "create_admin_staff") {
+    try {
+      const result = await createAdminStaff(service, auth.userId, body.payload);
+      return NextResponse.json({ data: result });
+    } catch (staffError) {
+      return jsonError(staffError instanceof Error ? staffError.message : String(staffError), 400);
+    }
+  }
+
+  if (action === "update_staff_permissions") {
+    try {
+      const userId = requiredText(id, "user_id");
+      const result = await updateStaffPermissions(service, auth.userId, userId, body.payload);
+      return NextResponse.json({ data: result });
+    } catch (staffError) {
+      return jsonError(staffError instanceof Error ? staffError.message : String(staffError), 400);
+    }
+  }
+
+  if (action === "set_staff_active") {
+    try {
+      const userId = requiredText(id, "user_id");
+      const result = await setStaffActive(service, auth.userId, userId, body.payload?.enabled === true);
+      return NextResponse.json({ data: result });
+    } catch (staffError) {
+      return jsonError(staffError instanceof Error ? staffError.message : String(staffError), 400);
+    }
+  }
+
   if (action === "send_admin_notification") {
     try {
       const result = await sendAdminNotification(service, auth.userId, body.payload);
@@ -295,6 +618,26 @@ export async function POST(req: NextRequest) {
     } catch (sendError) {
       return jsonError(sendError instanceof Error ? sendError.message : String(sendError), 400);
     }
+  }
+
+  if (action === "set_user_password") {
+    const userId = requiredText(id, "user_id");
+    const password = requiredText(body.payload?.password, "password");
+    if (password.length < 8) {
+      return jsonError("password_must_be_at_least_8_chars", 400);
+    }
+
+    const before = await getBefore(service, "users", userId);
+    const { error } = await service.auth.admin.updateUserById(userId, { password });
+    if (error) {
+      return jsonError(error.message, 400);
+    }
+
+    await writeAudit(service, auth.userId, action, "auth.users", userId, before, {
+      password_updated: true,
+      updated_at: new Date().toISOString()
+    });
+    return NextResponse.json({ data: { id: userId, password_updated: true } });
   }
 
   let table = body.table ?? "";
@@ -385,7 +728,7 @@ export async function POST(req: NextRequest) {
 
   if (action === "delete_product") {
     const before = await getBefore(service, table, targetId);
-    const { error } = await service.from(table).delete().eq("id", targetId);
+    const { error } = await service.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
     if (error) {
       return jsonError(error.message, 400);
     }
@@ -397,7 +740,7 @@ export async function POST(req: NextRequest) {
   if (action === "delete_merchant") {
     const before = await getBefore(service, table, targetId);
     const { data: products } = await service.from("products").select("*").eq("merchant_id", targetId);
-    const { error } = await service.from(table).delete().eq("id", targetId);
+    const { error } = await service.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
     if (error) {
       return jsonError(error.message, 400);
     }
@@ -416,12 +759,13 @@ export async function POST(req: NextRequest) {
     if (error) {
       return jsonError(error.message, 400);
     }
-    await writeAudit(service, auth.userId, action, table, String((data as AnyRow).id), null, data as AnyRow);
+    const idColumn = idColumnByTable[table] ?? "id";
+    await writeAudit(service, auth.userId, action, table, String((data as AnyRow)[idColumn]), null, data as AnyRow);
     return NextResponse.json({ data });
   }
 
   const before = await getBefore(service, table, targetId);
-  const { data, error } = await service.from(table).update(values).eq("id", targetId).select("*").single();
+  const { data, error } = await service.from(table).update(values).eq(idColumnByTable[table] ?? "id", targetId).select("*").single();
 
   if (error) {
     return jsonError(error.message, 400);

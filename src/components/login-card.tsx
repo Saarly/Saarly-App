@@ -1,8 +1,41 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
+
+const loginPageStyle = {
+  minHeight: "100svh",
+  display: "grid",
+  placeItems: "center",
+  padding: "16px",
+  overflowX: "hidden",
+  background: "#f7f6f3"
+} satisfies CSSProperties;
+
+const loginCardStyle = {
+  width: "min(440px, 100%)",
+  display: "grid",
+  gap: "18px",
+  background: "#ffffff",
+  border: "1px solid #dedbd3",
+  borderRadius: "8px",
+  padding: "clamp(18px, 5vw, 28px)",
+  boxShadow: "0 14px 40px rgba(35, 38, 43, 0.08)"
+} satisfies CSSProperties;
+
+const loginLogoStyle = {
+  width: "min(190px, 70vw)",
+  height: "auto",
+  maxWidth: "100%",
+  objectFit: "contain",
+  objectPosition: "center"
+} satisfies CSSProperties;
+
+const formStyle = {
+  display: "grid",
+  gap: "14px"
+} satisfies CSSProperties;
 
 const loginCopy = {
   title: {
@@ -37,10 +70,6 @@ const loginCopy = {
     ar: "\u062f\u062e\u0648\u0644 \u0628\u0627\u0644\u0643\u0648\u062f",
     en: "Sign in with code"
   },
-  setupPassword: {
-    ar: "\u062a\u0639\u064a\u064a\u0646 / \u062a\u063a\u064a\u064a\u0631 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631",
-    en: "Set or change password"
-  },
   codeHint: {
     ar: "\u0627\u0643\u062a\u0628 \u0627\u0644\u0643\u0648\u062f \u0627\u0644\u0644\u064a \u0648\u0635\u0644\u0643 \u0639\u0644\u0649 \u0627\u0644\u0625\u064a\u0645\u064a\u0644\u060c \u0645\u062a\u062d\u0637\u0648\u0634 \u0641\u064a \u062e\u0627\u0646\u0629 \u0627\u0644\u0628\u0627\u0633\u0648\u0631\u062f.",
     en: "Enter the code from your email here, not in the password field."
@@ -56,10 +85,6 @@ const loginCopy = {
   codeSent: {
     ar: "\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0643\u0648\u062f \u0627\u0644\u062f\u062e\u0648\u0644 \u0639\u0644\u0649 \u0627\u0644\u0625\u064a\u0645\u064a\u0644.",
     en: "Sign-in code sent to email."
-  },
-  passwordSetupSent: {
-    ar: "\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0644\u064a\u0646\u0643 \u062a\u0639\u064a\u064a\u0646 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0625\u064a\u0645\u064a\u0644.",
-    en: "Password setup link sent to email."
   },
   logoAlt: {
     ar: "\u0633\u0639\u0631\u0644\u064a",
@@ -121,25 +146,21 @@ export function LoginCard({ lang }: { lang: Lang }) {
     setMessage(error ? error.message : text("signedIn", lang));
   }
 
-  async function sendPasswordSetupLink() {
-    setBusy(true);
-    setMessage(null);
-
-    const redirectTo = `${window.location.origin}/update-password`;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-
-    setBusy(false);
-    setMessage(error ? error.message : text("passwordSetupSent", lang));
-  }
-
   return (
-    <main className="login-page">
-      <section className="login-card">
-        <img className="brand-logo brand-logo-large" src="/saarly-logo.png" alt={text("logoAlt", lang)} />
+    <main className="login-page" style={loginPageStyle}>
+      <section className="login-card" style={loginCardStyle}>
+        <img
+          className="brand-logo brand-logo-large"
+          src="/saarly-logo.png"
+          alt={text("logoAlt", lang)}
+          width={190}
+          height={65}
+          style={loginLogoStyle}
+        />
         <h1>{text("title", lang)}</h1>
         <p>{text("subtitle", lang)}</p>
 
-        <form onSubmit={signInWithPassword}>
+        <form onSubmit={signInWithPassword} style={formStyle}>
           <label>
             {text("email", lang)}
             <input
@@ -172,11 +193,7 @@ export function LoginCard({ lang }: { lang: Lang }) {
           {busy ? text("loading", lang) : text("sendCode", lang)}
         </button>
 
-        <button className="ghost-button full" onClick={sendPasswordSetupLink} disabled={busy || !email}>
-          {busy ? text("loading", lang) : text("setupPassword", lang)}
-        </button>
-
-        <form onSubmit={verifyOtpCode}>
+        <form onSubmit={verifyOtpCode} style={formStyle}>
           <label>
             {text("otp", lang)}
             <input

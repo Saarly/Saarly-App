@@ -5,6 +5,7 @@ export type AdminProfile = {
   email: string | null;
   full_name: string | null;
   role: AdminRole;
+  role_label?: string | null;
   is_blocked: boolean;
   permissions: Record<string, boolean>;
 };
@@ -25,6 +26,7 @@ export type RowAction =
   | "reject_branch"
   | "block_user"
   | "unblock_user"
+  | "set_user_password"
   | "toggle_active"
   | "edit_row";
 
@@ -40,13 +42,14 @@ export type SectionConfig = {
     ar: string;
     en: string;
   };
-  mode: "dashboard" | "table" | "support" | "reports" | "settings" | "catalog" | "broadcast";
+  mode: "dashboard" | "table" | "support" | "reports" | "settings" | "catalog" | "broadcast" | "staff";
   source?: string;
   sourceKind?: "view" | "table" | "rpc";
   orderBy?: string;
   searchKeys?: string[];
   columns?: ColumnConfig[];
   actions?: RowAction[];
+  rowIdKey?: string;
   editableTable?: string;
   editableFields?: string[];
   allowedRoles?: AdminRole[];

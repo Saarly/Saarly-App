@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { LogOut, Menu, Moon, Sun } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
@@ -17,6 +18,7 @@ import { ReportsPanel } from "@/components/reports-panel";
 import { SettingsPanel } from "@/components/settings-panel";
 import { StoreCatalogModeration } from "@/components/store-catalog-moderation";
 import { NotificationBroadcast } from "@/components/notification-broadcast";
+import { StaffManagement } from "@/components/staff-management";
 
 export function AdminConsole({ initialSection = "dashboard" }: { initialSection?: string }) {
   const [lang, setLang] = useState<Lang>("ar");
@@ -47,6 +49,24 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     }
 
     let permissions: Record<string, boolean> = {};
+    let roleLabel: string | null = null;
+
+    const { data: staffProfile } = await supabase
+      .from("admin_staff_profiles")
+      .select("role_label, permissions, is_active")
+      .eq("user_id", currentSession.user.id)
+      .maybeSingle();
+
+    if (staffProfile?.is_active === false) {
+      setProfile(null);
+      return;
+    }
+
+    if (staffProfile?.permissions && typeof staffProfile.permissions === "object") {
+      permissions = staffProfile.permissions as Record<string, boolean>;
+    }
+    roleLabel = staffProfile?.role_label ?? null;
+
     if (userRow.role === "support_agent") {
       const { data: agentRow } = await supabase
         .from("support_agents")
@@ -58,7 +78,10 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
         setProfile(null);
         return;
       }
-      permissions = (agentRow.permissions ?? {}) as Record<string, boolean>;
+      permissions = {
+        ...((agentRow.permissions ?? {}) as Record<string, boolean>),
+        ...permissions
+      };
     }
 
     setProfile({
@@ -66,6 +89,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
       email: userRow.primary_email ?? currentSession.user.email ?? null,
       full_name: userRow.full_name ?? null,
       role: userRow.role as AdminProfile["role"],
+      role_label: roleLabel,
       is_blocked: Boolean(userRow.is_blocked),
       permissions
     });
@@ -136,12 +160,12 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
           <img className="brand-logo brand-logo-sidebar" src="/saarly-logo.png" alt="سعرلي" />
           <div>
             <strong>{t("appName", lang)}</strong>
-            <span>{profile.role === "admin" ? "Admin" : "Support"}</span>
+            <span>{profile.role_label || (profile.role === "admin" ? "Admin" : "Support")}</span>
           </div>
         </div>
         <nav>
           {navSections.map((navSection) => (
-            <a
+            <Link
               key={navSection.id}
               href={navSection.href}
               className={navSection.id === section.id ? "active" : undefined}
@@ -149,7 +173,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
             >
               <AdminIcon name={navSection.icon} />
               <span>{tr(navSection.title, lang)}</span>
-            </a>
+            </Link>
           ))}
         </nav>
       </aside>
@@ -193,6 +217,8 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
           <StoreCatalogModeration lang={lang} />
         ) : section.mode === "broadcast" ? (
           <NotificationBroadcast lang={lang} />
+        ) : section.mode === "staff" ? (
+          <StaffManagement lang={lang} />
         ) : (
           <DataSection section={section} lang={lang} />
         )}

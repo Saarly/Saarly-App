@@ -36,6 +36,8 @@
 html,
 body {
   min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -58,9 +60,12 @@ a {
 
 .login-page {
   min-height: 100vh;
+  min-height: 100svh;
+  width: 100%;
   display: grid;
   place-items: center;
   padding: 24px;
+  overflow-x: hidden;
   background:
     linear-gradient(0deg, rgba(133, 187, 100, 0.09), transparent 45%),
     var(--off-white);
@@ -135,17 +140,18 @@ textarea:focus {
 }
 
 .brand-logo-large {
-  width: min(210px, 100%);
-  height: 76px;
-  object-position: start center;
+  width: min(190px, 70vw);
+  max-width: 100%;
+  height: auto;
+  max-height: 82px;
+  justify-self: center;
+  object-position: center;
 }
 
 .brand-logo-sidebar {
   width: 94px;
   height: 42px;
-  border-radius: 8px;
-  background: #f7f6f3;
-  padding: 6px;
+  padding: 0;
 }
 
 .primary-button,
@@ -412,6 +418,46 @@ button:not(:disabled):active {
 .queue-card h2 {
   margin: 0 0 12px;
   font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-tree {
+  display: grid;
+  gap: 10px;
+}
+
+.category-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px 16px;
+}
+
+.category-card.main {
+  border-color: var(--green);
+  background: rgba(133, 187, 100, 0.12);
+  box-shadow: 0 10px 24px rgba(133, 187, 100, 0.12);
+}
+
+.category-card.child {
+  background: var(--panel-soft);
+}
+
+.category-card strong,
+.category-card span {
+  display: block;
+}
+
+.category-card span {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 3px;
 }
 
 .alert-list {
@@ -448,6 +494,7 @@ button:not(:disabled):active {
 
 .mini-list div {
   display: grid;
+  grid-template-columns: 1fr auto;
   justify-content: stretch;
 }
 
@@ -455,6 +502,12 @@ button:not(:disabled):active {
 .muted {
   color: var(--muted);
   font-size: 13px;
+}
+
+.mini-list .switch {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
 }
 
 .table-toolbar {
@@ -1015,6 +1068,136 @@ button:not(:disabled):active {
   font-size: 20px;
 }
 
+.staff-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) 420px;
+  gap: 16px;
+  align-items: start;
+}
+
+.staff-form,
+.staff-list {
+  display: grid;
+  gap: 16px;
+}
+
+.staff-form-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staff-form-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.access-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.access-card {
+  min-height: 96px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--text);
+  cursor: pointer;
+  text-align: start;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.access-card.active {
+  border-color: var(--green);
+  background: rgba(133, 187, 100, 0.16);
+}
+
+.access-card span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.permission-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.permission-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 12px;
+}
+
+.permission-group h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.permission-check {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.permission-check.active {
+  border-color: rgba(133, 187, 100, 0.6);
+  background: rgba(133, 187, 100, 0.12);
+}
+
+.permission-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.staff-card-list {
+  display: grid;
+  gap: 10px;
+}
+
+.staff-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.staff-card strong,
+.staff-card span,
+.staff-card small {
+  display: block;
+}
+
+.staff-card small {
+  color: var(--muted);
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.staff-edit-modal {
+  width: min(940px, 100%);
+}
+
 .flag-card {
   padding: 16px;
   display: flex;
@@ -1118,13 +1301,15 @@ button:not(:disabled):active {
   .reports-grid,
   .settings-grid,
   .broadcast-grid,
+  .staff-layout,
   .catalog-layout,
   .edit-grid {
     grid-template-columns: 1fr;
   }
 
   .audience-grid,
-  .form-split {
+  .form-split,
+  .access-options {
     grid-template-columns: 1fr;
   }
 
@@ -1163,12 +1348,28 @@ button:not(:disabled):active {
 }
 
 @media (max-width: 540px) {
+  .login-page {
+    align-items: start;
+    padding: 18px;
+    padding-top: 24px;
+  }
+
   .metric-grid {
     grid-template-columns: 1fr;
   }
 
   .login-card {
-    padding: 20px;
+    width: 100%;
+    max-width: 420px;
+    padding: 18px;
+  }
+
+  .login-card h1 {
+    font-size: 24px;
+  }
+
+  .permission-grid {
+    grid-template-columns: 1fr;
   }
 
   .row-actions {

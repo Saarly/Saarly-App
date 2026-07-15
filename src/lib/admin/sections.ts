@@ -70,7 +70,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "المستخدمون", en: "Users" },
     description: { ar: "بحث، متابعة أدوار الحسابات، وحظر أو تفعيل المستخدمين.", en: "Search accounts, roles, and block status." },
     searchKeys: ["full_name", "mobile", "primary_email", "role_ar"],
-    actions: ["block_user", "unblock_user"],
+    actions: ["block_user", "unblock_user", "set_user_password"],
     allowedRoles: ["admin"],
     columns: [
       { key: "full_name", label: { ar: "الاسم", en: "Name" } },
@@ -80,6 +80,18 @@ export const sections: SectionConfig[] = [
       { key: "account_status_ar", label: { ar: "الحساب", en: "Account" }, tone: "status" },
       { key: "created_at", label: { ar: "منذ", en: "Created" }, tone: "date" }
     ]
+  },
+  {
+    id: "staff",
+    href: "/admin/staff",
+    icon: "Users",
+    mode: "staff",
+    title: { ar: "\u0627\u0644\u0641\u0631\u064a\u0642 \u0648\u0627\u0644\u0635\u0644\u0627\u062d\u064a\u0627\u062a", en: "Team and permissions" },
+    description: {
+      ar: "\u0625\u0636\u0627\u0641\u0629 \u0645\u062f\u064a\u0631 \u0623\u0648 \u0645\u0648\u0638\u0641 \u062f\u0639\u0645\u060c \u0648\u0643\u062a\u0627\u0628\u0629 \u0627\u0633\u0645 \u0627\u0644\u0631\u062a\u0628\u0629 \u0648\u062a\u062d\u062f\u064a\u062f \u0627\u0644\u0635\u0644\u0627\u062d\u064a\u0627\u062a.",
+      en: "Add admins or support staff, set rank labels, and choose permissions."
+    },
+    allowedRoles: ["admin"]
   },
   {
     id: "categories",
@@ -244,6 +256,32 @@ export const sections: SectionConfig[] = [
     allowedRoles: ["admin"]
   },
   {
+    id: "ads",
+    href: "/admin/ads",
+    icon: "Images",
+    mode: "table",
+    source: "ads_banners",
+    sourceKind: "table",
+    editableTable: "ads_banners",
+    editableFields: ["image_url", "target_url", "placement", "sort_order", "starts_at", "ends_at", "is_active"],
+    orderBy: "created_at",
+    title: { ar: "\u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062a", en: "Ads" },
+    description: {
+      ar: "\u0625\u062f\u0627\u0631\u0629 \u0625\u0639\u0644\u0627\u0646\u0627\u062a \u0627\u0644\u062a\u0637\u0628\u064a\u0642: \u0635\u0648\u0631\u0629 \u0627\u0644\u0625\u0639\u0644\u0627\u0646\u060c \u0644\u064a\u0646\u0643 \u0627\u0644\u0645\u0639\u0644\u0646\u060c \u0648\u0645\u064a\u0639\u0627\u062f \u0627\u0644\u0638\u0647\u0648\u0631.",
+      en: "Manage in-app ad images, advertiser links, and schedules."
+    },
+    searchKeys: ["image_url", "target_url", "placement"],
+    actions: ["edit_row", "toggle_active"],
+    allowedRoles: ["admin"],
+    columns: [
+      { key: "image_url", label: { ar: "\u0635\u0648\u0631\u0629 \u0627\u0644\u0625\u0639\u0644\u0627\u0646", en: "Image" }, tone: "long" },
+      { key: "target_url", label: { ar: "\u0644\u064a\u0646\u0643 \u0627\u0644\u0645\u0639\u0644\u0646", en: "Advertiser link" }, tone: "long" },
+      { key: "placement", label: { ar: "\u0645\u0643\u0627\u0646 \u0627\u0644\u0638\u0647\u0648\u0631", en: "Placement" }, tone: "status" },
+      { key: "sort_order", label: { ar: "\u0627\u0644\u062a\u0631\u062a\u064a\u0628", en: "Order" } },
+      { key: "is_active", label: { ar: "\u0645\u0641\u0639\u0644", en: "Active" }, tone: "status" }
+    ]
+  },
+  {
     id: "complaints",
     href: "/admin/complaints",
     icon: "MessagesSquare",
@@ -385,15 +423,27 @@ export function sectionIsAllowed(section: SectionConfig, profile: AdminProfile |
   if (!profile) {
     return false;
   }
+
+  if (profile.role === "admin" && profile.permissions.__limit_admin !== true) {
+    return true;
+  }
+
+  const permissionKey = permissionKeyForSection(section);
+  if (profile.permissions[permissionKey] === true) {
+    return true;
+  }
+
   if (section.allowedRoles && !section.allowedRoles.includes(profile.role)) {
     return false;
   }
-  if (profile.role === "support_agent" && section.supportPermission) {
-    return profile.permissions[section.supportPermission] === true;
-  }
-  return true;
+
+  return profile.role === "admin" && profile.permissions.__limit_admin !== true;
 }
 
 export function visibleSections(profile: AdminProfile | null) {
   return sections.filter((section) => sectionIsAllowed(section, profile));
+}
+
+function permissionKeyForSection(section: SectionConfig) {
+  return section.supportPermission ?? section.id.replace(/-/g, "_");
 }
