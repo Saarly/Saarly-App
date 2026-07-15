@@ -105,7 +105,7 @@ function isDbPermissionError(message: string) {
 
 function adminActionErrorMessage(error: unknown) {
   const message = errorMessage(error);
-  return isDbPermissionError(message) ? "service_role_key_invalid" : message;
+  return isDbPermissionError(message) ? "service_role_access_denied" : message;
 }
 
 function requiredText(value: unknown, field: string) {

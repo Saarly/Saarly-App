@@ -63,6 +63,12 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "The Supabase service key is not working in this Vercel deployment. Make sure SUPABASE_SERVICE_ROLE_KEY is the service_role key, then redeploy the site.";
   }
 
+  if (message.includes("service_role_access_denied")) {
+    return lang === "ar"
+      ? "السيرفر مش قادر ينفذ التعديل بصلاحيات الخدمة. شغّل ملف SQL الخاص بصلاحيات service_role، وتأكد أن SUPABASE_SERVICE_ROLE_KEY موجود في Vercel كـ service_role، ثم اعمل Redeploy."
+      : "The server cannot run this action with service permissions. Run the service_role grants SQL, confirm SUPABASE_SERVICE_ROLE_KEY is the service_role key in Vercel, then redeploy.";
+  }
+
   if (message.includes("permission denied")) {
     return lang === "ar"
       ? "الحساب الحالي لا يملك صلاحية تنفيذ أو عرض هذا الجزء. لو أنت أدمن، شغّل ملف SQL الأخير أو راجع صلاحيات الحساب."
