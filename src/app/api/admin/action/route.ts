@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient, createUserScopedClient } from "@/lib/supabase/server";
 
 type AnyRow = Record<string, unknown>;
 type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
@@ -93,6 +93,23 @@ function normalizePermissions(value: unknown) {
     return {};
   }
   return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, enabled]) => [key, enabled === true]));
+}
+
+function authFromProfile(value: unknown): AdminAuth | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const profile = value as AnyRow;
+  const role = profile.role === "admin" || profile.role === "support_agent" ? profile.role : null;
+  const userId = typeof profile.id === "string" ? profile.id : "";
+  if (!role || !userId || profile.is_blocked === true) {
+    return null;
+  }
+  return {
+    userId,
+    role,
+    permissions: normalizePermissions(profile.permissions)
+  };
 }
 
 function trustedRoleFromAuthUser(user: AuthUserForAdmin): AdminAuth["role"] | null {
@@ -216,6 +233,17 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
 
   if (!token) {
     return { error: jsonError("missing_access_token", 401) };
+  }
+
+  try {
+    const userScopedClient = createUserScopedClient(token);
+    const { data: rpcProfile } = await userScopedClient.rpc("admin_web_my_profile");
+    const rpcAuth = authFromProfile(rpcProfile);
+    if (rpcAuth) {
+      return rpcAuth;
+    }
+  } catch {
+    // Fall back to the service-role based path below for older databases.
   }
 
   const { data: userData, error: userError } = await service.auth.getUser(token);
