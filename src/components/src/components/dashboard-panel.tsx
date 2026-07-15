@@ -1,0 +1,167 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, ArrowUpRight, RefreshCw } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
+import type { Lang } from "@/lib/admin/i18n";
+import { t } from "@/lib/admin/i18n";
+import { sections } from "@/lib/admin/sections";
+
+type DashboardRow = Record<string, number | string | null>;
+
+const metricKeys = [
+  ["users_count", { ar: "المستخدمين", en: "Users" }],
+  ["merchants_count", { ar: "المتاجر", en: "Stores" }],
+  ["pending_merchants_count", { ar: "متاجر معلقة", en: "Pending stores" }],
+  ["pending_branches_count", { ar: "فروع معلقة", en: "Pending branches" }],
+  ["awaiting_orders_count", { ar: "طلبات تنتظر تأكيد", en: "Awaiting confirmation" }],
+  ["open_support_chats_count", { ar: "محادثات دعم مفتوحة", en: "Open support chats" }]
+] as const;
+
+export function DashboardPanel({ lang }: { lang: Lang }) {
+  const [row, setRow] = useState<DashboardRow | null>(null);
+  const [pendingMerchants, setPendingMerchants] = useState<DashboardRow[]>([]);
+  const [pendingBranches, setPendingBranches] = useState<DashboardRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  async function loadDashboard() {
+    setLoading(true);
+    setError(null);
+    const overview = await supabase.from("admin_dashboard_overview").select("*").maybeSingle();
+    const merchants = await supabase
+      .from("admin_merchants_readable")
+      .select("id, store_name, owner_name, approval_status_ar, created_at")
+      .eq("approval_status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(6);
+    const branches = await supabase
+      .from("admin_branches_readable")
+      .select("id, branch_name, store_name, city_name, approval_status_ar, created_at")
+      .eq("approval_status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(6);
+
+    setRow((overview.data ?? null) as DashboardRow | null);
+    setPendingMerchants((merchants.data ?? []) as DashboardRow[]);
+    setPendingBranches((branches.data ?? []) as DashboardRow[]);
+    setError(overview.error?.message ?? merchants.error?.message ?? branches.error?.message ?? null);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    void loadDashboard();
+  }, []);
+
+  const quickSections = useMemo(
+    () =>
+      sections.filter((section) =>
+        ["merchant-approvals", "branch-approvals", "store-catalog", "broadcast", "orders", "support", "monetization", "audit"].includes(section.id)
+      ),
+    []
+  );
+
+  return (
+    <section className="content-panel">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">{t("connected", lang)}</span>
+          <h1>{lang === "ar" ? "الرئيسية" : "Dashboard"}</h1>
+          <p>{lang === "ar" ? "ملخص سريع لأهم ما يحتاج متابعة اليوم." : "A quick view of what needs attention today."}</p>
+        </div>
+        <button className="soft-button" onClick={loadDashboard}>
+          <RefreshCw size={17} />
+          {t("refresh", lang)}
+        </button>
+      </div>
+
+      {error ? <div className="alert">{error}</div> : null}
+      {loading ? <div className="empty-state">{t("loading", lang)}</div> : null}
+
+      <div className="metric-grid">
+        {metricKeys.map(([key, label]) => (
+          <article className="metric-card" key={key}>
+            <span>{label[lang]}</span>
+            <strong>{Number(row?.[key] ?? 0).toLocaleString("ar-EG")}</strong>
+          </article>
+        ))}
+      </div>
+
+      <div className="dashboard-grid">
+        <article className="ops-card">
+          <h2>{lang === "ar" ? "تنبيهات تشغيلية" : "Operational alerts"}</h2>
+          <div className="alert-list">
+            <AlertTriangle size={18} />
+            <span>
+              {lang === "ar"
+                ? "راجع المتاجر والفروع المعلقة حتى لا تتأخر نتائج البحث داخل التطبيق."
+                : "Review pending stores and branches so app search stays healthy."}
+            </span>
+          </div>
+          <div className="alert-list">
+            <AlertTriangle size={18} />
+            <span>
+              {lang === "ar"
+                ? "لو فعلت المدفوعات، تأكد أن مقدمي الدفع مفعلين قبل ظهورها للتطبيق."
+                : "If payments are enabled, confirm providers are active before exposing them in app."}
+            </span>
+          </div>
+        </article>
+
+        <article className="ops-card">
+          <h2>{lang === "ar" ? "اختصارات" : "Shortcuts"}</h2>
+          <div className="shortcut-list">
+            {quickSections.map((section) => (
+              <a href={section.href} key={section.id}>
+                <span>{section.title[lang]}</span>
+                <ArrowUpRight size={16} />
+              </a>
+            ))}
+          </div>
+        </article>
+      </div>
+
+      <div className="dashboard-grid">
+        <MiniList
+          title={lang === "ar" ? "متاجر تنتظر الموافقة" : "Stores awaiting approval"}
+          rows={pendingMerchants}
+          primaryKey="store_name"
+          secondaryKey="owner_name"
+        />
+        <MiniList
+          title={lang === "ar" ? "فروع تنتظر الموافقة" : "Branches awaiting approval"}
+          rows={pendingBranches}
+          primaryKey="branch_name"
+          secondaryKey="store_name"
+        />
+      </div>
+    </section>
+  );
+}
+
+function MiniList({
+  title,
+  rows,
+  primaryKey,
+  secondaryKey
+}: {
+  title: string;
+  rows: DashboardRow[];
+  primaryKey: string;
+  secondaryKey: string;
+}) {
+  return (
+    <article className="ops-card">
+      <h2>{title}</h2>
+      {rows.length === 0 ? <p className="muted">لا توجد عناصر معلقة حاليا</p> : null}
+      <div className="mini-list">
+        {rows.map((row) => (
+          <div key={String(row.id)}>
+            <strong>{String(row[primaryKey] ?? "-")}</strong>
+            <span>{String(row[secondaryKey] ?? "-")}</span>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
