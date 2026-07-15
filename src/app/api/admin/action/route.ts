@@ -76,7 +76,26 @@ function jsonError(message: string, status = 400) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error ?? "");
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error && typeof error === "object") {
+    const raw = error as Record<string, unknown>;
+    const parts = [raw.message, raw.details, raw.hint, raw.code]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .map((value) => value.trim());
+
+    if (parts.length > 0) {
+      return parts.join(" | ");
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error ?? "");
 }
 
 function isDbPermissionError(message: string) {
