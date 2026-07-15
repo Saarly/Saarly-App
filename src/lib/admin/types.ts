@@ -28,7 +28,8 @@ export type RowAction =
   | "unblock_user"
   | "set_user_password"
   | "toggle_active"
-  | "edit_row";
+  | "edit_row"
+  | "delete_row";
 
 export type SectionConfig = {
   id: string;

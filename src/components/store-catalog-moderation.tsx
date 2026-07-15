@@ -183,6 +183,10 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     await runAction({ action: "deactivate_product", id: product.id });
   }
 
+  async function activateProduct(product: ProductRow) {
+    await runAction({ action: "activate_product", id: product.id });
+  }
+
   async function deleteProduct(product: ProductRow) {
     const ok = window.confirm(
       lang === "ar"
@@ -371,7 +375,12 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                             <Ban size={15} />
                             {lang === "ar" ? "إيقاف" : "Deactivate"}
                           </button>
-                        ) : null}
+                        ) : (
+                          <button className="tiny-button" onClick={() => void activateProduct(product)}>
+                            <RefreshCw size={15} />
+                            {lang === "ar" ? "\u0625\u0639\u0627\u062f\u0629 \u062a\u0634\u063a\u064a\u0644" : "Reactivate"}
+                          </button>
+                        )}
                         <button className="tiny-button danger" onClick={() => void deleteProduct(product)}>
                           <Trash2 size={15} />
                           {lang === "ar" ? "حذف" : "Delete"}

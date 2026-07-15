@@ -564,6 +564,13 @@ async function sendAdminNotification(
 async function ensureStaffProfilesReady(service: ServiceClient) {
   const { error } = await service.from("admin_staff_profiles").select("user_id").limit(1);
   if (error) {
+    const message = errorMessage(error);
+    if (isDbPermissionError(message)) {
+      throw new Error("service_role_access_denied");
+    }
+    if (message.toLowerCase().includes("does not exist") || message.includes("42P01")) {
+      throw new Error("admin_staff_sql_not_applied");
+    }
     throw new Error("admin_staff_sql_not_applied");
   }
 }
@@ -993,6 +1000,10 @@ export async function POST(req: NextRequest) {
     const toggleField = toggleFieldByTable[table];
     if (!toggleField) return jsonError("table_not_toggleable");
     values = { [toggleField]: Boolean(body.payload?.enabled) };
+  } else if (action === "delete_row") {
+    if (!body.table || !id) return jsonError("missing_delete_payload");
+    table = body.table;
+    targetId = id;
   } else if (action === "update_row") {
     if (!body.table || !id || !body.values) return jsonError("missing_update_payload");
     table = body.table;
@@ -1030,6 +1041,16 @@ export async function POST(req: NextRequest) {
     }
     await Promise.all(((products ?? []) as AnyRow[]).map((product) => removeProductImages(adminDb, product)));
     await removeMerchantImages(adminDb, before);
+    await writeAudit(service, auth.userId, action, table, targetId, before, null);
+    return NextResponse.json({ data: { id: targetId, deleted: true } });
+  }
+
+  if (action === "delete_row") {
+    const before = await getBefore(adminDb, table, targetId);
+    const { error } = await adminDb.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
+    if (error) {
+      return jsonError(adminDbActionErrorMessage(error), 400);
+    }
     await writeAudit(service, auth.userId, action, table, targetId, before, null);
     return NextResponse.json({ data: { id: targetId, deleted: true } });
   }

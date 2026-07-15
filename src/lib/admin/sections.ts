@@ -106,7 +106,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "الكاتجريز", en: "Categories" },
     description: { ar: "إدارة الشجرة الرئيسية والفرعية بأي عدد مستويات.", en: "Manage the full category tree." },
     searchKeys: ["name_ar", "name_en"],
-    actions: ["edit_row", "toggle_active"],
+    actions: ["edit_row", "toggle_active", "delete_row"],
     allowedRoles: ["admin"],
     columns: [
       { key: "name_ar", label: { ar: "الاسم العربي", en: "Arabic name" } },
@@ -129,7 +129,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "المدن والمناطق", en: "Cities and areas" },
     description: { ar: "إدارة نطاقات التشغيل والتوسع.", en: "Manage operating areas and expansion." },
     searchKeys: ["name_ar", "name_en", "governorate_ar", "governorate_en"],
-    actions: ["edit_row", "toggle_active"],
+    actions: ["edit_row", "toggle_active", "delete_row"],
     allowedRoles: ["admin"],
     columns: [
       { key: "governorate_ar", label: { ar: "المحافظة", en: "Governorate" } },
@@ -272,7 +272,7 @@ export const sections: SectionConfig[] = [
       en: "Manage in-app ad images, advertiser links, and schedules."
     },
     searchKeys: ["image_url", "target_url", "placement"],
-    actions: ["edit_row", "toggle_active"],
+    actions: ["edit_row", "toggle_active", "delete_row"],
     allowedRoles: ["admin"],
     columns: [
       { key: "image_url", label: { ar: "\u0635\u0648\u0631\u0629 \u0627\u0644\u0625\u0639\u0644\u0627\u0646", en: "Image" }, tone: "long" },

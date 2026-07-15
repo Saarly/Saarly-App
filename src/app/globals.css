@@ -590,6 +590,72 @@ button:not(:disabled):active {
   align-self: center;
 }
 
+.provider-settings-list {
+  display: grid;
+  gap: 12px;
+}
+
+.provider-settings-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 14px;
+  display: grid;
+  gap: 14px;
+}
+
+.provider-row-head,
+.provider-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.provider-row-head strong,
+.provider-row-head span {
+  display: block;
+}
+
+.provider-row-head span {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.provider-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.provider-config-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.provider-config-grid input,
+.provider-config-grid textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.provider-config-grid textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.provider-wide-field {
+  grid-column: 1 / -1;
+}
+
 .table-toolbar {
   display: flex;
   justify-content: space-between;
@@ -1550,8 +1616,15 @@ button:not(:disabled):active {
   .audience-grid,
   .destination-grid,
   .form-split,
-  .access-options {
+  .access-options,
+  .provider-config-grid {
     grid-template-columns: 1fr;
+  }
+
+  .provider-row-head,
+  .provider-actions-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .recent-notifications-card {

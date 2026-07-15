@@ -67,6 +67,8 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
       const value = row === "new" ? null : row[field];
       if (fieldIsBoolean(field)) {
         nextValues[field] = row === "new" ? true : Boolean(value);
+      } else if (fieldIsDateTime(field)) {
+        nextValues[field] = value === null || value === undefined ? "" : toDateTimeLocal(value);
       } else if (value && typeof value === "object") {
         nextValues[field] = JSON.stringify(value, null, 2);
       } else {
@@ -126,6 +128,17 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
       } else if (action === "edit_row") {
         startEdit(row);
         return;
+      } else if (action === "delete_row") {
+        const table = section.editableTable;
+        if (!table) return;
+        const title = String(row.name_ar ?? row.title_ar ?? row.store_name ?? row.id ?? "");
+        const ok = window.confirm(
+          lang === "ar"
+            ? `\u0647\u0644 \u062a\u0631\u064a\u062f \u062d\u0630\u0641 ${title || "\u0647\u0630\u0627 \u0627\u0644\u0639\u0646\u0635\u0631"}\u061f`
+            : `Delete ${title || "this item"}?`
+        );
+        if (!ok) return;
+        await postAdminAction({ action, table, id });
       } else if (action === "set_user_password") {
         const password = window.prompt(lang === "ar" ? "\u0627\u0643\u062a\u0628 \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u062c\u062f\u064a\u062f\u0629 \u0644\u0644\u0645\u0633\u062a\u062e\u062f\u0645" : "Enter a new password for this user");
         if (!password) return;
@@ -155,7 +168,7 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
 
     try {
       const values = Object.fromEntries(
-        section.editableFields.map((field) => [field, coerceFormValue(field, formValues[field] ?? "")])
+        section.editableFields.map((field) => [field, coerceEditableFormValue(field, formValues[field] ?? "")])
       );
 
       if (section.id === "categories") {
@@ -401,6 +414,7 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
                   ) : (
                     <input
                       dir="auto"
+                      type={fieldIsDateTime(field) ? "datetime-local" : undefined}
                       value={String(formValues[field] ?? "")}
                       onChange={(event) => setFormValues((current) => ({ ...current, [field]: event.target.value }))}
                     />
@@ -426,6 +440,31 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
 
 function rowIdFor(section: SectionConfig, row: Row) {
   return String(row[section.rowIdKey ?? "id"] ?? "");
+}
+
+function fieldIsDateTime(field: string) {
+  return ["starts_at", "ends_at", "delivered_at"].includes(field);
+}
+
+function toDateTimeLocal(value: unknown) {
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function coerceEditableFormValue(field: string, value: string | boolean) {
+  if (!fieldIsDateTime(field)) {
+    return coerceFormValue(field, value);
+  }
+  const text = typeof value === "boolean" ? "" : value.trim();
+  if (!text) {
+    return null;
+  }
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? text : date.toISOString();
 }
 
 function sortCategoryRows(rows: Row[]) {
@@ -905,6 +944,9 @@ function fieldLabel(field: string, lang: Lang) {
 function actionLabel(action: string, lang: Lang) {
   if (action === "set_user_password") {
     return lang === "ar" ? "\u062a\u0639\u064a\u064a\u0646 \u0628\u0627\u0633\u0648\u0631\u062f" : "Set password";
+  }
+  if (action === "delete_row") {
+    return lang === "ar" ? "\u062d\u0630\u0641" : "Delete";
   }
   const labels: Record<string, { ar: string; en: string }> = {
     approve_merchant: { ar: "قبول", en: "Approve" },

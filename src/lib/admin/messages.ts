@@ -93,6 +93,12 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "This account does not have permission for this action.";
   }
 
+  if (message.includes("foreign key") || message.includes("violates") || message.includes("23503")) {
+    return lang === "ar"
+      ? "\u0644\u0627 \u064a\u0645\u0643\u0646 \u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u0639\u0646\u0635\u0631 \u0644\u0623\u0646\u0647 \u0645\u0631\u0628\u0648\u0637 \u0628\u0628\u064a\u0627\u0646\u0627\u062a \u0623\u062e\u0631\u0649. \u0623\u0648\u0642\u0641\u0647 \u0623\u0648\u0644\u0627\u060c \u0623\u0648 \u0627\u062d\u0630\u0641 \u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u062a\u0627\u0628\u0639\u0629 \u0644\u0647."
+      : "This item is linked to other data. Disable it first, or delete the linked items before deleting it.";
+  }
+
   if (message.includes("duplicate") || message.includes("already registered") || message.includes("already been registered")) {
     return lang === "ar"
       ? "هذه البيانات موجودة بالفعل. جرّب إيميل أو موبايل مختلف."
