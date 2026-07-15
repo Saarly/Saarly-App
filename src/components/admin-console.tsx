@@ -45,6 +45,13 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     setProfileError(null);
 
     try {
+      const { data: rpcProfile, error: rpcError } = await supabase.rpc("admin_web_my_profile");
+      if (!rpcError && rpcProfile && typeof rpcProfile === "object" && !Array.isArray(rpcProfile)) {
+        setProfile(rpcProfile as AdminProfile);
+        setProfileError(null);
+        return;
+      }
+
       const response = await fetch(`/api/admin/action?profile=1&t=${Date.now()}`, {
         cache: "no-store",
         headers: {
@@ -59,6 +66,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
       if (!response.ok || !payload.data) {
         const rawError =
           payload.error ??
+          rpcError?.message ??
           (response.status === 405
             ? "admin_profile_api_not_deployed"
             : `admin_profile_check_failed_${response.status}`);
