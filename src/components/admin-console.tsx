@@ -45,7 +45,8 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     setProfileError(null);
 
     try {
-      const response = await fetch("/api/admin/action", {
+      const response = await fetch(`/api/admin/action?profile=1&t=${Date.now()}`, {
+        cache: "no-store",
         headers: {
           Authorization: `Bearer ${currentSession.access_token}`
         }

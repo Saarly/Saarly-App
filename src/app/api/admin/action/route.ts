@@ -224,19 +224,40 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
     return { error: jsonError("invalid_access_token", 401) };
   }
 
+  const authUser = userData.user as AuthUserForAdmin;
+  const authEmail = String(authUser.email ?? "").trim().toLowerCase();
+
   const { data: profileData } = await service
     .from("users")
     .select("id, role, is_blocked")
-    .eq("id", userData.user.id)
+    .eq("id", authUser.id)
     .maybeSingle();
 
   let profile = (profileData ?? null) as AnyRow | null;
+  if (!profile && authEmail) {
+    const { data: emailProfile } = await service
+      .from("users")
+      .select("id, role, is_blocked")
+      .eq("primary_email", authEmail)
+      .maybeSingle();
+    profile = (emailProfile ?? null) as AnyRow | null;
+  }
+  if (!profile && authEmail) {
+    const { data: recoveryEmailProfile } = await service
+      .from("users")
+      .select("id, role, is_blocked")
+      .eq("recovery_email", authEmail)
+      .maybeSingle();
+    profile = (recoveryEmailProfile ?? null) as AnyRow | null;
+  }
+
+  const permissionUserId = String(profile?.id ?? authUser.id);
 
   let permissions: Record<string, boolean> = {};
   const { data: staffProfile } = await service
     .from("admin_staff_profiles")
     .select("permissions, is_active")
-    .eq("user_id", userData.user.id)
+    .eq("user_id", permissionUserId)
     .maybeSingle();
 
   let role = (profile?.role === "admin" || profile?.role === "support_agent"
@@ -249,7 +270,7 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
   }
 
   if (!role) {
-    role = trustedRoleFromAuthUser(userData.user as AuthUserForAdmin);
+    role = trustedRoleFromAuthUser(authUser);
   }
 
   if (!role) {
@@ -257,7 +278,7 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
   }
 
   try {
-    profile = await repairAdminUserProfile(service, userData.user as AuthUserForAdmin, role, profile);
+    profile = await repairAdminUserProfile(service, authUser, role, profile);
   } catch {
     return { error: jsonError("admin_required", 403) };
   }
@@ -280,7 +301,7 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
     const { data: agentRow } = await service
       .from("support_agents")
       .select("permissions, is_active")
-      .eq("user_id", userData.user.id)
+      .eq("user_id", permissionUserId)
       .maybeSingle();
 
     if (!agentRow?.is_active) {
@@ -292,7 +313,7 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
     };
   }
 
-  return { userId: userData.user.id, role, permissions };
+  return { userId: String(profile?.id ?? permissionUserId), role, permissions };
 }
 
 async function getBefore(service: ServiceClient, table: string, id: string) {
@@ -725,7 +746,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const profile = await getAdminProfile(service, auth);
-    return NextResponse.json({ data: profile });
+    return NextResponse.json(
+      { data: profile },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (profileError) {
     return jsonError(profileError instanceof Error ? profileError.message : String(profileError), 403);
   }
