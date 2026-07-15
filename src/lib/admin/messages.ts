@@ -45,6 +45,18 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "This account is not connected to Admin Web permissions. Check the account rank in Team and permissions, or run the admin permission repair SQL in Supabase.";
   }
 
+  if (message.includes("admin_profile_api_not_deployed")) {
+    return lang === "ar"
+      ? "نسخة الموقع الموجودة على Vercel لسه مش عليها آخر تعديل صلاحيات. ارفع آخر نسخة من Admin Web على GitHub واستنى Deploy جديد."
+      : "The Vercel deployment does not have the latest permissions API yet. Push the latest Admin Web code and wait for a new deploy.";
+  }
+
+  if (message.includes("admin_profile_check_failed_501")) {
+    return lang === "ar"
+      ? "مفتاح خدمة Supabase غير موجود أو غير صحيح في Vercel. لازم تضيف SUPABASE_SERVICE_ROLE_KEY في Environment Variables."
+      : "The Supabase service key is missing or invalid in Vercel. Add SUPABASE_SERVICE_ROLE_KEY to Environment Variables.";
+  }
+
   if (message.includes("permission denied")) {
     return lang === "ar"
       ? "الحساب الحالي لا يملك صلاحية تنفيذ أو عرض هذا الجزء. لو أنت أدمن، شغّل ملف SQL الأخير أو راجع صلاحيات الحساب."

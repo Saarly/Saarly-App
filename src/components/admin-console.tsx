@@ -9,6 +9,7 @@ import type { Lang } from "@/lib/admin/i18n";
 import { t, tr } from "@/lib/admin/i18n";
 import type { AdminProfile } from "@/lib/admin/types";
 import { findSection, sectionIsAllowed, visibleSections } from "@/lib/admin/sections";
+import { humanizeAdminError } from "@/lib/admin/messages";
 import { LoginCard } from "@/components/login-card";
 import { AdminIcon } from "@/components/icon";
 import { DashboardPanel } from "@/components/dashboard-panel";
@@ -25,6 +26,8 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AdminProfile | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [checkingProfile, setCheckingProfile] = useState(false);
   const [booting, setBooting] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -34,24 +37,47 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
   async function loadProfile(currentSession: Session | null) {
     if (!currentSession?.user) {
       setProfile(null);
+      setProfileError(null);
       return;
     }
 
-    const response = await fetch("/api/admin/action", {
-      headers: {
-        Authorization: `Bearer ${currentSession.access_token}`
+    setCheckingProfile(true);
+    setProfileError(null);
+
+    try {
+      const response = await fetch("/api/admin/action", {
+        headers: {
+          Authorization: `Bearer ${currentSession.access_token}`
+        }
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        data?: AdminProfile;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.data) {
+        const rawError =
+          payload.error ??
+          (response.status === 405
+            ? "admin_profile_api_not_deployed"
+            : `admin_profile_check_failed_${response.status}`);
+        setProfile(null);
+        setProfileError(humanizeAdminError(rawError, lang));
+        return;
       }
-    });
-    const payload = (await response.json().catch(() => ({}))) as {
-      data?: AdminProfile;
-    };
 
-    if (!response.ok || !payload.data) {
+      setProfile(payload.data);
+      setProfileError(null);
+    } catch {
       setProfile(null);
-      return;
+      setProfileError(
+        lang === "ar"
+          ? "تعذر الاتصال بخدمة صلاحيات لوحة الإدارة. اعمل تحديث للصفحة، ولو استمرت المشكلة ارفع آخر نسخة على Vercel."
+          : "Could not contact the Admin Web permissions service. Refresh the page, and if it continues deploy the latest version to Vercel."
+      );
+    } finally {
+      setCheckingProfile(false);
     }
-
-    setProfile(payload.data);
   }
 
   useEffect(() => {
@@ -90,6 +116,15 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    setProfileError(null);
+  }
+
+  async function retryProfileCheck() {
+    setBooting(true);
+    const { data } = await supabase.auth.getSession();
+    setSession(data.session);
+    await loadProfile(data.session);
+    setBooting(false);
   }
 
   if (booting) {
@@ -106,6 +141,14 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
         <section className="login-card">
           <img className="brand-logo brand-logo-large" src="/saarly-logo.png" alt="سعرلي" />
           <h1>{t("unauthorized", lang)}</h1>
+          {profileError ? <p className="login-error-detail">{profileError}</p> : null}
+          <button className="ghost-button" onClick={() => void retryProfileCheck()} disabled={checkingProfile}>
+            {checkingProfile
+              ? t("loading", lang)
+              : lang === "ar"
+                ? "إعادة فحص الصلاحيات"
+                : "Check permissions again"}
+          </button>
           <button className="primary-button" onClick={signOut}>
             {t("signOut", lang)}
           </button>
