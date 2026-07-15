@@ -225,11 +225,6 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
   }
 
   const authUser = userData.user as AuthUserForAdmin;
-  const { error: adminAccessError } = await service.auth.admin.getUserById(authUser.id);
-  if (adminAccessError) {
-    return { error: jsonError("service_role_key_invalid", 501) };
-  }
-
   const authEmail = String(authUser.email ?? "").trim().toLowerCase();
 
   const { data: profileData } = await service
