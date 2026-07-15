@@ -20,12 +20,17 @@ import { StoreCatalogModeration } from "@/components/store-catalog-moderation";
 import { NotificationBroadcast } from "@/components/notification-broadcast";
 import { StaffManagement } from "@/components/staff-management";
 
+const fullAdminPermissions = {
+  __full_admin: true,
+  __limit_admin: false
+} satisfies Record<string, boolean>;
+
 export function AdminConsole({ initialSection = "dashboard" }: { initialSection?: string }) {
   const [lang, setLang] = useState<Lang>("ar");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AdminProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [booting, setBooting] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const section = useMemo(() => findSection(initialSection), [initialSection]);
@@ -67,6 +72,10 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     }
     roleLabel = staffProfile?.role_label ?? null;
 
+    if (userRow.role === "admin" && permissions.__limit_admin !== true) {
+      permissions = { ...permissions, ...fullAdminPermissions };
+    }
+
     if (userRow.role === "support_agent") {
       const { data: agentRow } = await supabase
         .from("support_agents")
@@ -104,15 +113,14 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       await loadProfile(data.session);
-      setLoading(false);
+      setBooting(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       void (async () => {
-        setLoading(true);
         setSession(nextSession);
         await loadProfile(nextSession);
-        setLoading(false);
+        setBooting(false);
       })();
     });
 
@@ -128,15 +136,14 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
   }, [lang, theme]);
 
   async function signOut() {
-    setLoading(true);
+    setBooting(false);
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
-    setLoading(false);
   }
 
-  if (loading) {
-    return <main className="login-page"><div className="empty-state">{t("loading", lang)}</div></main>;
+  if (booting) {
+    return <main className="admin-boot-screen" aria-label={t("loading", lang)} />;
   }
 
   if (!session) {

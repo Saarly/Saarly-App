@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, type CSSProperties } from "react";
+import { FormEvent, useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 
@@ -71,6 +71,10 @@ const loginCopy = {
     ar: "\u062f\u062e\u0648\u0644 \u0628\u0627\u0644\u0643\u0648\u062f",
     en: "Sign in with code"
   },
+  rememberAccount: {
+    ar: "\u062d\u0641\u0638 \u0627\u0644\u062d\u0633\u0627\u0628 \u0639\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u062c\u0647\u0627\u0632",
+    en: "Remember this account on this device"
+  },
   codeHint: {
     ar: "\u0627\u0643\u062a\u0628 \u0627\u0644\u0643\u0648\u062f \u0627\u0644\u0644\u064a \u0648\u0635\u0644\u0643 \u0639\u0644\u0649 \u0627\u0644\u0625\u064a\u0645\u064a\u0644\u060c \u0645\u062a\u062d\u0637\u0648\u0634 \u0641\u064a \u062e\u0627\u0646\u0629 \u0627\u0644\u0628\u0627\u0633\u0648\u0631\u062f.",
     en: "Enter the code from your email here, not in the password field."
@@ -101,15 +105,32 @@ export function LoginCard({ lang }: { lang: Lang }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [rememberAccount, setRememberAccount] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const savedEmail = window.localStorage.getItem("saarly-admin-remember-email");
+    if (savedEmail) setEmail(savedEmail);
+  }, []);
+
+  function saveRememberedEmail(nextEmail = email) {
+    const cleanEmail = nextEmail.trim().toLowerCase();
+    if (rememberAccount && cleanEmail) {
+      window.localStorage.setItem("saarly-admin-remember-email", cleanEmail);
+    } else {
+      window.localStorage.removeItem("saarly-admin-remember-email");
+    }
+  }
 
   async function signInWithPassword(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setMessage(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const cleanEmail = email.trim().toLowerCase();
+    const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+    if (!error) saveRememberedEmail(cleanEmail);
 
     setBusy(false);
     setMessage(error ? error.message : text("signedIn", lang));
@@ -120,13 +141,15 @@ export function LoginCard({ lang }: { lang: Lang }) {
     setMessage(null);
 
     const redirectTo = `${window.location.origin}/`;
+    const cleanEmail = email.trim().toLowerCase();
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: cleanEmail,
       options: {
         emailRedirectTo: redirectTo,
         shouldCreateUser: false
       }
     });
+    if (!error) saveRememberedEmail(cleanEmail);
 
     setBusy(false);
     setMessage(error ? error.message : text("codeSent", lang));
@@ -137,11 +160,13 @@ export function LoginCard({ lang }: { lang: Lang }) {
     setBusy(true);
     setMessage(null);
 
+    const cleanEmail = email.trim().toLowerCase();
     const { error } = await supabase.auth.verifyOtp({
-      email,
+      email: cleanEmail,
       token: otp.trim(),
       type: "email"
     });
+    if (!error) saveRememberedEmail(cleanEmail);
 
     setBusy(false);
     setMessage(error ? error.message : text("signedIn", lang));
@@ -189,6 +214,18 @@ export function LoginCard({ lang }: { lang: Lang }) {
             {busy ? text("loading", lang) : text("signIn", lang)}
           </button>
         </form>
+
+        <label className="remember-row">
+          <input
+            type="checkbox"
+            checked={rememberAccount}
+            onChange={(event) => {
+              setRememberAccount(event.target.checked);
+              if (!event.target.checked) window.localStorage.removeItem("saarly-admin-remember-email");
+            }}
+          />
+          <span>{text("rememberAccount", lang)}</span>
+        </label>
 
         <button className="ghost-button full" onClick={sendOtpCode} disabled={busy || !email}>
           {busy ? text("loading", lang) : text("sendCode", lang)}

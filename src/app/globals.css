@@ -78,6 +78,12 @@ a {
     var(--off-white);
 }
 
+.admin-boot-screen {
+  min-height: 100vh;
+  min-height: 100svh;
+  background: var(--off-white);
+}
+
 .login-card {
   width: min(440px, 100%);
   display: grid;
@@ -131,6 +137,21 @@ a {
 .edit-grid {
   display: grid;
   gap: 14px;
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.remember-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
 }
 
 label {
@@ -995,6 +1016,16 @@ button:not(:disabled):active {
   margin-top: 4px;
 }
 
+.mobile-products-hint {
+  display: none;
+  border: 1px solid rgba(133, 187, 100, 0.38);
+  border-radius: 8px;
+  background: rgba(133, 187, 100, 0.12);
+  color: var(--text);
+  padding: 10px 12px;
+  font-weight: 800;
+}
+
 .product-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1459,6 +1490,14 @@ button:not(:disabled):active {
   .store-gallery {
     position: static;
     max-height: none;
+  }
+
+  .product-moderation-area {
+    scroll-margin-top: 84px;
+  }
+
+  .mobile-products-hint {
+    display: block;
   }
 
   .product-card-grid {

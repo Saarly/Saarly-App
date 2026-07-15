@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Ban, RefreshCw, Search, Store, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
@@ -55,6 +55,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   const [loading, setLoading] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const productAreaRef = useRef<HTMLElement | null>(null);
 
   const filteredStores = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -219,6 +220,16 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     }
   }
 
+  function selectStore(store: StoreRow) {
+    setSelectedStore(store);
+    setProductQuery("");
+    if (window.matchMedia("(max-width: 820px)").matches) {
+      window.setTimeout(() => {
+        productAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
+  }
+
   useEffect(() => {
     void loadStores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -264,7 +275,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                 <button
                   className={selectedStore?.id === store.id ? "visual-store-card active" : "visual-store-card"}
                   key={store.id}
-                  onClick={() => setSelectedStore(store)}
+                  onClick={() => selectStore(store)}
                 >
                   {storeImages[store.id] ? (
                     <img src={storeImages[store.id] ?? ""} alt={store.store_name} />
@@ -286,7 +297,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
           </div>
         </aside>
 
-        <main className="product-moderation-area">
+        <main className="product-moderation-area" ref={productAreaRef}>
           {selectedStore ? (
             <>
               <div className="selected-store-head">
@@ -304,6 +315,9 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                     {lang === "ar" ? "حذف المتجر" : "Delete store"}
                   </button>
                 </div>
+              </div>
+              <div className="mobile-products-hint">
+                {lang === "ar" ? "\u0645\u0646\u062a\u062c\u0627\u062a \u0627\u0644\u0645\u062a\u062c\u0631 \u0627\u0644\u0645\u062e\u062a\u0627\u0631 \u0638\u0647\u0631\u062a \u0647\u0646\u0627." : "The selected store products are shown here."}
               </div>
 
               <label className="search-box">

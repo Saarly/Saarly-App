@@ -9,6 +9,11 @@ type AdminAuth = {
   permissions: Record<string, boolean>;
 };
 
+const fullAdminPermissions = {
+  __full_admin: true,
+  __limit_admin: false
+} satisfies Record<string, boolean>;
+
 const editableFields: Record<string, string[]> = {
   users: ["role", "is_blocked"],
   merchants: ["approval_status", "rejection_reason", "last_admin_contact_at", "billing_preference"],
@@ -159,6 +164,10 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
   }
   permissions = normalizePermissions(staffProfile?.permissions);
 
+  if (profile.role === "admin" && permissions.__limit_admin !== true) {
+    permissions = { ...permissions, ...fullAdminPermissions };
+  }
+
   if (profile.role === "support_agent") {
     const { data: agentRow } = await service
       .from("support_agents")
@@ -193,7 +202,7 @@ async function writeAudit(
   oldData: AnyRow | null,
   newData: AnyRow | null
 ) {
-  await service.from("audit_logs").insert({
+  const { error } = await service.from("audit_logs").insert({
     actor_id: actorId,
     action,
     target_table: table,
@@ -201,6 +210,9 @@ async function writeAudit(
     old_data: oldData,
     new_data: newData
   });
+  if (error) {
+    console.warn("Audit log was not saved:", error.message);
+  }
 }
 
 function storagePathFromValue(value: unknown, bucket: string) {
