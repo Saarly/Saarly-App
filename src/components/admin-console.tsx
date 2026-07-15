@@ -20,11 +20,6 @@ import { StoreCatalogModeration } from "@/components/store-catalog-moderation";
 import { NotificationBroadcast } from "@/components/notification-broadcast";
 import { StaffManagement } from "@/components/staff-management";
 
-const fullAdminPermissions = {
-  __full_admin: true,
-  __limit_admin: false
-} satisfies Record<string, boolean>;
-
 export function AdminConsole({ initialSection = "dashboard" }: { initialSection?: string }) {
   const [lang, setLang] = useState<Lang>("ar");
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -42,66 +37,21 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
       return;
     }
 
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("id, full_name, primary_email, role, is_blocked")
-      .eq("id", currentSession.user.id)
-      .single();
-
-    if (!userRow || userRow.is_blocked || !["admin", "support_agent"].includes(String(userRow.role))) {
-      setProfile(null);
-      return;
-    }
-
-    let permissions: Record<string, boolean> = {};
-    let roleLabel: string | null = null;
-
-    const { data: staffProfile } = await supabase
-      .from("admin_staff_profiles")
-      .select("role_label, permissions, is_active")
-      .eq("user_id", currentSession.user.id)
-      .maybeSingle();
-
-    if (staffProfile?.is_active === false) {
-      setProfile(null);
-      return;
-    }
-
-    if (staffProfile?.permissions && typeof staffProfile.permissions === "object") {
-      permissions = staffProfile.permissions as Record<string, boolean>;
-    }
-    roleLabel = staffProfile?.role_label ?? null;
-
-    if (userRow.role === "admin" && permissions.__limit_admin !== true) {
-      permissions = { ...permissions, ...fullAdminPermissions };
-    }
-
-    if (userRow.role === "support_agent") {
-      const { data: agentRow } = await supabase
-        .from("support_agents")
-        .select("permissions, is_active")
-        .eq("user_id", currentSession.user.id)
-        .maybeSingle();
-
-      if (!agentRow?.is_active) {
-        setProfile(null);
-        return;
+    const response = await fetch("/api/admin/action", {
+      headers: {
+        Authorization: `Bearer ${currentSession.access_token}`
       }
-      permissions = {
-        ...((agentRow.permissions ?? {}) as Record<string, boolean>),
-        ...permissions
-      };
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      data?: AdminProfile;
+    };
+
+    if (!response.ok || !payload.data) {
+      setProfile(null);
+      return;
     }
 
-    setProfile({
-      id: userRow.id,
-      email: userRow.primary_email ?? currentSession.user.email ?? null,
-      full_name: userRow.full_name ?? null,
-      role: userRow.role as AdminProfile["role"],
-      role_label: roleLabel,
-      is_blocked: Boolean(userRow.is_blocked),
-      permissions
-    });
+    setProfile(payload.data);
   }
 
   useEffect(() => {

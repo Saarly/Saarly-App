@@ -668,6 +668,69 @@ async function setStaffActive(service: ServiceClient, actorId: string, targetUse
   return { id: targetUserId, is_active: enabled };
 }
 
+async function getAdminProfile(service: ServiceClient, auth: AdminAuth) {
+  const { data: userRow, error: userError } = await service
+    .from("users")
+    .select("id, full_name, primary_email, role, is_blocked")
+    .eq("id", auth.userId)
+    .single();
+
+  if (userError || !userRow) {
+    throw new Error("admin_required");
+  }
+
+  const { data: staffProfile } = await service
+    .from("admin_staff_profiles")
+    .select("role_label, permissions, is_active")
+    .eq("user_id", auth.userId)
+    .maybeSingle();
+
+  let roleLabel = (staffProfile?.role_label as string | null | undefined) ?? null;
+  let permissions = auth.permissions;
+
+  if (auth.role === "support_agent") {
+    const { data: agentRow } = await service
+      .from("support_agents")
+      .select("department, permissions, is_active")
+      .eq("user_id", auth.userId)
+      .maybeSingle();
+    roleLabel = roleLabel ?? ((agentRow?.department as string | null | undefined) ?? null);
+    permissions = {
+      ...normalizePermissions(agentRow?.permissions),
+      ...permissions
+    };
+  }
+
+  return {
+    id: userRow.id,
+    email: userRow.primary_email ?? null,
+    full_name: userRow.full_name ?? null,
+    role: auth.role,
+    role_label: roleLabel,
+    is_blocked: Boolean(userRow.is_blocked),
+    permissions
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const service = createServiceClient();
+  if (!service) {
+    return jsonError("service_role_key_missing", 501);
+  }
+
+  const auth = await requireAdmin(req, service);
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  try {
+    const profile = await getAdminProfile(service, auth);
+    return NextResponse.json({ data: profile });
+  } catch (profileError) {
+    return jsonError(profileError instanceof Error ? profileError.message : String(profileError), 403);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const service = createServiceClient();
   if (!service) {
