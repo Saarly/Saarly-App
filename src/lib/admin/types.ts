@@ -54,6 +54,7 @@ export type SectionConfig = {
   editableFields?: string[];
   allowedRoles?: AdminRole[];
   supportPermission?: string;
+  hidden?: boolean;
 };
 
 export type AdminActionRequest = {

@@ -194,6 +194,7 @@ export const sections: SectionConfig[] = [
   },
   {
     id: "suspicious-matches",
+    hidden: true,
     href: "/admin/suspicious-matches",
     icon: "SearchCheck",
     mode: "table",
@@ -420,6 +421,9 @@ export function findSection(id?: string) {
 }
 
 export function sectionIsAllowed(section: SectionConfig, profile: AdminProfile | null) {
+  if (section.hidden) {
+    return false;
+  }
   if (!profile) {
     return false;
   }

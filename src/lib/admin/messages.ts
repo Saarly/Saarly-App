@@ -1,0 +1,78 @@
+import type { Lang } from "./i18n";
+
+const statusLabels: Record<string, { ar: string; en: string }> = {
+  awaiting_confirmation: { ar: "في انتظار تأكيد المتجر", en: "Waiting for store confirmation" },
+  confirmed: { ar: "تم التأكيد", en: "Confirmed" },
+  cancelled_by_merchant: { ar: "ألغاه المتجر", en: "Cancelled by store" },
+  cancelled_by_buyer: { ar: "ألغاه العميل", en: "Cancelled by buyer" },
+  completed: { ar: "مكتمل", en: "Completed" },
+  pending: { ar: "قيد الانتظار", en: "Pending" },
+  processing: { ar: "جاري التنفيذ", en: "Processing" },
+  succeeded: { ar: "تم بنجاح", en: "Succeeded" },
+  failed: { ar: "فشل", en: "Failed" },
+  due: { ar: "مستحق", en: "Due" },
+  paid: { ar: "مدفوع", en: "Paid" },
+  active: { ar: "نشط", en: "Active" },
+  inactive: { ar: "متوقف", en: "Inactive" },
+  approved: { ar: "مقبول", en: "Approved" },
+  rejected: { ar: "مرفوض", en: "Rejected" },
+  submitted: { ar: "تم الإرسال", en: "Submitted" },
+  open: { ar: "مفتوح", en: "Open" },
+  closed: { ar: "مغلق", en: "Closed" }
+};
+
+export function humanizeAdminError(error: unknown, lang: Lang) {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const message = raw.toLowerCase();
+
+  if (!raw) return "";
+
+  if (message.includes("invalid_access_token") || message.includes("jwt") || message.includes("expired")) {
+    return lang === "ar"
+      ? "انتهت جلسة الدخول. اعمل خروج وادخل تاني، ولو استمرت المشكلة راجع مفاتيح Supabase في Vercel."
+      : "Your session expired. Sign out and sign in again. If it continues, check Supabase keys in Vercel.";
+  }
+
+  if (message.includes("service_role_key_missing")) {
+    return lang === "ar"
+      ? "مفتاح الخدمة غير موجود في Vercel، لذلك الإجراءات الحساسة متوقفة."
+      : "The service key is missing in Vercel, so sensitive actions are disabled.";
+  }
+
+  if (message.includes("permission denied")) {
+    return lang === "ar"
+      ? "الحساب الحالي لا يملك صلاحية تنفيذ أو عرض هذا الجزء. لو أنت أدمن، شغّل ملف SQL الأخير أو راجع صلاحيات الحساب."
+      : "This account cannot access this area. If you are an admin, run the latest SQL file or check account permissions.";
+  }
+
+  if (message.includes("admin_staff_sql_not_applied")) {
+    return lang === "ar"
+      ? "ملف SQL الخاص بالفريق والصلاحيات لم يتم تشغيله في Supabase بعد."
+      : "The team permissions SQL file has not been run in Supabase yet.";
+  }
+
+  if (message.includes("permission_denied")) {
+    return lang === "ar"
+      ? "هذا الحساب لا يملك صلاحية تنفيذ هذا الإجراء."
+      : "This account does not have permission for this action.";
+  }
+
+  if (message.includes("duplicate") || message.includes("already registered") || message.includes("already been registered")) {
+    return lang === "ar"
+      ? "هذه البيانات موجودة بالفعل. جرّب إيميل أو موبايل مختلف."
+      : "This record already exists. Try a different email or mobile.";
+  }
+
+  if (message.includes("password")) {
+    return lang === "ar"
+      ? "راجع كلمة المرور، لازم تكون صحيحة ومناسبة."
+      : "Please check the password requirements.";
+  }
+
+  return raw;
+}
+
+export function friendlyStatus(value: unknown, lang: Lang) {
+  const text = String(value ?? "").trim();
+  return statusLabels[text]?.[lang] ?? text;
+}

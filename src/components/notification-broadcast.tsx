@@ -5,6 +5,7 @@ import { BellRing, CheckCircle2, RefreshCw, Search, Send } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
+import { humanizeAdminError } from "@/lib/admin/messages";
 
 type Audience = "all" | "buyers" | "merchants" | "staff" | "specific";
 
@@ -71,7 +72,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
       .order("created_at", { ascending: false })
       .limit(500);
     setUsers((data ?? []) as UserOption[]);
-    setError(usersError?.message ?? null);
+    setError(usersError ? humanizeAdminError(usersError.message, lang) : null);
     setLoadingUsers(false);
   }
 
@@ -139,7 +140,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
       setSelectedUsers([]);
       await loadRecent();
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : String(sendError));
+      setError(humanizeAdminError(sendError, lang));
     } finally {
       setSending(false);
     }
@@ -174,7 +175,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
         </button>
       </div>
 
-      {error ? <div className="alert">{error === "service_role_key_missing" ? t("serviceKeyMissing", lang) : error}</div> : null}
+      {error ? <div className="alert">{humanizeAdminError(error, lang)}</div> : null}
       {message ? <div className="success-alert"><CheckCircle2 size={18} /> {message}</div> : null}
 
       <div className="broadcast-grid">
@@ -278,4 +279,3 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     </section>
   );
 }
-

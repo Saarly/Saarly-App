@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient, createUserScopedClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 type AnyRow = Record<string, unknown>;
 type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
@@ -121,7 +121,7 @@ function assertActionAllowed(auth: AdminAuth, action: string, table?: string) {
   }
 }
 
-async function requireAdmin(req: NextRequest) {
+async function requireAdmin(req: NextRequest, service: ServiceClient) {
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
 
@@ -129,14 +129,13 @@ async function requireAdmin(req: NextRequest) {
     return { error: jsonError("missing_access_token", 401) };
   }
 
-  const userClient = createUserScopedClient(token);
-  const { data: userData, error: userError } = await userClient.auth.getUser();
+  const { data: userData, error: userError } = await service.auth.getUser(token);
 
   if (userError || !userData.user) {
     return { error: jsonError("invalid_access_token", 401) };
   }
 
-  const { data: profile, error: profileError } = await userClient
+  const { data: profile, error: profileError } = await service
     .from("users")
     .select("id, role, is_blocked")
     .eq("id", userData.user.id)
@@ -149,7 +148,7 @@ async function requireAdmin(req: NextRequest) {
   }
 
   let permissions: Record<string, boolean> = {};
-  const { data: staffProfile } = await userClient
+  const { data: staffProfile } = await service
     .from("admin_staff_profiles")
     .select("permissions, is_active")
     .eq("user_id", userData.user.id)
@@ -161,7 +160,7 @@ async function requireAdmin(req: NextRequest) {
   permissions = normalizePermissions(staffProfile?.permissions);
 
   if (profile.role === "support_agent") {
-    const { data: agentRow } = await userClient
+    const { data: agentRow } = await service
       .from("support_agents")
       .select("permissions, is_active")
       .eq("user_id", userData.user.id)
@@ -555,7 +554,7 @@ export async function POST(req: NextRequest) {
     return jsonError("service_role_key_missing", 501);
   }
 
-  const auth = await requireAdmin(req);
+  const auth = await requireAdmin(req, service);
   if ("error" in auth) {
     return auth.error;
   }

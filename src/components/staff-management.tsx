@@ -5,6 +5,7 @@ import { CheckCircle2, KeyRound, Plus, RefreshCw, Save, ShieldCheck, UserCog } f
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
+import { humanizeAdminError } from "@/lib/admin/messages";
 
 type AccessLevel = "full_admin" | "limited_admin" | "support_agent";
 type PermissionMap = Record<string, boolean>;
@@ -149,7 +150,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
     setForm((current) => ({
       ...current,
       access_level: accessLevel,
-      permissions: accessLevel === "full_admin" ? fullPermissions() : current.permissions
+      permissions: accessLevel === "full_admin" ? fullPermissions() : blankPermissions()
     }));
   }
 
@@ -437,7 +438,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
                   key={option.id}
                   onClick={() => {
                     setEditAccessLevel(option.id);
-                    if (option.id === "full_admin") setEditPermissions(fullPermissions());
+                    setEditPermissions(option.id === "full_admin" ? fullPermissions() : blankPermissions());
                   }}
                 >
                   <strong>{option.title}</strong>
@@ -515,7 +516,7 @@ function accessOptions(lang: Lang): Array<{ id: AccessLevel; title: string; hint
     },
     {
       id: "full_admin",
-      title: lang === "ar" ? "مدير كامل" : "Full admin",
+      title: lang === "ar" ? "مدير بصلاحيات كاملة" : "Full-permission admin",
       hint: lang === "ar" ? "يشوف ويتحكم في كل شيء." : "Can see and control everything."
     }
   ];
@@ -581,5 +582,5 @@ function normalizeError(error: unknown, lang: Lang) {
       en: "You cannot limit your current admin account here."
     }
   };
-  return labels[message]?.[lang] ?? message;
+  return labels[message]?.[lang] ?? humanizeAdminError(message, lang);
 }

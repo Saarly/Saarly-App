@@ -5,6 +5,7 @@ import { AlertTriangle, Ban, RefreshCw, Search, Store, Trash2 } from "lucide-rea
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
+import { humanizeAdminError } from "@/lib/admin/messages";
 
 type StoreRow = {
   id: string;
@@ -122,7 +123,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     const nextStores = (data ?? []) as StoreRow[];
     setStores(nextStores);
     setProductCounts(counts);
-    setError(storesError?.message ?? null);
+    setError(storesError ? humanizeAdminError(storesError.message, lang) : null);
     setLoading(false);
 
     const imageEntries = await Promise.all(
@@ -147,7 +148,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
 
     const nextProducts = (data ?? []) as ProductRow[];
     setProducts(nextProducts);
-    setError(productsError?.message ?? null);
+    setError(productsError ? humanizeAdminError(productsError.message, lang) : null);
     setLoadingProducts(false);
 
     const entries = await Promise.all(
@@ -214,7 +215,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
       await loadStores();
       if (selectedStore) await loadProducts(selectedStore.id);
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : String(actionError));
+      setError(humanizeAdminError(actionError, lang));
     }
   }
 
@@ -247,7 +248,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
         </button>
       </div>
 
-      {error ? <div className="alert">{error === "service_role_key_missing" ? t("serviceKeyMissing", lang) : error}</div> : null}
+      {error ? <div className="alert">{humanizeAdminError(error, lang)}</div> : null}
 
       <div className="catalog-layout">
         <aside className="store-gallery">

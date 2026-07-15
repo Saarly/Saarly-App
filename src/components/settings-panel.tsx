@@ -5,6 +5,7 @@ import { CreditCard, RefreshCw, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
+import { humanizeAdminError } from "@/lib/admin/messages";
 
 type Flag = {
   key: string;
@@ -110,7 +111,7 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
     setPlans((planResult.data ?? []) as SubscriptionPlan[]);
 
     const firstError = flagResult.error ?? providerResult.error ?? planResult.error;
-    setError(firstError?.message ?? null);
+    setError(firstError ? humanizeAdminError(firstError.message, lang) : null);
   }
 
   async function postAction(body: Record<string, unknown>) {
@@ -137,7 +138,7 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
       await postAction({ action: "toggle_active", table, id, payload: { enabled } });
       await loadSettings();
     } catch (toggleError) {
-      setError(toggleError instanceof Error ? toggleError.message : String(toggleError));
+      setError(humanizeAdminError(toggleError, lang));
     } finally {
       setSaving(false);
     }
@@ -165,7 +166,7 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
         </button>
       </div>
 
-      {error ? <div className="alert">{error === "service_role_key_missing" ? t("serviceKeyMissing", lang) : error}</div> : null}
+      {error ? <div className="alert">{humanizeAdminError(error, lang)}</div> : null}
 
       <div className="settings-grid">
         {flags.map((flag) => {

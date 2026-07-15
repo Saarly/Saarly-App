@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
-import { LogOut, Menu, Moon, Sun } from "lucide-react";
+import { LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t, tr } from "@/lib/admin/i18n";
@@ -108,8 +108,12 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      void loadProfile(nextSession);
+      void (async () => {
+        setLoading(true);
+        setSession(nextSession);
+        await loadProfile(nextSession);
+        setLoading(false);
+      })();
     });
 
     return () => listener.subscription.unsubscribe();
@@ -124,9 +128,11 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
   }, [lang, theme]);
 
   async function signOut() {
+    setLoading(true);
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    setLoading(false);
   }
 
   if (loading) {
@@ -155,6 +161,14 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
 
   return (
     <div className="admin-shell">
+      {menuOpen ? (
+        <button
+          type="button"
+          className="sidebar-scrim"
+          aria-label={lang === "ar" ? "إغلاق القائمة" : "Close menu"}
+          onClick={() => setMenuOpen(false)}
+        />
+      ) : null}
       <aside className={menuOpen ? "sidebar open" : "sidebar"}>
         <div className="sidebar-brand">
           <img className="brand-logo brand-logo-sidebar" src="/saarly-logo.png" alt="سعرلي" />
@@ -162,6 +176,14 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
             <strong>{t("appName", lang)}</strong>
             <span>{profile.role_label || (profile.role === "admin" ? "Admin" : "Support")}</span>
           </div>
+          <button
+            type="button"
+            className="icon-only sidebar-close"
+            aria-label={lang === "ar" ? "إغلاق القائمة" : "Close menu"}
+            onClick={() => setMenuOpen(false)}
+          >
+            <X size={20} />
+          </button>
         </div>
         <nav>
           {navSections.map((navSection) => (

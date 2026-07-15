@@ -18,6 +18,7 @@ const loginCardStyle = {
   display: "grid",
   gap: "18px",
   background: "#ffffff",
+  color: "#23262b",
   border: "1px solid #dedbd3",
   borderRadius: "8px",
   padding: "clamp(18px, 5vw, 28px)",

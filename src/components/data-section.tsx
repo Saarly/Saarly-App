@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Plus, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t, tr } from "@/lib/admin/i18n";
 import type { SectionConfig } from "@/lib/admin/types";
 import { coerceFormValue, fieldIsBoolean, fieldIsLongText, formatCell, rowMatches } from "@/lib/admin/format";
+import { humanizeAdminError } from "@/lib/admin/messages";
 
 type Row = Record<string, unknown>;
 
@@ -29,6 +30,12 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
     if (section.id === "categories") {
       result = sortCategoryRows(result);
     }
+    if (section.id === "cities") {
+      result = result.sort((a, b) => {
+        const gov = String(a.governorate_ar ?? "").localeCompare(String(b.governorate_ar ?? ""));
+        return gov || String(a.name_ar ?? "").localeCompare(String(b.name_ar ?? ""));
+      });
+    }
     return result;
   }, [query, rows, section.id, section.searchKeys]);
 
@@ -45,7 +52,7 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
 
     const { data, error: loadError } = await request;
     setRows((data ?? []) as Row[]);
-    setError(loadError?.message ?? null);
+    setError(loadError ? humanizeAdminError(loadError.message, lang) : null);
     setLoading(false);
   }
 
@@ -131,7 +138,7 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
 
       await loadRows();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : String(actionError));
+      setError(humanizeAdminError(actionError, lang));
     }
   }
 
@@ -143,6 +150,16 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
       const values = Object.fromEntries(
         section.editableFields.map((field) => [field, coerceFormValue(field, formValues[field] ?? "")])
       );
+
+      if (section.id === "categories") {
+        values.name_en = values.name_en || values.name_ar;
+        values.parent_id = values.parent_id || null;
+      }
+
+      if (section.id === "cities") {
+        values.name_en = values.name_en || values.name_ar;
+        values.governorate_en = values.governorate_en || values.governorate_ar;
+      }
 
       if (editing === "new") {
         await postAdminAction({
@@ -162,7 +179,7 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
       setEditing(null);
       await loadRows();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : String(saveError));
+      setError(humanizeAdminError(saveError, lang));
     }
   }
 
@@ -201,7 +218,7 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
         </span>
       </div>
 
-      {error ? <div className="alert">{error === "service_role_key_missing" ? t("serviceKeyMissing", lang) : error}</div> : null}
+      {error ? <div className="alert">{humanizeAdminError(error, lang)}</div> : null}
       {loading ? <div className="empty-state">{t("loading", lang)}</div> : null}
 
       {!loading && filteredRows.length === 0 ? <div className="empty-state">{t("noRows", lang)}</div> : null}
@@ -245,7 +262,37 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
         </div>
       ) : null}
 
-      {!loading && section.id !== "categories" && filteredRows.length > 0 ? (
+      {!loading && section.id === "cities" && filteredRows.length > 0 ? (
+        <div className="category-tree">
+          {groupCities(filteredRows).map((group) => (
+            <div className="category-tree" key={group.governorate}>
+              <article className="category-card main">
+                <div>
+                  <strong>{group.governorate}</strong>
+                  <span>{lang === "ar" ? `${group.cities.length} مدينة` : `${group.cities.length} cities`}</span>
+                </div>
+              </article>
+              {group.cities.map((row) => (
+                <article className="category-card child" style={{ marginInlineStart: "22px" }} key={rowIdFor(section, row)}>
+                  <div>
+                    <strong>{String((lang === "ar" ? row.name_ar : row.name_en) ?? row.name_ar ?? row.name_en ?? "-")}</strong>
+                    <span>{row.is_active ? (lang === "ar" ? "مفعلة" : "Active") : lang === "ar" ? "متوقفة" : "Inactive"}</span>
+                  </div>
+                  <div className="row-actions">
+                    {section.actions?.map((action) => (
+                      <button key={action} className="tiny-button" onClick={() => void runRowAction(action, row)}>
+                        {actionLabel(action, lang)}
+                      </button>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {!loading && !["categories", "cities"].includes(section.id) && filteredRows.length > 0 ? (
         <div className="data-table-wrap">
           <table className="data-table">
             <thead>
@@ -287,7 +334,18 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
           <div className="modal-card">
             <h2>{editing === "new" ? (lang === "ar" ? "إضافة سجل" : "Add row") : lang === "ar" ? "تعديل سريع" : "Quick edit"}</h2>
             <div className="edit-grid">
-              {(section.editableFields ?? []).map((field) => (
+              {section.id === "categories" ? (
+                <CategoryEditor
+                  lang={lang}
+                  rows={rows}
+                  editing={editing}
+                  formValues={formValues}
+                  setFormValues={setFormValues}
+                />
+              ) : section.id === "cities" ? (
+                <CityEditor lang={lang} rows={rows} formValues={formValues} setFormValues={setFormValues} />
+              ) : (
+                (section.editableFields ?? []).map((field) => (
                 <label key={field}>
                   {fieldLabel(field, lang)}
                   {fieldIsBoolean(field) ? (
@@ -310,7 +368,8 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
                     />
                   )}
                 </label>
-              ))}
+                ))
+              )}
             </div>
             <div className="modal-actions">
               <button className="ghost-button" onClick={() => setEditing(null)}>
@@ -373,6 +432,162 @@ function categoryDepth(row: Row, rows: Row[]) {
     parentId = String(byId.get(parentId)?.parent_id ?? "");
   }
   return depth;
+}
+
+function groupCities(rows: Row[]) {
+  const groups = new Map<string, Row[]>();
+  for (const row of rows) {
+    const governorate = String(row.governorate_ar ?? row.governorate_en ?? "-");
+    const list = groups.get(governorate) ?? [];
+    list.push(row);
+    groups.set(governorate, list);
+  }
+
+  return Array.from(groups.entries()).map(([governorate, cities]) => ({
+    governorate,
+    cities
+  }));
+}
+
+function CategoryEditor({
+  lang,
+  rows,
+  editing,
+  formValues,
+  setFormValues
+}: {
+  lang: Lang;
+  rows: Row[];
+  editing: Row | "new" | null;
+  formValues: Record<string, string | boolean>;
+  setFormValues: Dispatch<SetStateAction<Record<string, string | boolean>>>;
+}) {
+  const currentId = editing && editing !== "new" ? String(editing.id ?? "") : "";
+  const roots = rows.filter((row) => !row.parent_id && String(row.id ?? "") !== currentId);
+
+  return (
+    <>
+      <label>
+        {lang === "ar" ? "اسم القسم" : "Category name"}
+        <input
+          dir="auto"
+          value={String(formValues.name_ar ?? "")}
+          onChange={(event) => setFormValues((current) => ({ ...current, name_ar: event.target.value }))}
+        />
+      </label>
+      {lang === "en" ? (
+        <label>
+          English name
+          <input
+            dir="auto"
+            value={String(formValues.name_en ?? "")}
+            onChange={(event) => setFormValues((current) => ({ ...current, name_en: event.target.value }))}
+          />
+        </label>
+      ) : null}
+      <label>
+        {lang === "ar" ? "نوع القسم" : "Category type"}
+        <select
+          value={String(formValues.parent_id ?? "")}
+          onChange={(event) => setFormValues((current) => ({ ...current, parent_id: event.target.value }))}
+        >
+          <option value="">{lang === "ar" ? "قسم رئيسي" : "Main category"}</option>
+          {roots.map((row) => (
+            <option value={String(row.id)} key={String(row.id)}>
+              {String((lang === "ar" ? row.name_ar : row.name_en) ?? row.name_ar ?? "-")}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        {lang === "ar" ? "الترتيب" : "Order"}
+        <input
+          dir="ltr"
+          type="number"
+          min="0"
+          value={String(formValues.display_order ?? "0")}
+          onChange={(event) => setFormValues((current) => ({ ...current, display_order: event.target.value }))}
+        />
+      </label>
+      <label className="checkbox-field">
+        <input
+          type="checkbox"
+          checked={Boolean(formValues.is_active)}
+          onChange={(event) => setFormValues((current) => ({ ...current, is_active: event.target.checked }))}
+        />
+        <span>{lang === "ar" ? "مفعل" : "Active"}</span>
+      </label>
+    </>
+  );
+}
+
+function CityEditor({
+  lang,
+  rows,
+  formValues,
+  setFormValues
+}: {
+  lang: Lang;
+  rows: Row[];
+  formValues: Record<string, string | boolean>;
+  setFormValues: Dispatch<SetStateAction<Record<string, string | boolean>>>;
+}) {
+  const governorates = Array.from(new Set(rows.map((row) => String(row.governorate_ar ?? "")).filter(Boolean))).sort();
+
+  return (
+    <>
+      <label>
+        {lang === "ar" ? "المحافظة" : "Governorate"}
+        <input
+          list="governorates-list"
+          dir="auto"
+          value={String(formValues.governorate_ar ?? "")}
+          onChange={(event) => setFormValues((current) => ({ ...current, governorate_ar: event.target.value }))}
+        />
+        <datalist id="governorates-list">
+          {governorates.map((governorate) => (
+            <option value={governorate} key={governorate} />
+          ))}
+        </datalist>
+      </label>
+      <label>
+        {lang === "ar" ? "اسم المدينة" : "City name"}
+        <input
+          dir="auto"
+          value={String(formValues.name_ar ?? "")}
+          onChange={(event) => setFormValues((current) => ({ ...current, name_ar: event.target.value }))}
+        />
+      </label>
+      {lang === "en" ? (
+        <>
+          <label>
+            Governorate EN
+            <input
+              dir="auto"
+              value={String(formValues.governorate_en ?? "")}
+              onChange={(event) => setFormValues((current) => ({ ...current, governorate_en: event.target.value }))}
+            />
+          </label>
+          <label>
+            City EN
+            <input
+              dir="auto"
+              value={String(formValues.name_en ?? "")}
+              onChange={(event) => setFormValues((current) => ({ ...current, name_en: event.target.value }))}
+            />
+          </label>
+        </>
+      ) : null}
+      <label className="checkbox-field">
+        <input
+          type="checkbox"
+          checked={Boolean(formValues.is_active)}
+          onChange={(event) => setFormValues((current) => ({ ...current, is_active: event.target.checked }))}
+        />
+        <span>{lang === "ar" ? "مفعلة" : "Active"}</span>
+      </label>
+    </>
+  );
 }
 
 function fieldLabel(field: string, lang: Lang) {
