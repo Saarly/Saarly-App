@@ -69,6 +69,12 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "The server cannot run this action with service permissions. Run the service_role grants SQL, confirm SUPABASE_SERVICE_ROLE_KEY is the service_role key in Vercel, then redeploy.";
   }
 
+  if (message.includes("admin_rls_access_denied")) {
+    return lang === "ar"
+      ? "حساب الأدمن داخل صح، لكن قاعدة البيانات لسه مانعة هذا التعديل. شغّل ملف SQL الخاص بربط صلاحيات الأدمن، ثم اعمل خروج ودخول من اللوحة."
+      : "The admin account is signed in, but the database is still blocking this action. Run the admin permission bridge SQL, then sign out and sign in again.";
+  }
+
   if (message.includes("permission denied")) {
     return lang === "ar"
       ? "الحساب الحالي لا يملك صلاحية تنفيذ أو عرض هذا الجزء. لو أنت أدمن، شغّل ملف SQL الأخير أو راجع صلاحيات الحساب."

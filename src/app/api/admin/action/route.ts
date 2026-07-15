@@ -3,6 +3,7 @@ import { createServiceClient, createUserScopedClient } from "@/lib/supabase/serv
 
 type AnyRow = Record<string, unknown>;
 type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
+type DbClient = ReturnType<typeof createUserScopedClient>;
 type AdminAuth = {
   userId: string;
   role: "admin" | "support_agent";
@@ -75,6 +76,11 @@ function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
+function accessTokenFromRequest(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  return authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
+}
+
 function errorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -103,9 +109,14 @@ function isDbPermissionError(message: string) {
   return normalized.includes("permission denied") || normalized.includes("42501");
 }
 
-function adminActionErrorMessage(error: unknown) {
+function serviceActionErrorMessage(error: unknown) {
   const message = errorMessage(error);
   return isDbPermissionError(message) ? "service_role_access_denied" : message;
+}
+
+function adminDbActionErrorMessage(error: unknown) {
+  const message = errorMessage(error);
+  return isDbPermissionError(message) ? "admin_rls_access_denied" : message;
 }
 
 function requiredText(value: unknown, field: string) {
@@ -261,8 +272,7 @@ function assertActionAllowed(auth: AdminAuth, action: string, table?: string) {
 }
 
 async function requireAdmin(req: NextRequest, service: ServiceClient) {
-  const authHeader = req.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
+  const token = accessTokenFromRequest(req);
 
   if (!token) {
     return { error: jsonError("missing_access_token", 401) };
@@ -377,7 +387,7 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
   return { userId: String(profile?.id ?? permissionUserId), role, permissions };
 }
 
-async function getBefore(service: ServiceClient, table: string, id: string) {
+async function getBefore(service: DbClient, table: string, id: string) {
   const idColumn = idColumnByTable[table] ?? "id";
   const { data } = await service.from(table).select("*").eq(idColumn, id).maybeSingle();
   return data as AnyRow | null;
@@ -434,7 +444,7 @@ function storagePathFromValue(value: unknown, bucket: string) {
 }
 
 async function removeProductImages(
-  service: ServiceClient,
+  service: DbClient,
   product: AnyRow | null
 ) {
   const rawImages = [
@@ -450,7 +460,7 @@ async function removeProductImages(
 }
 
 async function removeMerchantImages(
-  service: ServiceClient,
+  service: DbClient,
   merchant: AnyRow | null
 ) {
   const storefrontPath = storagePathFromValue(merchant?.store_front_image_url, "storefront-photos");
@@ -463,7 +473,7 @@ async function removeMerchantImages(
 }
 
 async function resolveNotificationRecipients(
-  service: ServiceClient,
+  service: DbClient,
   payload: AnyRow | undefined
 ) {
   const audience = String(payload?.audience ?? "all");
@@ -499,7 +509,8 @@ async function resolveNotificationRecipients(
 }
 
 async function sendAdminNotification(
-  service: ServiceClient,
+  service: DbClient,
+  auditClient: ServiceClient,
   actorId: string,
   payload: AnyRow | undefined
 ) {
@@ -536,7 +547,7 @@ async function sendAdminNotification(
     throw new Error(error.message);
   }
 
-  await writeAudit(service, actorId, "send_admin_notification", "notifications", "bulk", null, {
+  await writeAudit(auditClient, actorId, "send_admin_notification", "notifications", "bulk", null, {
     count: rows.length,
     audience: payload?.audience ?? "all",
     title_ar: titleAr,
@@ -827,6 +838,12 @@ export async function POST(req: NextRequest) {
     return auth.error;
   }
 
+  const token = accessTokenFromRequest(req);
+  if (!token) {
+    return jsonError("missing_access_token", 401);
+  }
+  const adminDb = createUserScopedClient(token);
+
   const body = (await req.json().catch(() => ({}))) as {
     action?: string;
     table?: string;
@@ -854,7 +871,7 @@ export async function POST(req: NextRequest) {
       const result = await createAdminStaff(service, auth.userId, body.payload);
       return NextResponse.json({ data: result });
     } catch (staffError) {
-      return jsonError(adminActionErrorMessage(staffError), 400);
+      return jsonError(serviceActionErrorMessage(staffError), 400);
     }
   }
 
@@ -864,7 +881,7 @@ export async function POST(req: NextRequest) {
       const result = await updateStaffPermissions(service, auth.userId, userId, body.payload);
       return NextResponse.json({ data: result });
     } catch (staffError) {
-      return jsonError(adminActionErrorMessage(staffError), 400);
+      return jsonError(serviceActionErrorMessage(staffError), 400);
     }
   }
 
@@ -874,16 +891,16 @@ export async function POST(req: NextRequest) {
       const result = await setStaffActive(service, auth.userId, userId, body.payload?.enabled === true);
       return NextResponse.json({ data: result });
     } catch (staffError) {
-      return jsonError(adminActionErrorMessage(staffError), 400);
+      return jsonError(serviceActionErrorMessage(staffError), 400);
     }
   }
 
   if (action === "send_admin_notification") {
     try {
-      const result = await sendAdminNotification(service, auth.userId, body.payload);
+      const result = await sendAdminNotification(adminDb, service, auth.userId, body.payload);
       return NextResponse.json({ data: result });
     } catch (sendError) {
-      return jsonError(adminActionErrorMessage(sendError), 400);
+      return jsonError(adminDbActionErrorMessage(sendError), 400);
     }
   }
 
@@ -897,7 +914,7 @@ export async function POST(req: NextRequest) {
     const before = await getBefore(service, "users", userId);
     const { error } = await service.auth.admin.updateUserById(userId, { password });
     if (error) {
-      return jsonError(adminActionErrorMessage(error), 400);
+      return jsonError(serviceActionErrorMessage(error), 400);
     }
 
     await writeAudit(service, auth.userId, action, "auth.users", userId, before, {
@@ -994,25 +1011,25 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "delete_product") {
-    const before = await getBefore(service, table, targetId);
-    const { error } = await service.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
+    const before = await getBefore(adminDb, table, targetId);
+    const { error } = await adminDb.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
     if (error) {
-      return jsonError(adminActionErrorMessage(error), 400);
+      return jsonError(adminDbActionErrorMessage(error), 400);
     }
-    await removeProductImages(service, before);
+    await removeProductImages(adminDb, before);
     await writeAudit(service, auth.userId, action, table, targetId, before, null);
     return NextResponse.json({ data: { id: targetId, deleted: true } });
   }
 
   if (action === "delete_merchant") {
-    const before = await getBefore(service, table, targetId);
-    const { data: products } = await service.from("products").select("*").eq("merchant_id", targetId);
-    const { error } = await service.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
+    const before = await getBefore(adminDb, table, targetId);
+    const { data: products } = await adminDb.from("products").select("*").eq("merchant_id", targetId);
+    const { error } = await adminDb.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
     if (error) {
-      return jsonError(adminActionErrorMessage(error), 400);
+      return jsonError(adminDbActionErrorMessage(error), 400);
     }
-    await Promise.all(((products ?? []) as AnyRow[]).map((product) => removeProductImages(service, product)));
-    await removeMerchantImages(service, before);
+    await Promise.all(((products ?? []) as AnyRow[]).map((product) => removeProductImages(adminDb, product)));
+    await removeMerchantImages(adminDb, before);
     await writeAudit(service, auth.userId, action, table, targetId, before, null);
     return NextResponse.json({ data: { id: targetId, deleted: true } });
   }
@@ -1022,20 +1039,20 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "create_row") {
-    const { data, error } = await service.from(table).insert(values).select("*").single();
+    const { data, error } = await adminDb.from(table).insert(values).select("*").single();
     if (error) {
-      return jsonError(adminActionErrorMessage(error), 400);
+      return jsonError(adminDbActionErrorMessage(error), 400);
     }
     const idColumn = idColumnByTable[table] ?? "id";
     await writeAudit(service, auth.userId, action, table, String((data as AnyRow)[idColumn]), null, data as AnyRow);
     return NextResponse.json({ data });
   }
 
-  const before = await getBefore(service, table, targetId);
-  const { data, error } = await service.from(table).update(values).eq(idColumnByTable[table] ?? "id", targetId).select("*").single();
+  const before = await getBefore(adminDb, table, targetId);
+  const { data, error } = await adminDb.from(table).update(values).eq(idColumnByTable[table] ?? "id", targetId).select("*").single();
 
   if (error) {
-    return jsonError(adminActionErrorMessage(error), 400);
+    return jsonError(adminDbActionErrorMessage(error), 400);
   }
 
   await writeAudit(service, auth.userId, action, table, targetId, before, data as AnyRow);
