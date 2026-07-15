@@ -82,6 +82,10 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
     if (section.id === "cities") {
       nextValues.place_kind = row !== "new" && isGovernorateMarker(row) ? "governorate" : "city";
     }
+    if (section.id === "ads") {
+      nextValues.placement = nextValues.placement || "buyer_home_top";
+      nextValues.sort_order = nextValues.sort_order || "0";
+    }
     setFormValues(nextValues);
     setEditing(row);
   }
@@ -405,6 +409,15 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
                       checked={Boolean(formValues[field])}
                       onChange={(event) => setFormValues((current) => ({ ...current, [field]: event.target.checked }))}
                     />
+                  ) : section.id === "ads" && field === "placement" ? (
+                    <select
+                      value={String(formValues[field] ?? "buyer_home_top")}
+                      onChange={(event) => setFormValues((current) => ({ ...current, [field]: event.target.value }))}
+                    >
+                      <option value="buyer_home_top">
+                        {lang === "ar" ? "\u0648\u0627\u062c\u0647\u0629 \u0627\u0644\u0639\u0645\u064a\u0644 - \u0623\u0633\u0641\u0644 \u0643\u0627\u0631\u062a \u0633\u0639\u0631\u0644\u064a" : "Buyer home - below Saarly card"}
+                      </option>
+                    </select>
                   ) : fieldIsLongText(field) ? (
                     <textarea
                       dir="auto"

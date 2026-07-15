@@ -111,6 +111,14 @@ function isDbPermissionError(message: string) {
 
 function serviceActionErrorMessage(error: unknown) {
   const message = errorMessage(error);
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("not_admin") ||
+    normalized.includes("user not allowed") ||
+    normalized.includes("service_role_key_invalid")
+  ) {
+    return "service_role_key_invalid";
+  }
   return isDbPermissionError(message) ? "service_role_access_denied" : message;
 }
 
@@ -125,6 +133,46 @@ function requiredText(value: unknown, field: string) {
     throw new Error(`${field}_required`);
   }
   return text;
+}
+
+function serviceRoleKeyProblem() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!key) {
+    return "service_role_key_missing";
+  }
+
+  const payloadPart = key.split(".")[1];
+  if (!payloadPart) {
+    return "service_role_key_invalid";
+  }
+
+  try {
+    let normalizedPayload = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    while (normalizedPayload.length % 4 !== 0) {
+      normalizedPayload += "=";
+    }
+
+    const payload = JSON.parse(Buffer.from(normalizedPayload, "base64").toString("utf8")) as {
+      role?: string;
+      ref?: string;
+    };
+    if (payload.role !== "service_role") {
+      return "service_role_key_invalid";
+    }
+
+    const expectedRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/^https:\/\/([^.]+)\.supabase\.co/i)?.[1];
+    if (expectedRef && payload.ref && payload.ref !== expectedRef) {
+      return "service_role_key_invalid";
+    }
+  } catch {
+    return "service_role_key_invalid";
+  }
+
+  return null;
+}
+
+function actionRequiresServiceRole(action: string) {
+  return ["create_admin_staff", "update_staff_permissions", "set_staff_active", "set_user_password"].includes(action);
 }
 
 function pickAllowed(table: string, values: AnyRow) {
@@ -865,6 +913,13 @@ export async function POST(req: NextRequest) {
 
   if (!action) {
     return jsonError("missing_action");
+  }
+
+  if (actionRequiresServiceRole(action)) {
+    const serviceKeyProblem = serviceRoleKeyProblem();
+    if (serviceKeyProblem) {
+      return jsonError(serviceKeyProblem, 501);
+    }
   }
 
   try {
