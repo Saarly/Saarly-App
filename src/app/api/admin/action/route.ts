@@ -75,6 +75,20 @@ function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error ?? "");
+}
+
+function isDbPermissionError(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes("permission denied") || normalized.includes("42501");
+}
+
+function adminActionErrorMessage(error: unknown) {
+  const message = errorMessage(error);
+  return isDbPermissionError(message) ? "service_role_key_invalid" : message;
+}
+
 function requiredText(value: unknown, field: string) {
   const text = String(value ?? "").trim();
   if (!text) {
@@ -821,7 +835,7 @@ export async function POST(req: NextRequest) {
       const result = await createAdminStaff(service, auth.userId, body.payload);
       return NextResponse.json({ data: result });
     } catch (staffError) {
-      return jsonError(staffError instanceof Error ? staffError.message : String(staffError), 400);
+      return jsonError(adminActionErrorMessage(staffError), 400);
     }
   }
 
@@ -831,7 +845,7 @@ export async function POST(req: NextRequest) {
       const result = await updateStaffPermissions(service, auth.userId, userId, body.payload);
       return NextResponse.json({ data: result });
     } catch (staffError) {
-      return jsonError(staffError instanceof Error ? staffError.message : String(staffError), 400);
+      return jsonError(adminActionErrorMessage(staffError), 400);
     }
   }
 
@@ -841,7 +855,7 @@ export async function POST(req: NextRequest) {
       const result = await setStaffActive(service, auth.userId, userId, body.payload?.enabled === true);
       return NextResponse.json({ data: result });
     } catch (staffError) {
-      return jsonError(staffError instanceof Error ? staffError.message : String(staffError), 400);
+      return jsonError(adminActionErrorMessage(staffError), 400);
     }
   }
 
@@ -850,7 +864,7 @@ export async function POST(req: NextRequest) {
       const result = await sendAdminNotification(service, auth.userId, body.payload);
       return NextResponse.json({ data: result });
     } catch (sendError) {
-      return jsonError(sendError instanceof Error ? sendError.message : String(sendError), 400);
+      return jsonError(adminActionErrorMessage(sendError), 400);
     }
   }
 
@@ -864,7 +878,7 @@ export async function POST(req: NextRequest) {
     const before = await getBefore(service, "users", userId);
     const { error } = await service.auth.admin.updateUserById(userId, { password });
     if (error) {
-      return jsonError(error.message, 400);
+      return jsonError(adminActionErrorMessage(error), 400);
     }
 
     await writeAudit(service, auth.userId, action, "auth.users", userId, before, {
@@ -964,7 +978,7 @@ export async function POST(req: NextRequest) {
     const before = await getBefore(service, table, targetId);
     const { error } = await service.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
     if (error) {
-      return jsonError(error.message, 400);
+      return jsonError(adminActionErrorMessage(error), 400);
     }
     await removeProductImages(service, before);
     await writeAudit(service, auth.userId, action, table, targetId, before, null);
@@ -976,7 +990,7 @@ export async function POST(req: NextRequest) {
     const { data: products } = await service.from("products").select("*").eq("merchant_id", targetId);
     const { error } = await service.from(table).delete().eq(idColumnByTable[table] ?? "id", targetId);
     if (error) {
-      return jsonError(error.message, 400);
+      return jsonError(adminActionErrorMessage(error), 400);
     }
     await Promise.all(((products ?? []) as AnyRow[]).map((product) => removeProductImages(service, product)));
     await removeMerchantImages(service, before);
@@ -991,7 +1005,7 @@ export async function POST(req: NextRequest) {
   if (action === "create_row") {
     const { data, error } = await service.from(table).insert(values).select("*").single();
     if (error) {
-      return jsonError(error.message, 400);
+      return jsonError(adminActionErrorMessage(error), 400);
     }
     const idColumn = idColumnByTable[table] ?? "id";
     await writeAudit(service, auth.userId, action, table, String((data as AnyRow)[idColumn]), null, data as AnyRow);
@@ -1002,7 +1016,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await service.from(table).update(values).eq(idColumnByTable[table] ?? "id", targetId).select("*").single();
 
   if (error) {
-    return jsonError(error.message, 400);
+    return jsonError(adminActionErrorMessage(error), 400);
   }
 
   await writeAudit(service, auth.userId, action, table, targetId, before, data as AnyRow);

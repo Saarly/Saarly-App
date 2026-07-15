@@ -59,8 +59,8 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("service_role_key_invalid")) {
     return lang === "ar"
-      ? "مفتاح خدمة Supabase الموجود في Vercel غير صحيح. غالبًا اتحط المفتاح العام بدل مفتاح service_role. افتح Vercel وعدل SUPABASE_SERVICE_ROLE_KEY بالمفتاح الصحيح من Supabase."
-      : "The Supabase service key in Vercel is invalid. The anon key was probably used instead of the service_role key. Update SUPABASE_SERVICE_ROLE_KEY in Vercel with the correct Supabase service role key.";
+      ? "مفتاح خدمة Supabase في Vercel غير شغال في النسخة الحالية. تأكد أن SUPABASE_SERVICE_ROLE_KEY هو مفتاح service_role، ثم اعمل Redeploy للموقع."
+      : "The Supabase service key is not working in this Vercel deployment. Make sure SUPABASE_SERVICE_ROLE_KEY is the service_role key, then redeploy the site.";
   }
 
   if (message.includes("permission denied")) {
