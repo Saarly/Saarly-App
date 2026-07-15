@@ -1157,6 +1157,67 @@ button:not(:disabled):active {
   font-size: 12px;
 }
 
+.notification-destination-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.notification-destination-panel > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.destination-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.destination-card {
+  min-height: 98px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: start;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  cursor: pointer;
+}
+
+.destination-card.active {
+  border-color: var(--green);
+  background: rgba(178, 247, 137, 0.18);
+}
+
+.destination-card span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.destination-custom-field {
+  margin-top: 2px;
+}
+
+.selected-destination-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.selected-destination-note span {
+  color: var(--text);
+  font-weight: 800;
+}
+
 .specific-users-panel {
   padding: 12px;
   display: grid;
@@ -1478,6 +1539,7 @@ button:not(:disabled):active {
   }
 
   .audience-grid,
+  .destination-grid,
   .form-split,
   .access-options {
     grid-template-columns: 1fr;

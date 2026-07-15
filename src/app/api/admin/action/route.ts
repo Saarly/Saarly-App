@@ -8,6 +8,13 @@ type AdminAuth = {
   role: "admin" | "support_agent";
   permissions: Record<string, boolean>;
 };
+type AuthUserForAdmin = {
+  id: string;
+  email?: string | null;
+  phone?: string | null;
+  app_metadata?: Record<string, unknown>;
+  user_metadata?: Record<string, unknown>;
+};
 
 const fullAdminPermissions = {
   __full_admin: true,
@@ -88,6 +95,83 @@ function normalizePermissions(value: unknown) {
   return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, enabled]) => [key, enabled === true]));
 }
 
+function trustedRoleFromAuthUser(user: AuthUserForAdmin): AdminAuth["role"] | null {
+  const role = String(
+    user.app_metadata?.role ??
+      user.app_metadata?.app_role ??
+      user.app_metadata?.user_role ??
+      ""
+  ).trim();
+
+  if (role === "admin" || role === "support_agent") {
+    return role;
+  }
+  return null;
+}
+
+function profileValue(user: AuthUserForAdmin, key: string) {
+  const value = user.user_metadata?.[key] ?? user.app_metadata?.[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+async function repairAdminUserProfile(
+  service: ServiceClient,
+  user: AuthUserForAdmin,
+  role: AdminAuth["role"],
+  existingProfile: AnyRow | null
+) {
+  if (existingProfile?.is_blocked === true) {
+    return existingProfile;
+  }
+
+  if (existingProfile) {
+    if (existingProfile.role !== role) {
+      const { data, error } = await service
+        .from("users")
+        .update({ role })
+        .eq("id", user.id)
+        .select("id, role, is_blocked")
+        .single();
+      if (!error && data) return data as AnyRow;
+    }
+    return existingProfile;
+  }
+
+  const email = (user.email ?? `${user.id}@admin.saarly.local`).trim();
+  const fullName =
+    profileValue(user, "full_name") ||
+    profileValue(user, "name") ||
+    email.split("@")[0] ||
+    "Saarly Admin";
+  const mobile =
+    (user.phone ?? "").trim() ||
+    profileValue(user, "mobile") ||
+    profileValue(user, "phone") ||
+    `admin-${user.id.slice(0, 8)}`;
+
+  const { data, error } = await service
+    .from("users")
+    .insert({
+      id: user.id,
+      full_name: fullName,
+      mobile,
+      primary_email: email,
+      recovery_email: email,
+      role,
+      preferred_language: "ar",
+      theme: "light",
+      is_blocked: false
+    })
+    .select("id, role, is_blocked")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as AnyRow;
+}
+
 function permissionKeyFor(action: string, table?: string) {
   if (action === "create_admin_staff" || action === "update_staff_permissions" || action === "set_staff_active") return "staff";
   if (action === "send_admin_notification") return "broadcast";
@@ -140,17 +224,13 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
     return { error: jsonError("invalid_access_token", 401) };
   }
 
-  const { data: profile, error: profileError } = await service
+  const { data: profileData } = await service
     .from("users")
     .select("id, role, is_blocked")
     .eq("id", userData.user.id)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !profile || profile.role !== "admin" || profile.is_blocked) {
-    if (profileError || !profile || profile?.role !== "support_agent" || profile?.is_blocked) {
-      return { error: jsonError("admin_required", 403) };
-    }
-  }
+  let profile = (profileData ?? null) as AnyRow | null;
 
   let permissions: Record<string, boolean> = {};
   const { data: staffProfile } = await service
@@ -159,16 +239,44 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
-  if (staffProfile?.is_active === false) {
+  let role = (profile?.role === "admin" || profile?.role === "support_agent"
+    ? profile.role
+    : null) as AdminAuth["role"] | null;
+
+  const staffPermissions = normalizePermissions(staffProfile?.permissions);
+  if (!role && staffProfile?.is_active !== false && Object.values(staffPermissions).some(Boolean)) {
+    role = "admin";
+  }
+
+  if (!role) {
+    role = trustedRoleFromAuthUser(userData.user as AuthUserForAdmin);
+  }
+
+  if (!role) {
     return { error: jsonError("admin_required", 403) };
   }
-  permissions = normalizePermissions(staffProfile?.permissions);
 
-  if (profile.role === "admin" && permissions.__limit_admin !== true) {
+  try {
+    profile = await repairAdminUserProfile(service, userData.user as AuthUserForAdmin, role, profile);
+  } catch {
+    return { error: jsonError("admin_required", 403) };
+  }
+
+  if (profile?.is_blocked) {
+    return { error: jsonError("admin_required", 403) };
+  }
+
+  permissions = staffPermissions;
+
+  if (staffProfile?.is_active === false && !(role === "admin" && permissions.__limit_admin !== true)) {
+    return { error: jsonError("admin_required", 403) };
+  }
+
+  if (role === "admin" && permissions.__limit_admin !== true) {
     permissions = { ...permissions, ...fullAdminPermissions };
   }
 
-  if (profile.role === "support_agent") {
+  if (role === "support_agent") {
     const { data: agentRow } = await service
       .from("support_agents")
       .select("permissions, is_active")
@@ -184,7 +292,7 @@ async function requireAdmin(req: NextRequest, service: ServiceClient) {
     };
   }
 
-  return { userId: userData.user.id, role: profile.role as AdminAuth["role"], permissions };
+  return { userId: userData.user.id, role, permissions };
 }
 
 async function getBefore(service: ServiceClient, table: string, id: string) {

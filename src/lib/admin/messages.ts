@@ -39,6 +39,12 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "The service key is missing in Vercel, so sensitive actions are disabled.";
   }
 
+  if (message.includes("admin_required")) {
+    return lang === "ar"
+      ? "الحساب الحالي غير مربوط بصلاحيات لوحة الإدارة. راجع رتبة الحساب من صفحة الفريق والصلاحيات أو شغل ملف إصلاح صلاحيات الأدمن في Supabase."
+      : "This account is not connected to Admin Web permissions. Check the account rank in Team and permissions, or run the admin permission repair SQL in Supabase.";
+  }
+
   if (message.includes("permission denied")) {
     return lang === "ar"
       ? "الحساب الحالي لا يملك صلاحية تنفيذ أو عرض هذا الجزء. لو أنت أدمن، شغّل ملف SQL الأخير أو راجع صلاحيات الحساب."

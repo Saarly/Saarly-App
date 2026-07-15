@@ -8,6 +8,15 @@ import { t } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
 
 type Audience = "all" | "buyers" | "merchants" | "staff" | "specific";
+type DestinationOption = {
+  id: string;
+  deepLink: string;
+  ar: string;
+  en: string;
+  hintAr: string;
+  hintEn: string;
+  custom?: boolean;
+};
 
 type UserOption = {
   id: string;
@@ -36,13 +45,114 @@ const audiences: Array<{ id: Audience; ar: string; en: string; hintAr: string; h
   { id: "specific", ar: "مستخدم محدد", en: "Specific users", hintAr: "اختيار يدوي", hintEn: "Manual selection" }
 ];
 
+const destinationOptions: DestinationOption[] = [
+  {
+    id: "buyer_orders",
+    deepLink: "saarly://buyer/orders",
+    ar: "طلبات العميل",
+    en: "Buyer orders",
+    hintAr: "يفتح صفحة طلبات العميل ومتابعة حالة الطلبات.",
+    hintEn: "Opens the buyer orders and request status screen."
+  },
+  {
+    id: "buyer_support",
+    deepLink: "saarly://buyer/support",
+    ar: "دعم العميل",
+    en: "Buyer support",
+    hintAr: "يفتح محادثة الدعم الخاصة بالعميل.",
+    hintEn: "Opens the buyer support chat."
+  },
+  {
+    id: "buyer_favorites",
+    deepLink: "saarly://buyer/favorites",
+    ar: "مفضلة العميل",
+    en: "Buyer favorites",
+    hintAr: "يفتح منتجات وتنبيهات المفضلة للعميل.",
+    hintEn: "Opens buyer favorites and price alerts."
+  },
+  {
+    id: "buyer_referrals",
+    deepLink: "saarly://buyer/referrals",
+    ar: "دعوة الأصدقاء",
+    en: "Invite friends",
+    hintAr: "يفتح شاشة الإحالات والمكافآت للعميل.",
+    hintEn: "Opens referrals and rewards for buyers."
+  },
+  {
+    id: "merchant_requests",
+    deepLink: "saarly://merchant/requests",
+    ar: "طلبات المتجر",
+    en: "Store requests",
+    hintAr: "يفتح طلبات العملاء الواردة للمتجر.",
+    hintEn: "Opens incoming customer requests for the store."
+  },
+  {
+    id: "merchant_rfqs",
+    deepLink: "saarly://merchant/rfqs",
+    ar: "طلبات التسعير",
+    en: "RFQs",
+    hintAr: "يفتح طلبات التسعير اليدوية عند المتجر.",
+    hintEn: "Opens manual RFQs for the store."
+  },
+  {
+    id: "merchant_products",
+    deepLink: "saarly://merchant/products",
+    ar: "منتجات المتجر",
+    en: "Store products",
+    hintAr: "يفتح إدارة المنتجات والأسعار والصور.",
+    hintEn: "Opens product, price, and image management."
+  },
+  {
+    id: "merchant_reports",
+    deepLink: "saarly://merchant/reports",
+    ar: "تقارير المتجر",
+    en: "Store reports",
+    hintAr: "يفتح المبيعات والتقييمات وملخص الأداء.",
+    hintEn: "Opens sales, ratings, and performance reports."
+  },
+  {
+    id: "merchant_billing",
+    deepLink: "saarly://merchant/billing",
+    ar: "اشتراكات ومدفوعات المتجر",
+    en: "Store billing",
+    hintAr: "يفتح حالة الاشتراك والمستحقات والمدفوعات.",
+    hintEn: "Opens subscriptions, dues, and payments."
+  },
+  {
+    id: "merchant_support",
+    deepLink: "saarly://merchant/support",
+    ar: "دعم المتجر",
+    en: "Store support",
+    hintAr: "يفتح محادثة الدعم الخاصة بالمتجر.",
+    hintEn: "Opens the store support chat."
+  },
+  {
+    id: "merchant_settings",
+    deepLink: "saarly://merchant/settings",
+    ar: "إعدادات المتجر",
+    en: "Store settings",
+    hintAr: "يفتح إعدادات الحساب والسياسات.",
+    hintEn: "Opens account settings and policies."
+  },
+  {
+    id: "custom",
+    deepLink: "",
+    ar: "وجهة مخصصة",
+    en: "Custom destination",
+    hintAr: "للمطور فقط لو محتاج رابط داخلي غير موجود في الاختيارات.",
+    hintEn: "For a developer-only internal destination not listed above.",
+    custom: true
+  }
+];
+
 export function NotificationBroadcast({ lang }: { lang: Lang }) {
   const [audience, setAudience] = useState<Audience>("all");
+  const [destinationId, setDestinationId] = useState("buyer_orders");
   const [titleAr, setTitleAr] = useState("");
   const [titleEn, setTitleEn] = useState("");
   const [bodyAr, setBodyAr] = useState("");
   const [bodyEn, setBodyEn] = useState("");
-  const [deepLink, setDeepLink] = useState("saarly://buyer/notifications");
+  const [deepLink, setDeepLink] = useState("saarly://buyer/orders");
   const [users, setUsers] = useState<UserOption[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userQuery, setUserQuery] = useState("");
@@ -63,6 +173,17 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
       )
       .slice(0, 80);
   }, [userQuery, users]);
+  const selectedDestination = useMemo(
+    () => destinationOptions.find((option) => option.id === destinationId) ?? destinationOptions[0],
+    [destinationId]
+  );
+
+  function chooseDestination(option: DestinationOption) {
+    setDestinationId(option.id);
+    if (!option.custom) {
+      setDeepLink(option.deepLink);
+    }
+  }
 
   async function loadUsers() {
     setLoadingUsers(true);
@@ -246,10 +367,40 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             </label>
           </div>
 
-          <label>
-            {lang === "ar" ? "يفتح فين داخل التطبيق؟" : "Open where in the app?"}
-            <input dir="ltr" value={deepLink} onChange={(event) => setDeepLink(event.target.value)} required />
-          </label>
+          <div className="notification-destination-panel">
+            <div>
+              <strong>{lang === "ar" ? "يفتح فين داخل التطبيق؟" : "Open where in the app?"}</strong>
+              <p className="muted">
+                {lang === "ar"
+                  ? "اختار المكان اللي المستخدم يروح له لما يضغط على الإشعار. مش محتاج تكتب أي لينك بنفسك."
+                  : "Choose where the user goes after tapping the notification. No manual link is needed."}
+              </p>
+            </div>
+            <div className="destination-grid">
+              {destinationOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={destinationId === option.id ? "destination-card active" : "destination-card"}
+                  onClick={() => chooseDestination(option)}
+                >
+                  <strong>{lang === "ar" ? option.ar : option.en}</strong>
+                  <span>{lang === "ar" ? option.hintAr : option.hintEn}</span>
+                </button>
+              ))}
+            </div>
+            {selectedDestination.custom ? (
+              <label className="destination-custom-field">
+                {lang === "ar" ? "الرابط الداخلي المخصص" : "Custom internal link"}
+                <input dir="ltr" value={deepLink} onChange={(event) => setDeepLink(event.target.value)} required />
+              </label>
+            ) : (
+              <p className="selected-destination-note">
+                {lang === "ar" ? "الوجهة المختارة:" : "Selected destination:"}{" "}
+                <span dir="ltr">{deepLink}</span>
+              </p>
+            )}
+          </div>
 
           <button className="primary-button broadcast-submit" disabled={sending}>
             <Send size={18} />
