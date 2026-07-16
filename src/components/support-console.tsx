@@ -5,6 +5,7 @@ import { CheckCircle2, RefreshCw, Send, UserRoundCheck, XCircle } from "lucide-r
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
+import { friendlyStatus } from "@/lib/admin/messages";
 
 type Conversation = {
   id: string;
@@ -24,6 +25,20 @@ type Message = {
   body: string;
   created_at: string;
 };
+
+function senderLabel(senderType: string, lang: Lang) {
+  if (senderType === "user") return lang === "ar" ? "العميل" : "Customer";
+  if (senderType === "bot") return lang === "ar" ? "البوت" : "Bot";
+  if (senderType === "support_agent") return lang === "ar" ? "خدمة العملاء" : "Support";
+  if (senderType === "system") return lang === "ar" ? "النظام" : "System";
+  return senderType;
+}
+
+function supportStatusLabel(status: string, lang: Lang) {
+  if (status === "transferred") return lang === "ar" ? "محولة لخدمة العملاء" : "Transferred to support";
+  if (status === "bot") return lang === "ar" ? "مع البوت" : "With bot";
+  return friendlyStatus(status, lang);
+}
 
 export function SupportConsole({ lang }: { lang: Lang }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -170,7 +185,7 @@ export function SupportConsole({ lang }: { lang: Lang }) {
                 onClick={() => setSelected(conversation)}
               >
                 <strong>{conversation.title || (lang === "ar" ? "محادثة دعم" : "Support chat")}</strong>
-                <span>{conversation.status}</span>
+                <span>{supportStatusLabel(conversation.status, lang)}</span>
               </button>
             ))}
           </div>
@@ -182,7 +197,7 @@ export function SupportConsole({ lang }: { lang: Lang }) {
               <div className="chat-head">
                 <div>
                   <strong>{selected.title || (lang === "ar" ? "محادثة دعم" : "Support chat")}</strong>
-                  <span>{selected.status}</span>
+                  <span>{supportStatusLabel(selected.status, lang)}</span>
                 </div>
                 <div className="row-actions">
                   <button className="tiny-button" onClick={assignToMe}>
@@ -201,7 +216,7 @@ export function SupportConsole({ lang }: { lang: Lang }) {
                     key={message.id}
                     className={message.sender_type === "user" ? "message-bubble user" : "message-bubble agent"}
                   >
-                    <span>{message.sender_type}</span>
+                    <span>{senderLabel(message.sender_type, lang)}</span>
                     <p>{message.body}</p>
                   </div>
                 ))}
@@ -236,4 +251,3 @@ export function SupportConsole({ lang }: { lang: Lang }) {
     </section>
   );
 }
-

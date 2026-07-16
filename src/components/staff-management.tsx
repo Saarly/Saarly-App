@@ -65,6 +65,7 @@ const permissionGroups = [
       { key: "support_chats", ar: "محادثات الدعم", en: "Support chats" },
       { key: "complaints", ar: "الشكاوى والنزاعات", en: "Complaints" },
       { key: "knowledge_base", ar: "قاعدة معرفة البوت", en: "Bot knowledge base" },
+      { key: "content_moderation", ar: "فلترة المحتوى", en: "Content moderation" },
       { key: "suspicious_matches", ar: "المطابقات المشكوك فيها", en: "Low confidence matches" },
       { key: "ai_reads", ar: "قراءات الذكاء الاصطناعي", en: "AI reads" }
     ]

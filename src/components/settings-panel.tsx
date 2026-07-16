@@ -47,6 +47,12 @@ type SubscriptionPlan = {
   grace_months?: number | null;
 };
 
+type ReferralSettingsDraft = {
+  target_confirmed_registrations: string;
+  default_reward_type: "tshirt" | "monthly_subscription";
+  apply_existing: boolean;
+};
+
 const monetizationKeys = [
   "monetization_enabled",
   "merchant_monthly_subscription_enabled",
@@ -100,6 +106,7 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
   const [providers, setProviders] = useState<PaymentProvider[]>([]);
   const [providerDrafts, setProviderDrafts] = useState<Record<string, ProviderDraft>>({});
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [referralDraft, setReferralDraft] = useState<ReferralSettingsDraft>(defaultReferralSettingsDraft());
   const [error, setError] = useState<string | null>(null);
   const [savingKeys, setSavingKeys] = useState<string[]>([]);
 
@@ -122,11 +129,13 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
         .order("monthly_price", { ascending: true })
     ]);
 
+    const nextFlags = (flagResult.data ?? []) as Flag[];
     const nextProviders = (providerResult.data ?? []) as PaymentProvider[];
-    setFlags((flagResult.data ?? []) as Flag[]);
+    setFlags(nextFlags);
     setProviders(nextProviders);
     setProviderDrafts(Object.fromEntries(nextProviders.map((provider) => [provider.id, providerDraftFrom(provider)])));
     setPlans((planResult.data ?? []) as SubscriptionPlan[]);
+    setReferralDraft(referralDraftFromFlags(nextFlags));
 
     const firstError = flagResult.error ?? providerResult.error ?? planResult.error;
     setError(firstError ? humanizeAdminError(firstError.message, lang) : null);
@@ -232,6 +241,27 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
     }
   }
 
+  async function saveReferralSettings() {
+    const key = "referral-settings";
+    setSavingKey(key, true);
+    setError(null);
+    try {
+      await postAction({
+        action: "update_referral_settings",
+        payload: {
+          target_confirmed_registrations: Number(referralDraft.target_confirmed_registrations),
+          reward_type: referralDraft.default_reward_type,
+          apply_existing: referralDraft.apply_existing
+        }
+      });
+      await loadSettings();
+    } catch (saveError) {
+      setError(humanizeAdminError(saveError, lang));
+    } finally {
+      setSavingKey(key, false);
+    }
+  }
+
   useEffect(() => {
     void loadSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -280,6 +310,70 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
           );
         })}
       </div>
+
+      <article className="ops-card full-width referral-settings-card">
+        <h2>{lang === "ar" ? "\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u062f\u0639\u0648\u0627\u062a \u0648\u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629" : "Referral reward settings"}</h2>
+        <p>
+          {lang === "ar"
+            ? "\u0627\u062e\u062a\u0631 \u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629 \u0627\u0644\u0644\u064a \u0647\u062a\u0638\u0647\u0631 \u0644\u0644\u0645\u0633\u062a\u062e\u062f\u0645 \u0641\u064a \u0634\u0627\u0634\u0629 \u0627\u062f\u0639\u0648 \u0623\u0635\u062d\u0627\u0628\u0643\u060c \u0648\u0639\u062f\u062f \u0627\u0644\u062a\u0633\u062c\u064a\u0644\u0627\u062a \u0627\u0644\u0645\u0624\u0643\u062f\u0629 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629."
+            : "Choose what users see on the invite screen and how many confirmed signups are required."}
+        </p>
+        <div className="provider-config-grid">
+          <label>
+            {lang === "ar" ? "\u0639\u062f\u062f \u0627\u0644\u062a\u0633\u062c\u064a\u0644\u0627\u062a \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629" : "Required confirmed signups"}
+            <input
+              inputMode="numeric"
+              min={1}
+              type="number"
+              value={referralDraft.target_confirmed_registrations}
+              onChange={(event) =>
+                setReferralDraft((current) => ({
+                  ...current,
+                  target_confirmed_registrations: event.target.value
+                }))
+              }
+            />
+          </label>
+          <label>
+            {lang === "ar" ? "\u0646\u0648\u0639 \u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629" : "Reward type"}
+            <select
+              value={referralDraft.default_reward_type}
+              onChange={(event) =>
+                setReferralDraft((current) => ({
+                  ...current,
+                  default_reward_type: event.target.value === "monthly_subscription" ? "monthly_subscription" : "tshirt"
+                }))
+              }
+            >
+              <option value="tshirt">{lang === "ar" ? "\u062a\u064a\u0634\u064a\u0631\u062a" : "T-shirt"}</option>
+              <option value="monthly_subscription">{lang === "ar" ? "\u0627\u0634\u062a\u0631\u0627\u0643 \u0634\u0647\u0631\u064a" : "Monthly subscription"}</option>
+            </select>
+          </label>
+        </div>
+        <div className="provider-actions-row">
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={referralDraft.apply_existing}
+              onChange={(event) =>
+                setReferralDraft((current) => ({
+                  ...current,
+                  apply_existing: event.target.checked
+                }))
+              }
+            />
+            <span>
+              {lang === "ar"
+                ? "\u0637\u0628\u0642 \u0646\u0648\u0639 \u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629 \u0639\u0644\u0649 \u0627\u0644\u062f\u0639\u0648\u0627\u062a \u0627\u0644\u0645\u0648\u062c\u0648\u062f\u0629 \u062d\u0627\u0644\u064a\u0627"
+                : "Apply this reward to current invite links too"}
+            </span>
+          </label>
+          <button className="soft-button" disabled={isSaving("referral-settings")} onClick={() => void saveReferralSettings()}>
+            <Save size={16} />
+            {isSaving("referral-settings") ? (lang === "ar" ? "\u062c\u0627\u0631\u064a \u0627\u0644\u062d\u0641\u0638" : "Saving") : t("save", lang)}
+          </button>
+        </div>
+      </article>
 
       <div className="settings-grid">
         <article className="ops-card full-width">
@@ -457,6 +551,26 @@ function providerDraftFrom(provider: PaymentProvider): ProviderDraft {
     webhook_signature_header: provider.webhook_signature_header ?? "",
     direct_to_merchant: Boolean(provider.is_direct_to_merchant_supported),
     instructions: stringConfig(config, "instructions", "notes")
+  };
+}
+
+function defaultReferralSettingsDraft(): ReferralSettingsDraft {
+  return {
+    target_confirmed_registrations: "10",
+    default_reward_type: "tshirt",
+    apply_existing: true
+  };
+}
+
+function referralDraftFromFlags(flags: Flag[]): ReferralSettingsDraft {
+  const referralFlag = flags.find((flag) => flag.key === "referrals_enabled");
+  const configuration = referralFlag?.configuration ?? {};
+  const threshold = configuration["confirmed_referrals_threshold"];
+  const rewardType = configuration["default_reward_type"];
+  return {
+    target_confirmed_registrations: String(typeof threshold === "number" && Number.isFinite(threshold) ? threshold : 10),
+    default_reward_type: rewardType === "monthly_subscription" ? "monthly_subscription" : "tshirt",
+    apply_existing: true
   };
 }
 

@@ -53,7 +53,8 @@ const editableFields: Record<string, string[]> = {
   ],
   ads_banners: ["image_url", "target_url", "placement", "sort_order", "starts_at", "ends_at", "is_active"],
   support_agents: ["department", "permissions", "is_active"],
-  referral_rewards: ["delivery_status", "delivered_at", "notes"]
+  referral_rewards: ["delivery_status", "delivered_at", "notes"],
+  content_moderation_terms: ["term", "language", "match_type", "category", "severity", "notes", "is_active"]
 };
 
 const toggleFieldByTable: Record<string, string> = {
@@ -65,7 +66,8 @@ const toggleFieldByTable: Record<string, string> = {
   subscription_plans: "is_active",
   payment_settings: "is_enabled",
   ads_banners: "is_active",
-  support_agents: "is_active"
+  support_agents: "is_active",
+  content_moderation_terms: "is_active"
 };
 
 const idColumnByTable: Record<string, string> = {
@@ -284,6 +286,7 @@ async function repairAdminUserProfile(
 function permissionKeyFor(action: string, table?: string) {
   if (action === "create_admin_staff" || action === "update_staff_permissions" || action === "set_staff_active") return "staff";
   if (action === "send_admin_notification") return "broadcast";
+  if (action === "update_referral_settings") return "referrals";
   if (action === "set_user_password") return "users";
   if (action === "approve_merchant" || action === "reject_merchant" || action === "suspend_merchant" || action === "delete_merchant") return "merchant_approvals";
   if (action === "approve_branch" || action === "reject_branch") return "branch_approvals";
@@ -303,7 +306,8 @@ function permissionKeyFor(action: string, table?: string) {
     payment_settings: "monetization",
     ads_banners: "ads",
     support_agents: "staff",
-    referral_rewards: "referrals"
+    referral_rewards: "referrals",
+    content_moderation_terms: "content_moderation"
   };
   return table ? tablePermissions[table] : undefined;
 }
@@ -606,6 +610,71 @@ async function sendAdminNotification(
     inserted_count: data?.length ?? rows.length,
     requested_recipients: recipients.length,
     audience: payload?.audience ?? "all"
+  };
+}
+
+function referralRewardType(value: unknown) {
+  return value === "monthly_subscription" ? "monthly_subscription" : "tshirt";
+}
+
+function boundedReferralThreshold(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 10;
+  return Math.max(1, Math.min(100000, Math.round(parsed)));
+}
+
+async function updateReferralSettings(db: DbClient, service: ServiceClient, actorId: string, payload: AnyRow | undefined) {
+  const rewardType = referralRewardType(payload?.reward_type);
+  const threshold = boundedReferralThreshold(payload?.target_confirmed_registrations);
+  const applyExisting = payload?.apply_existing !== false;
+  const before = await getBefore(db, "feature_flags", "referrals_enabled");
+  const previousConfig =
+    before?.configuration && typeof before.configuration === "object" && !Array.isArray(before.configuration)
+      ? (before.configuration as AnyRow)
+      : {};
+  const configuration = {
+    ...previousConfig,
+    confirmed_referrals_threshold: threshold,
+    default_reward_type: rewardType
+  };
+
+  const { data, error } = await db
+    .from("feature_flags")
+    .update({ configuration })
+    .eq("key", "referrals_enabled")
+    .select("key, configuration")
+    .single();
+  if (error) {
+    throw new Error(errorMessage(error));
+  }
+
+  let updatedReferrals = 0;
+  if (applyExisting) {
+    const { data: referralRows, error: referralError } = await db
+      .from("referrals")
+      .update({
+        reward_type: rewardType,
+        target_confirmed_registrations: threshold
+      })
+      .eq("is_active", true)
+      .select("id");
+    if (referralError) {
+      throw new Error(errorMessage(referralError));
+    }
+    updatedReferrals = referralRows?.length ?? 0;
+  }
+
+  await writeAudit(service, actorId, "update_referral_settings", "feature_flags", "referrals_enabled", before, {
+    configuration,
+    apply_existing: applyExisting,
+    updated_referrals: updatedReferrals
+  });
+
+  return {
+    flag: data,
+    reward_type: rewardType,
+    target_confirmed_registrations: threshold,
+    updated_referrals: updatedReferrals
   };
 }
 
@@ -963,6 +1032,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: result });
     } catch (sendError) {
       return jsonError(adminDbActionErrorMessage(sendError), 400);
+    }
+  }
+
+  if (action === "update_referral_settings") {
+    try {
+      const result = await updateReferralSettings(adminDb, service, auth.userId, body.payload);
+      return NextResponse.json({ data: result });
+    } catch (referralError) {
+      return jsonError(adminDbActionErrorMessage(referralError), 400);
     }
   }
 

@@ -86,6 +86,12 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
       nextValues.placement = nextValues.placement || "buyer_home_top";
       nextValues.sort_order = nextValues.sort_order || "0";
     }
+    if (section.id === "content-moderation") {
+      nextValues.language = nextValues.language || "mixed";
+      nextValues.match_type = nextValues.match_type || "contains";
+      nextValues.category = nextValues.category || "general";
+      nextValues.severity = nextValues.severity || "block";
+    }
     setFormValues(nextValues);
     setEditing(row);
   }
@@ -418,6 +424,17 @@ export function DataSection({ section, lang }: { section: SectionConfig; lang: L
                         {lang === "ar" ? "\u0648\u0627\u062c\u0647\u0629 \u0627\u0644\u0639\u0645\u064a\u0644 - \u0623\u0633\u0641\u0644 \u0643\u0627\u0631\u062a \u0633\u0639\u0631\u0644\u064a" : "Buyer home - below Saarly card"}
                       </option>
                     </select>
+                  ) : section.id === "content-moderation" && contentModerationSelectOptions(field, lang) ? (
+                    <select
+                      value={String(formValues[field] ?? contentModerationSelectOptions(field, lang)?.[0]?.value ?? "")}
+                      onChange={(event) => setFormValues((current) => ({ ...current, [field]: event.target.value }))}
+                    >
+                      {contentModerationSelectOptions(field, lang)?.map((option) => (
+                        <option value={option.value} key={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   ) : fieldIsLongText(field) ? (
                     <textarea
                       dir="auto"
@@ -478,6 +495,36 @@ function coerceEditableFormValue(field: string, value: string | boolean) {
   }
   const date = new Date(text);
   return Number.isNaN(date.getTime()) ? text : date.toISOString();
+}
+
+function contentModerationSelectOptions(field: string, lang: Lang) {
+  const options: Record<string, { value: string; ar: string; en: string }[]> = {
+    language: [
+      { value: "mixed", ar: "أي لغة", en: "Any language" },
+      { value: "arabic", ar: "عربي", en: "Arabic" },
+      { value: "latin", ar: "إنجليزي أو حروف لاتينية", en: "English or Latin letters" }
+    ],
+    match_type: [
+      { value: "contains", ar: "لو ظهرت داخل الكلام", en: "Appears anywhere" },
+      { value: "word", ar: "كلمة مستقلة", en: "Whole word" },
+      { value: "exact", ar: "النص مطابق بالضبط", en: "Exact match" }
+    ],
+    category: [
+      { value: "general", ar: "عام", en: "General" },
+      { value: "profanity", ar: "شتائم", en: "Profanity" },
+      { value: "sexual", ar: "محتوى جنسي", en: "Sexual content" },
+      { value: "abuse", ar: "إساءة أو تنمر", en: "Abuse" },
+      { value: "scam", ar: "احتيال أو روابط مشبوهة", en: "Scam" }
+    ],
+    severity: [
+      { value: "block", ar: "منع النشر أو الإرسال", en: "Block" },
+      { value: "review", ar: "للمراجعة لاحقا", en: "Review later" }
+    ]
+  };
+  return options[field]?.map((option) => ({
+    value: option.value,
+    label: option[lang]
+  }));
 }
 
 function sortCategoryRows(rows: Row[]) {
@@ -941,6 +988,10 @@ function fieldLabel(field: string, lang: Lang) {
     ends_at: { ar: "\u064a\u0646\u062a\u0647\u064a \u0641\u064a", en: "Ends at" },
     department: { ar: "\u0627\u0644\u0642\u0633\u0645", en: "Department" },
     permissions: { ar: "\u0635\u0644\u0627\u062d\u064a\u0627\u062a \u0627\u0644\u0645\u0648\u0638\u0641", en: "Permissions" },
+    term: { ar: "الكلمة أو العبارة", en: "Term or phrase" },
+    language: { ar: "اللغة", en: "Language" },
+    match_type: { ar: "طريقة الفحص", en: "Match type" },
+    severity: { ar: "الإجراء", en: "Action" },
     needs_embedding: { ar: "\u064a\u062d\u062a\u0627\u062c \u062a\u062c\u0647\u064a\u0632 \u0644\u0644\u0628\u0648\u062a", en: "Needs bot indexing" },
     delivery_status: { ar: "\u062d\u0627\u0644\u0629 \u0627\u0644\u062a\u0633\u0644\u064a\u0645", en: "Delivery status" },
     delivered_at: { ar: "\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u062a\u0633\u0644\u064a\u0645", en: "Delivered at" },

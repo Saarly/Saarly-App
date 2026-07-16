@@ -337,6 +337,34 @@ export const sections: SectionConfig[] = [
     allowedRoles: ["admin"]
   },
   {
+    id: "content-moderation",
+    href: "/admin/content-moderation",
+    icon: "ShieldCheck",
+    mode: "table",
+    source: "content_moderation_terms",
+    sourceKind: "table",
+    editableTable: "content_moderation_terms",
+    editableFields: ["term", "language", "match_type", "category", "severity", "notes", "is_active"],
+    orderBy: "updated_at",
+    title: { ar: "فلترة المحتوى", en: "Content moderation" },
+    description: {
+      ar: "إدارة الكلمات والعبارات التي تمنع الرسائل أو المنتجات غير المناسبة.",
+      en: "Manage blocked words and phrases used for messages and product content."
+    },
+    searchKeys: ["term", "language", "match_type", "category", "severity", "notes"],
+    actions: ["edit_row", "toggle_active", "delete_row"],
+    allowedRoles: ["admin"],
+    columns: [
+      { key: "term", label: { ar: "الكلمة أو العبارة", en: "Term" } },
+      { key: "language", label: { ar: "اللغة", en: "Language" }, tone: "status" },
+      { key: "match_type", label: { ar: "طريقة الفحص", en: "Match type" }, tone: "status" },
+      { key: "category", label: { ar: "التصنيف", en: "Category" }, tone: "status" },
+      { key: "severity", label: { ar: "الإجراء", en: "Action" }, tone: "status" },
+      { key: "is_active", label: { ar: "مفعل", en: "Active" }, tone: "status" },
+      { key: "updated_at", label: { ar: "آخر تحديث", en: "Updated" }, tone: "date" }
+    ]
+  },
+  {
     id: "monetization",
     href: "/admin/monetization",
     icon: "BadgeDollarSign",
