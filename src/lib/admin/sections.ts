@@ -121,7 +121,8 @@ export const sections: SectionConfig[] = [
     },
     searchKeys: ["store_name", "company_name"],
     actions: [], // Read-only for admins for now
-    allowedRoles: ["admin"],
+    allowedRoles: ["admin", "support_agent"],
+    supportPermission: "shipping_companies",
     columns: [
       { key: "store_name", label: { ar: "المتجر", en: "Store" } },
       { key: "company_name", label: { ar: "شركة الشحن", en: "Company" } },
