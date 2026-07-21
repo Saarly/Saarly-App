@@ -34,7 +34,7 @@ export const sections: SectionConfig[] = [
       "account_email",
       "category_name_ar",
     ],
-    actions: ["approve_merchant", "reject_merchant"],
+    actions: ["review_details", "approve_merchant", "reject_merchant"],
     allowedRoles: ["admin"],
     columns: [
       { key: "store_name", label: { ar: "المتجر", en: "Store" } },
@@ -82,7 +82,7 @@ export const sections: SectionConfig[] = [
       "governorate_name",
       "manager_mobile",
     ],
-    actions: ["approve_branch", "reject_branch"],
+    actions: ["review_details", "approve_branch", "reject_branch"],
     allowedRoles: ["admin"],
     columns: [
       { key: "branch_name", label: { ar: "الفرع", en: "Branch" } },
@@ -103,6 +103,31 @@ export const sections: SectionConfig[] = [
         label: { ar: "تاريخ الإضافة", en: "Created" },
         tone: "date",
       },
+    ],
+  },
+  {
+    id: "shipping-companies",
+    href: "/admin/shipping-companies",
+    icon: "Truck",
+    mode: "table",
+    source: "admin_merchant_shipping_companies_readable",
+    sourceKind: "view",
+    editableTable: "merchant_shipping_companies",
+    orderBy: "created_at",
+    title: { ar: "شركات الشحن", en: "Shipping Companies" },
+    description: {
+      ar: "متابعة شركات الشحن التي أضافتها المتاجر.",
+      en: "Monitor shipping companies added by merchants.",
+    },
+    searchKeys: ["store_name", "company_name"],
+    actions: [], // Read-only for admins for now
+    allowedRoles: ["admin"],
+    columns: [
+      { key: "store_name", label: { ar: "المتجر", en: "Store" } },
+      { key: "company_name", label: { ar: "شركة الشحن", en: "Company" } },
+      { key: "batches_count", label: { ar: "عدد الباتشات", en: "Batches count" } },
+      { key: "status_ar", label: { ar: "الحالة", en: "Status" }, tone: "status" },
+      { key: "created_at", label: { ar: "تاريخ الإضافة", en: "Created" }, tone: "date" },
     ],
   },
   {

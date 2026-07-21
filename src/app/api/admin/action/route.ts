@@ -2360,5 +2360,18 @@ export async function POST(req: NextRequest) {
     before,
     updated,
   );
+
+  if (action === "approve_merchant" || action === "approve_branch") {
+    // Fire and forget email notification
+    service.functions.invoke("send-approval-email", {
+      body: {
+        type: "UPDATE",
+        table,
+        record: updated,
+        old_record: before,
+      },
+    }).catch(console.error);
+  }
+
   return NextResponse.json({ data: updated });
 }

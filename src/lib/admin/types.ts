@@ -20,6 +20,7 @@ export type ColumnConfig = {
 };
 
 export type RowAction =
+  | "review_details"
   | "approve_merchant"
   | "reject_merchant"
   | "approve_branch"
