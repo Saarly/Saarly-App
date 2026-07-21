@@ -1,24 +1,24 @@
 import type { Lang } from "./i18n";
 
 const statusLabels: Record<string, { ar: string; en: string }> = {
-  awaiting_confirmation: { ar: "�� ������ ����� ������", en: "Waiting for store confirmation" },
-  confirmed: { ar: "�� �������", en: "Confirmed" },
-  cancelled_by_merchant: { ar: "����� ������", en: "Cancelled by store" },
-  cancelled_by_buyer: { ar: "����� ������", en: "Cancelled by buyer" },
-  completed: { ar: "�����", en: "Completed" },
-  pending: { ar: "��� ��������", en: "Pending" },
-  processing: { ar: "���� �������", en: "Processing" },
-  succeeded: { ar: "�� �����", en: "Succeeded" },
-  failed: { ar: "���", en: "Failed" },
-  due: { ar: "�����", en: "Due" },
-  paid: { ar: "�����", en: "Paid" },
-  active: { ar: "���", en: "Active" },
-  inactive: { ar: "�����", en: "Inactive" },
-  approved: { ar: "�����", en: "Approved" },
-  rejected: { ar: "�����", en: "Rejected" },
-  submitted: { ar: "�� �������", en: "Submitted" },
-  open: { ar: "�����", en: "Open" },
-  closed: { ar: "����", en: "Closed" }
+  awaiting_confirmation: { ar: "بانتظار تأكيد المتجر", en: "Waiting for store confirmation" },
+  confirmed: { ar: "مؤكد", en: "Confirmed" },
+  cancelled_by_merchant: { ar: "ملغى من المتجر", en: "Cancelled by store" },
+  cancelled_by_buyer: { ar: "ملغى من المشتري", en: "Cancelled by buyer" },
+  completed: { ar: "مكتمل", en: "Completed" },
+  pending: { ar: "قيد الانتظار", en: "Pending" },
+  processing: { ar: "جاري المعالجة", en: "Processing" },
+  succeeded: { ar: "ناجح", en: "Succeeded" },
+  failed: { ar: "فشل", en: "Failed" },
+  due: { ar: "مستحق", en: "Due" },
+  paid: { ar: "مدفوع", en: "Paid" },
+  active: { ar: "مفعل", en: "Active" },
+  inactive: { ar: "غير نشط", en: "Inactive" },
+  approved: { ar: "مقبول", en: "Approved" },
+  rejected: { ar: "مرفوض", en: "Rejected" },
+  submitted: { ar: "مقدم", en: "Submitted" },
+  open: { ar: "مفتوح", en: "Open" },
+  closed: { ar: "مغلق", en: "Closed" }
 };
 
 export function humanizeAdminError(error: unknown, lang: Lang) {
@@ -28,7 +28,7 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
   if (!raw) return "";
 
   if (message.includes("country_required")) {
-    return lang === "ar" ? "���� ��� ����� ����." : "Enter the country name first.";
+    return lang === "ar" ? "أدخل اسم الدولة أولاً." : "Enter the country name first.";
   }
 
   if (message.includes("invalid_access_token") || message.includes("jwt") || message.includes("expired")) {
@@ -57,37 +57,37 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("admin_profile_check_failed_501")) {
     return lang === "ar"
-      ? "����� ���� Supabase ��� ����� �� ��� ���� �� Vercel. ���� ���� SUPABASE_SERVICE_ROLE_KEY �� Environment Variables."
+      ? "تمكين هذه الميزة يتطلب إعداد مفاتيح الاتصال بخوادم Supabase على Vercel."
       : "The Supabase service key is missing or invalid in Vercel. Add SUPABASE_SERVICE_ROLE_KEY to Environment Variables.";
   }
 
   if (message.includes("service_role_key_invalid")) {
     return lang === "ar"
-      ? "����� ���� Supabase �� Vercel ��� ���� �� ������ �������. ���� �� SUPABASE_SERVICE_ROLE_KEY �� ����� service_role� �� ���� Redeploy ������."
+      ? "الربط بين Supabase و Vercel مهم لعمل لوحة التحكم. تأكد من SUPABASE_SERVICE_ROLE_KEY وقيمة service_role، ثم اضغط Redeploy."
       : "The Supabase service key is not working in this Vercel deployment. Make sure SUPABASE_SERVICE_ROLE_KEY is the service_role key, then redeploy the site.";
   }
 
   if (message.includes("service_role_access_denied")) {
     return lang === "ar"
-      ? "������� �� ���� ���� ������� �������� ������. ���� ��� SQL ����� �������� service_role� ����� �� SUPABASE_SERVICE_ROLE_KEY ����� �� Vercel �� service_role� �� ���� Redeploy."
+      ? "التعليمات في هذا القسم تتطلب صلاحيات المشرفين. استخدم SQL لإعطاء صلاحيات للمستخدم service_role وحدث SUPABASE_SERVICE_ROLE_KEY في Vercel."
       : "The server cannot run this action with service permissions. Run the service_role grants SQL, confirm SUPABASE_SERVICE_ROLE_KEY is the service_role key in Vercel, then redeploy.";
   }
 
   if (message.includes("cannot_delete_current_admin")) {
     return lang === "ar"
-      ? "�� ���� ��� ������ �������� ������ �� ���� �������."
+      ? "لا يوجد أي أخطاء برمجية مسجلة في سجل النظام."
       : "You cannot delete the account currently signed in to Admin Web.";
   }
 
   if (message.includes("user_not_found")) {
     return lang === "ar"
-      ? "�� ��� ������ ��� ��� ������. ���� ������ ���� ��� ����."
+      ? "تم حفظ الإعدادات على قاعدة البيانات. سيتم التحديث خلال بضع دقائق."
       : "This account was not found. Refresh the page and try again.";
   }
 
   if (message.includes("admin_rls_access_denied")) {
     return lang === "ar"
-      ? "���� ������ ���� �͡ ��� ����� �������� ��� ����� ��� �������. ���� ��� SQL ����� ���� ������� ������ �� ���� ���� ����� �� ������."
+      ? "يرجى الحذر عند تعديل هذه القيم حيث تؤثر على الجداول. استخدم أكواد SQL بحذر لضمان عدم توقف النظام."
       : "The admin account is signed in, but the database is still blocking this action. Run the admin permission bridge SQL, then sign out and sign in again.";
   }
 
@@ -99,19 +99,19 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("permission denied")) {
     return lang === "ar"
-      ? "������ ������ �� ���� ������ ����� �� ��� ��� �����. �� ��� ���� ���� ��� SQL ������ �� ���� ������� ������."
+      ? "الوصول السريع إلى أوامر التحكم يسهل من أداء عملك. قد تحتاج لتنفيذ بعض أكواد SQL لتسريع العمليات الإدارية."
       : "This account cannot access this area. If you are an admin, run the latest SQL file or check account permissions.";
   }
 
   if (message.includes("admin_staff_sql_not_applied")) {
     return lang === "ar"
-      ? "��� SQL ����� ������� ���������� �� ��� ������ �� Supabase ���."
+      ? "كود SQL لتنظيف البيانات وإصلاح الجداول في قاعدة Supabase."
       : "The team permissions SQL file has not been run in Supabase yet.";
   }
 
   if (message.includes("permission_denied")) {
     return lang === "ar"
-      ? "��� ������ �� ���� ������ ����� ��� �������."
+      ? "الزر للتوجيه إلى شاشات تحكم قاعدة البيانات."
       : "This account does not have permission for this action.";
   }
 
@@ -123,13 +123,13 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("duplicate") || message.includes("already registered") || message.includes("already been registered")) {
     return lang === "ar"
-      ? "��� �������� ������ ������. ���� ����� �� ������ �����."
+      ? "بعض البيانات مخزنة محلياً. يرجى مسحها في حال حدوث خطأ."
       : "This record already exists. Try a different email or mobile.";
   }
 
   if (message.includes("password")) {
     return lang === "ar"
-      ? "���� ���� �����ѡ ���� ���� ����� �������."
+      ? "سيتم رفض الطلب، وإعادة إرسال إشعار للمتجر."
       : "Please check the password requirements.";
   }
 

@@ -43,7 +43,7 @@ type LocationRow = {
   is_active?: boolean | null;
 };
 
-const DEFAULT_COUNTRY_AR = "���";
+const DEFAULT_COUNTRY_AR = "مصر";
 const COUNTRY_MARKER = "__country__";
 
 const audiences: Array<{
@@ -375,8 +375,8 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
 
       setMessage(
         lang === "ar"
-          ? `�� ����� ${result?.inserted_count ?? 0} �����. Firebase ������� ���� ����� �������.`
-          : `${result?.inserted_count ?? 0} notifications queued. Firebase should send them in about a minute.`,
+          ? `تم إرسال ${result?.inserted_count ?? 0} إشعار. بانتظار استجابة فايربيس.`
+          : `تم إرسال ${result?.inserted_count ?? 0} إشعار. بانتظار استجابة فايربيس.`,
       );
       setTitleAr("");
       setTitleEn("");
@@ -414,7 +414,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               ? "Firebase + ��� �������"
               : "Firebase + in-app bell"}
           </span>
-          <h1>{lang === "ar" ? "����� �����" : "Send notification"}</h1>
+          <h1>{lang === "ar" ? "إرسال إشعار" : "Send notification"}</h1>
           <p>
             {lang === "ar"
               ? "������� ���� ���� ������ޡ ��� ���� �������� ���� ������ ��� ��������� ����� �� Push."
@@ -459,7 +459,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
           <div className="notification-destination-panel">
             <div>
               <strong>
-                {lang === "ar" ? "���� ���� ��� ������" : "Location targeting"}
+                {lang === "ar" ? "استهداف الموقع" : "Location targeting"}
               </strong>
               <p className="muted">
                 {lang === "ar"
@@ -469,7 +469,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             </div>
             <div className="form-split">
               <label>
-                {lang === "ar" ? "�����" : "Country"}
+                {lang === "ar" ? "الدولة" : "Country"}
                 <select
                   value={targetCountry}
                   onChange={(event) => {
@@ -479,7 +479,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                   }}
                 >
                   <option value="">
-                    {lang === "ar" ? "�� ������" : "All countries"}
+                    {lang === "ar" ? "كل الدول" : "All countries"}
                   </option>
                   {countries.map((country) => (
                     <option value={country} key={country}>
@@ -489,7 +489,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                 </select>
               </label>
               <label>
-                {lang === "ar" ? "��������" : "Governorate"}
+                {lang === "ar" ? "المحافظة" : "Governorate"}
                 <select
                   value={targetGovernorate}
                   onChange={(event) => {
@@ -498,7 +498,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                   }}
                 >
                   <option value="">
-                    {lang === "ar" ? "�� ���������" : "All governorates"}
+                    {lang === "ar" ? "كل المحافظات" : "All governorates"}
                   </option>
                   {governorates.map((governorate) => (
                     <option value={governorate} key={governorate}>
@@ -509,13 +509,13 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               </label>
             </div>
             <label>
-              {lang === "ar" ? "�������" : "City"}
+              {lang === "ar" ? "المدينة" : "City"}
               <select
                 value={targetCity}
                 onChange={(event) => setTargetCity(event.target.value)}
               >
                 <option value="">
-                  {lang === "ar" ? "�� �����" : "All cities"}
+                  {lang === "ar" ? "كل المدن" : "All cities"}
                 </option>
                 {cities.map((city) => (
                   <option value={city} key={city}>
@@ -565,15 +565,14 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               </div>
               <p className="muted">
                 {lang === "ar"
-                  ? `�����: ${selectedUsers.length}`
-                  : `Selected: ${selectedUsers.length}`}
+                  ? `المحدد: ${selectedUsers.length}` : `Selected: ${selectedUsers.length}`}
               </p>
             </div>
           ) : null}
 
           <div className="form-split">
             <label>
-              {lang === "ar" ? "����� ������� �������" : "Arabic title"}
+              {lang === "ar" ? "العنوان بالعربي" : "Arabic title"}
               <input
                 value={titleAr}
                 onChange={(event) => setTitleAr(event.target.value)}
@@ -582,7 +581,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               />
             </label>
             <label>
-              {lang === "ar" ? "����� ������� ����������" : "English title"}
+              {lang === "ar" ? "العنوان بالإنجليزي" : "English title"}
               <input
                 value={titleEn}
                 onChange={(event) => setTitleEn(event.target.value)}
@@ -593,7 +592,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
 
           <div className="form-split">
             <label>
-              {lang === "ar" ? "�� ������� �������" : "Arabic body"}
+              {lang === "ar" ? "النص بالعربي" : "Arabic body"}
               <textarea
                 value={bodyAr}
                 onChange={(event) => setBodyAr(event.target.value)}
@@ -602,7 +601,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               />
             </label>
             <label>
-              {lang === "ar" ? "�� ������� ����������" : "English body"}
+              {lang === "ar" ? "النص بالإنجليزي" : "English body"}
               <textarea
                 value={bodyEn}
                 onChange={(event) => setBodyEn(event.target.value)}
@@ -655,7 +654,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               </label>
             ) : (
               <p className="selected-destination-note">
-                {lang === "ar" ? "������ ��������:" : "Selected destination:"}{" "}
+                {lang === "ar" ? "الوجهة المحددة:" : "Selected destination:"}{" "}
                 <span dir="ltr">{deepLink}</span>
               </p>
             )}

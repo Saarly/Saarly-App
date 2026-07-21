@@ -2033,18 +2033,18 @@ function actionLabel(action: string, lang: Lang) {
     return lang === "ar" ? "\u062d\u0630\u0641" : "Delete";
   }
   if (action === "delete_user_account") {
-    return lang === "ar" ? "��� ������" : "Delete account";
+    return lang === "ar" ? "حذف الحساب" : "Delete account";
   }
   const labels: Record<string, { ar: string; en: string }> = {
-    review_details: { ar: "������ ��������", en: "Review details" },
-    approve_merchant: { ar: "����", en: "Approve" },
-    reject_merchant: { ar: "���", en: "Reject" },
-    approve_branch: { ar: "����", en: "Approve" },
-    reject_branch: { ar: "���", en: "Reject" },
-    block_user: { ar: "���", en: "Block" },
-    unblock_user: { ar: "�����", en: "Unblock" },
-    toggle_active: { ar: "����� ������", en: "Toggle" },
-    edit_row: { ar: "�����", en: "Edit" },
+    review_details: { ar: "مراجعة التفاصيل", en: "Review details" },
+    approve_merchant: { ar: "قبول", en: "Approve" },
+    reject_merchant: { ar: "رفض", en: "Reject" },
+    approve_branch: { ar: "قبول", en: "Approve" },
+    reject_branch: { ar: "رفض", en: "Reject" },
+    block_user: { ar: "حظر", en: "Block" },
+    unblock_user: { ar: "فك الحظر", en: "Unblock" },
+    toggle_active: { ar: "تغيير الحالة", en: "Toggle" },
+    edit_row: { ar: "تعديل", en: "Edit" },
   };
   return labels[action]?.[lang] ?? action;
 }
@@ -2105,7 +2105,7 @@ function ReviewDetailsModal({
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
-        <h2>{lang === "ar" ? "������ ������" : "Additional details"}</h2>
+        <h2>{lang === "ar" ? "تفاصيل إضافية" : "Additional details"}</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
           {Object.entries(row).map(([key, value]) => {
             if (!value || typeof value === "object" || key.endsWith("_url") || key === "id") return null;

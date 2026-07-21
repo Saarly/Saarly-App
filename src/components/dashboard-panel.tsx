@@ -10,12 +10,12 @@ import { sections } from "@/lib/admin/sections";
 type DashboardRow = Record<string, number | string | null>;
 
 const metricKeys = [
-  ["users_count", { ar: "����������", en: "Users" }],
-  ["merchants_count", { ar: "�������", en: "Stores" }],
-  ["pending_merchants_count", { ar: "����� �����", en: "Pending stores" }],
-  ["pending_branches_count", { ar: "���� �����", en: "Pending branches" }],
-  ["awaiting_orders_count", { ar: "����� ����� �����", en: "Awaiting confirmation" }],
-  ["open_support_chats_count", { ar: "������� ��� ������", en: "Open support chats" }]
+  ["users_count", { ar: "المستخدمون", en: "Users" }],
+  ["merchants_count", { ar: "المتاجر", en: "Stores" }],
+  ["pending_merchants_count", { ar: "متاجر معلقة", en: "Pending stores" }],
+  ["pending_branches_count", { ar: "فروع معلقة", en: "Pending branches" }],
+  ["awaiting_orders_count", { ar: "بانتظار التأكيد", en: "Awaiting confirmation" }],
+  ["open_support_chats_count", { ar: "محادثات دعم مفتوحة", en: "Open support chats" }]
 ] as const;
 
 export function DashboardPanel({ lang }: { lang: Lang }) {
@@ -73,29 +73,29 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
     if (pendingMerchantsCount > 0) {
       alerts.push(
         lang === "ar"
-          ? `${format(pendingMerchantsCount)} ���� ������� ��������.`
-          : `${format(pendingMerchantsCount)} stores are waiting for approval.`
+          ? `${format(pendingMerchantsCount)} متجراً بانتظار الموافقة.`
+          : `${format(pendingMerchantsCount)} متجراً بانتظار الموافقة.`
       );
     }
     if (pendingBranchesCount > 0) {
       alerts.push(
         lang === "ar"
-          ? `${format(pendingBranchesCount)} ��� ������� ��������.`
-          : `${format(pendingBranchesCount)} branches are waiting for approval.`
+          ? `${format(pendingBranchesCount)} فرعاً بانتظار الموافقة.`
+          : `${format(pendingBranchesCount)} فرعاً بانتظار الموافقة.`
       );
     }
     if (awaitingOrdersCount > 0) {
       alerts.push(
         lang === "ar"
-          ? `${format(awaitingOrdersCount)} ��� ����� ����� ������.`
-          : `${format(awaitingOrdersCount)} orders are waiting for store confirmation.`
+          ? `${format(awaitingOrdersCount)} طلباً بانتظار تأكيد المتجر.`
+          : `${format(awaitingOrdersCount)} طلباً بانتظار تأكيد المتجر.`
       );
     }
     if (openSupportChatsCount > 0) {
       alerts.push(
         lang === "ar"
-          ? `${format(openSupportChatsCount)} ������ ��� ������.`
-          : `${format(openSupportChatsCount)} support chats are open.`
+          ? `${format(openSupportChatsCount)} محادثة دعم مفتوحة.`
+          : `${format(openSupportChatsCount)} محادثة دعم مفتوحة.`
       );
     }
 
@@ -113,8 +113,8 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
       <div className="section-head">
         <div>
           <span className="eyebrow">{t("connected", lang)}</span>
-          <h1>{lang === "ar" ? "��������" : "Dashboard"}</h1>
-          <p>{lang === "ar" ? "���� ���� ���� �� ����� ������ �����." : "A quick view of what needs attention today."}</p>
+          <h1>{lang === "ar" ? "لوحة التحكم" : "Dashboard"}</h1>
+          <p>{lang === "ar" ? "نظرة سريعة على ما يحتاج للانتباه اليوم." : "A quick view of what needs attention today."}</p>
         </div>
         <button className="soft-button" onClick={loadDashboard}>
           <RefreshCw size={17} />
@@ -136,7 +136,7 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
 
       <div className="dashboard-grid">
         <article className="ops-card">
-          <h2>{lang === "ar" ? "������� �������" : "Operational alerts"}</h2>
+          <h2>{lang === "ar" ? "تنبيهات تشغيلية" : "Operational alerts"}</h2>
           {operationalAlerts.map((alert) => (
             <div className="alert-list" key={alert}>
               <AlertTriangle size={18} />
@@ -146,7 +146,7 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
         </article>
 
         <article className="ops-card">
-          <h2>{lang === "ar" ? "��������" : "Shortcuts"}</h2>
+          <h2>{lang === "ar" ? "اختصارات" : "Shortcuts"}</h2>
           <div className="shortcut-list">
             {quickSections.map((section) => (
               <a href={section.href} key={section.id}>
@@ -160,13 +160,13 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
 
       <div className="dashboard-grid">
         <MiniList
-          title={lang === "ar" ? "����� ����� ��������" : "Stores awaiting approval"}
+          title={lang === "ar" ? "متاجر بانتظار الموافقة" : "Stores awaiting approval"}
           rows={pendingMerchants}
           primaryKey="store_name"
           secondaryKey="owner_name"
         />
         <MiniList
-          title={lang === "ar" ? "���� ����� ��������" : "Branches awaiting approval"}
+          title={lang === "ar" ? "فروع بانتظار الموافقة" : "Branches awaiting approval"}
           rows={pendingBranches}
           primaryKey="branch_name"
           secondaryKey="store_name"

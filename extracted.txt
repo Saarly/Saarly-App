@@ -1,0 +1,379 @@
+Users
+Stores
+Pending stores
+Pending branches
+Awaiting confirmation
+Open support chats
+Dashboard
+A quick view of what needs attention today.
+Operational alerts
+Shortcuts
+Stores awaiting approval
+Branches awaiting approval
+Delete account
+Review details
+Approve
+Reject
+Block
+Unblock
+Toggle
+Edit
+Additional details
+Send notification
+Location targeting
+Country
+All countries
+Governorate
+All governorates
+City
+All cities
+Arabic title
+English title
+Arabic body
+English body
+Selected destination:
+Orders report
+Most active stores
+Most requested categories
+Offers chosen by buyers
+Manual RFQ requests
+Store dues
+Invites and rewards
+Admin summaries
+Reports
+CSV
+No extra details
+Info
+Buyer
+Store
+Category
+Categories
+Stores count
+Orders count
+Status
+Order total
+Gross sales
+Commissions due
+Commission
+Confirmed orders
+Order coverage
+Offer price
+Offer rank
+Current due
+Unpaid months
+Grace period
+Confirmed registrations
+Required target
+Invite link
+Referral code
+Reward
+Delivery
+Referrer email
+Accepted at
+Confirmed at
+Created at
+Last order
+Average rating
+Responses
+Submitted responses
+Priced responses
+Accepted total
+Yes
+T-shirt
+Football
+Cap
+Add
+Active reward
+Arabic
+English
+Active
+Delete
+Team permissions
+Audit log
+Merchant approvals
+Branch approvals
+Store catalog moderation
+Shipping companies
+Cities and areas
+Orders
+Support chats
+Complaints
+Bot knowledge base
+Content moderation
+Low confidence matches
+AI reads
+Send notifications
+Ads
+Monetization
+Payments
+Referrals
+Staff account created with permissions.
+Staff permissions updated.
+Account enabled.
+Enter a new password for this account
+Confirm the new password
+Passwords do not match.
+Password updated.
+Admin team control
+Team and permissions
+Add new staff
+Name
+Rank name
+Example: Store manager
+Email
+Mobile
+Password
+Confirm password
+Create account
+Current team
+Disable
+Edit rank and permissions
+Limited admin
+Can use the dashboard based on the checked permissions.
+Support agent
+Best for support, complaints, and chats.
+Full-permission admin
+Can see and control everything.
+Full admin
+All permissions
+No permissions selected
+Write store suspension reason
+Visual moderation
+Store and product moderation
+Search stores
+Suspend store
+Delete store
+Search store products
+No image
+Visible
+Deactivate
+Choose a store to review
+Customer
+Bot
+Support
+System
+Transferred to support
+With bot
+Unassigned
+Conversations
+Support chat
+Handled by: 
+Choose a conversation
+Replies arrive through Realtime.
+Saarly Admin
+Admin sign in
+Sign in
+Send magic link
+Sign out
+Search
+Refresh
+Save
+Cancel
+Rejection reason
+Loading...
+No data yet
+Support queue
+Write reply
+Assign to me
+Close conversation
+Open section
+Connected to Supabase data
+Theme
+Language
+Light
+Dark
+Waiting for store confirmation
+Confirmed
+Cancelled by store
+Cancelled by buyer
+Completed
+Pending
+Processing
+Succeeded
+Failed
+Due
+Paid
+Inactive
+Approved
+Rejected
+Submitted
+Open
+Closed
+Enter the country name first.
+Owner
+Owner mobile
+Created
+Branch
+Branch contact
+Shipping Companies
+Company
+Batches count
+Role
+Account
+Arabic name
+English name
+Parent
+Order
+Currency
+Currency code
+Contact
+Approval
+Billing
+Updated
+Payment
+Subtotal
+Date
+Requested
+Matched
+Total
+Confidence
+User
+Reading type
+Source
+Error code
+Reporter
+Title
+Type
+Priority
+Needs embedding
+Term
+Match type
+Action
+Provider
+Amount
+Referrals and rewards
+Referrer
+Rewarded user
+Code
+Audit logs
+Actor
+Table
+Target
+
+OTHER:
+          ? `${format(pendingMerchantsCount)} ���� ������� ��������.`
+          ? `${format(pendingBranchesCount)} ��� ������� ��������.`
+          ? `${format(awaitingOrdersCount)} ��� ����� ����� ������.`
+          ? `${format(openSupportChatsCount)} ������ ��� ������.`
+            ? "�� ���� ������� ������� ���� �����."
+      {rows.length === 0 ? <p className="muted">�� ���� ����� ����� �����</p> : null}
+const DEFAULT_COUNTRY_AR = "���";
+    ar: "�� ����������",
+    hintAr: "����� ������ ����",
+    ar: "������� ���",
+    hintAr: "������ �������",
+    ar: "������� ���",
+    hintAr: "����� �������",
+    ar: "������ ���",
+    hintAr: "���� ����",
+    ar: "������ ����",
+    hintAr: "������ ����",
+    ar: "����� ������",
+    hintAr: "���� ���� ����� ������ ������� ���� �������.",
+    ar: "��� ������",
+    hintAr: "���� ������ ����� ������ �������.",
+    ar: "����� ������",
+    hintAr: "���� ������ �������� ������� ������.",
+    ar: "���� ��������",
+    hintAr: "���� ���� �������� ��������� ������.",
+    ar: "����� ������",
+    hintAr: "���� ����� ������� ������� ������.",
+    ar: "����� �������",
+    hintAr: "���� ����� ������� ������� ��� ������.",
+    ar: "������ ������",
+    hintAr: "���� ����� �������� �������� ������.",
+    ar: "������ ������",
+    hintAr: "���� �������� ���������� ����� ������.",
+    ar: "�������� �������� ������",
+    hintAr: "���� ���� �������� ���������� ����������.",
+    ar: "��� ������",
+    hintAr: "���� ������ ����� ������ �������.",
+    ar: "������� ������",
+    hintAr: "���� ������� ������ ���������.",
+    ar: "���� �����",
+    hintAr: "������ ��� �� ����� ���� ����� ��� ����� �� ����������.",
+          ? `�� ����� ${result?.inserted_count ?? 0} �����. Firebase ������� ���� ����� �������.`
+              ? "Firebase + ��� �������"
+              ? "������� ���� ���� ������ޡ ��� ���� �������� ���� ������ ��� ��������� ����� �� Push."
+                  ? "��� ������� ����� �� ������� ��� ������� �� ����� ��� �� ������ �� �����."
+                      ? "���� ������ �� �������� �� �������"
+                  ? `�����: ${selectedUsers.length}`
+                  ? "���� ��� ���� ������޿"
+                  ? "����� ������ ���� �������� ���� �� ��� ���� ��� �������. �� ����� ���� �� ���� �����."
+                  ? "������ ������� ������"
+                ? "����� �������"
+                ? "��� ������� ������"
+              ? "����� ����� �� ������ʡ ������ѡ �������ʡ ��������ʡ ��������."
+                <span>{lang === "ar" ? `${report.rows.length} �����` : `${report.rows.length} results`}</span>
+  if (!details || details === "No extra details" || details.includes("�� ����")) return [];
+          ? "�� ���� ������ ������"
+  return labels[field]?.[lang] ?? (lang === "ar" ? "������" : field.split("_").join(" "));
+  if (lang === "ar" && String(value).trim().toLowerCase() === "deleted user") return "������ �����";
+      label_ar: "������ ����",
+                ? "������ �������"
+                ? "������ ��������"
+                ? "������ ���� �� �����"
+                : "����� �� ���� ��� �� ���"
+    ar: "������� ��������",
+    ar: "������� ���������",
+    ar: "������� ������",
+    ar: "������� ���������",
+              ? "��� ���� ���ϡ ���� ��� �����ɡ ���� ������� ���������� �������� �� �� ��� �� ���� Supabase."
+            {lang === "ar" ? `��� ����: ${activeCount}` : `Active now: ${activeCount}`}
+  const names = enabled.map((item) => (lang === "ar" ? item.ar : item.en)).join("� ");
+      ar: "����� ������ ��� ����� �� Vercel� ���� �� ���� ����� �� ����� ������ ������.",
+      ar: "��� SQL ����� ����� ������ �� ��� ������ �� Supabase ���.",
+      ar: "���� ������ ���� ���� 8 ���� ��� �����.",
+      ar: "����� ������ ��� ���������.",
+      ar: "��� ������ �� ���� ������ ����� ��� �������.",
+      ar: "�� ����� ����� ����� ������ �� ���.",
+      ar: "�� ����� ����� ������� ����� ������ �� ���.",
+    if (!window.confirm(lang === "ar" ? `����� ������ "${product.free_name}"�` : `Deactivate "${product.free_name}"?`)) return;
+        ? `��� ������ "${product.free_name}" ������ǿ`
+        ? `�� ��� ����� ������ ��� ���� �� ���� �����. ���� ��� ������ �������: ${store.store_name}`
+              ? "���� �� ���� ����� ����� �������� ��������. �� ����� ����� ���� ����� �� ����� �����."
+                      ? `${counts.active} ��� / ${counts.total} ����`
+                          <b>{Number(product.price).toLocaleString("ar-EG")} �.�</b>
+              ? "������ ��������� ������� �� ����� ����� ����� ������ ���� �������."
+    ar: "����� ��� ������ ������ ����� ��������.",
+    ar: "��� ������ ��� ���� �� ���� ��� �����.",
+    ar: "��� ����� ������ �� Vercel ������ ��� �������.",
+    ar: "����� �����ɡ �������� ������ ��� API ����.",
+      ? "����� ���� ������. ���� ���� ����� ����� ��� ������ ������� ���� ������ Supabase �� Vercel."
+      ? "����� ������ ��� ����� �� Vercel� ���� ��������� ������� ������."
+      ? "������ ������ ��� ����� �������� ���� �������. ���� ���� ������ �� ���� ������ ���������� �� ��� ��� ����� ������� ������ �� Supabase."
+      ? "���� ������ �������� ��� Vercel ��� �� ����� ��� ����� �������. ���� ��� ���� �� Admin Web ��� GitHub ������ Deploy ����."
+      ? "����� ���� Supabase ��� ����� �� ��� ���� �� Vercel. ���� ���� SUPABASE_SERVICE_ROLE_KEY �� Environment Variables."
+      ? "����� ���� Supabase �� Vercel ��� ���� �� ������ �������. ���� �� SUPABASE_SERVICE_ROLE_KEY �� ����� service_role� �� ���� Redeploy ������."
+      ? "������� �� ���� ���� ������� �������� ������. ���� ��� SQL ����� �������� service_role� ����� �� SUPABASE_SERVICE_ROLE_KEY ����� �� Vercel �� service_role� �� ���� Redeploy."
+      ? "�� ���� ��� ������ �������� ������ �� ���� �������."
+      ? "�� ��� ������ ��� ��� ������. ���� ������ ���� ��� ����."
+      ? "���� ������ ���� �͡ ��� ����� �������� ��� ����� ��� �������. ���� ��� SQL ����� ���� ������� ������ �� ���� ���� ����� �� ������."
+      ? "������ ������ �� ���� ������ ����� �� ��� ��� �����. �� ��� ���� ���� ��� SQL ������ �� ���� ������� ������."
+      ? "��� SQL ����� ������� ���������� �� ��� ������ �� Supabase ���."
+      ? "��� ������ �� ���� ������ ����� ��� �������."
+      ? "��� �������� ������ ������. ���� ����� �� ������ �����."
+      ? "���� ���� �����ѡ ���� ���� ����� �������."
+      ar: "����� ������� ������� ���������� ������.",
+      ar: "������ ������ ������ ���� ��������� ����� �� ��� �����.",
+      ar: "������ ������ ������� ��� ������ �� ����� �����.",
+      ar: "������ ����� ����� ���� ������� �������.",
+      ar: "��ˡ ������ ����� �������ʡ ���� �� ����� ����������.",
+      ar: "����� ������ �������� �������� ��� ��� �������.",
+      ar: "����� ������ ������� �������.",
+      ar: "������ ������ѡ �����ڡ �������ʡ ������ ��������.",
+      ar: "����� ������� ���������",
+      ar: "���� ������� ������ ����� �� ���� ������� �������� ������ ���� �������.",
+      ar: "�� ������� ������� ����� ������� ����� ������� ������.",
+      ar: "������ ������ ��� ��� ������ ��� ����� ��������.",
+      ar: "������ ������� �������� ������� ����� ��������.",
+      ar: "����� ��������� ������� �� ����� ����� ������.",
+      ar: "����� ����� ���� ���� �� ��� ������� ����� Firebase Push ���������� ���������.",
+      ar: "������� �������� �������� ����� ����.",
+      ar: "����� ����� ����� ������ ����� ��� embeddings ��� �������.",
+      ar: "����ʡ ����� ���ɡ ������ҡ RFQ� �������.",
+      ar: "����� ������� ��������� ���� ���� ������� �� �������� ��� ��������.",
+      ar: "Feature flags ���� �������� ������ �����.",
+      ar: "����� ����� ��������� ������ ��� ����� �����.",
+      ar: "������ ������ϡ ��������� ������ɡ ������ ��������.",
+      ar: "�� ����� ���� ���� ��� ��������.",

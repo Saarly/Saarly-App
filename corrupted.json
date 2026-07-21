@@ -1,0 +1,1920 @@
+{
+  "src\\components\\dashboard-panel.tsx": [
+    {
+      "line": 12,
+      "content": "  [\"users_count\", { ar: \"����������\", en: \"Users\" }],"
+    },
+    {
+      "line": 13,
+      "content": "  [\"merchants_count\", { ar: \"�������\", en: \"Stores\" }],"
+    },
+    {
+      "line": 14,
+      "content": "  [\"pending_merchants_count\", { ar: \"����� �����\", en: \"Pending stores\" }],"
+    },
+    {
+      "line": 15,
+      "content": "  [\"pending_branches_count\", { ar: \"���� �����\", en: \"Pending branches\" }],"
+    },
+    {
+      "line": 16,
+      "content": "  [\"awaiting_orders_count\", { ar: \"����� ����� �����\", en: \"Awaiting confirmation\" }],"
+    },
+    {
+      "line": 17,
+      "content": "  [\"open_support_chats_count\", { ar: \"������� ��� ������\", en: \"Open support chats\" }]"
+    },
+    {
+      "line": 75,
+      "content": "          ? `${format(pendingMerchantsCount)} ���� ������� ��������.`"
+    },
+    {
+      "line": 82,
+      "content": "          ? `${format(pendingBranchesCount)} ��� ������� ��������.`"
+    },
+    {
+      "line": 89,
+      "content": "          ? `${format(awaitingOrdersCount)} ��� ����� ����� ������.`"
+    },
+    {
+      "line": 96,
+      "content": "          ? `${format(openSupportChatsCount)} ������ ��� ������.`"
+    },
+    {
+      "line": 105,
+      "content": "            ? \"�� ���� ������� ������� ���� �����.\""
+    },
+    {
+      "line": 115,
+      "content": "          <h1>{lang === \"ar\" ? \"��������\" : \"Dashboard\"}</h1>"
+    },
+    {
+      "line": 116,
+      "content": "          <p>{lang === \"ar\" ? \"���� ���� ���� �� ����� ������ �����.\" : \"A quick view of what needs attention today.\"}</p>"
+    },
+    {
+      "line": 138,
+      "content": "          <h2>{lang === \"ar\" ? \"������� �������\" : \"Operational alerts\"}</h2>"
+    },
+    {
+      "line": 148,
+      "content": "          <h2>{lang === \"ar\" ? \"��������\" : \"Shortcuts\"}</h2>"
+    },
+    {
+      "line": 162,
+      "content": "          title={lang === \"ar\" ? \"����� ����� ��������\" : \"Stores awaiting approval\"}"
+    },
+    {
+      "line": 168,
+      "content": "          title={lang === \"ar\" ? \"���� ����� ��������\" : \"Branches awaiting approval\"}"
+    },
+    {
+      "line": 192,
+      "content": "      {rows.length === 0 ? <p className=\"muted\">�� ���� ����� ����� �����</p> : null}"
+    }
+  ],
+  "src\\components\\data-section.tsx": [
+    {
+      "line": 2035,
+      "content": "    return lang === \"ar\" ? \"��� ������\" : \"Delete account\";"
+    },
+    {
+      "line": 2038,
+      "content": "    review_details: { ar: \"������ ��������\", en: \"Review details\" },"
+    },
+    {
+      "line": 2039,
+      "content": "    approve_merchant: { ar: \"����\", en: \"Approve\" },"
+    },
+    {
+      "line": 2040,
+      "content": "    reject_merchant: { ar: \"���\", en: \"Reject\" },"
+    },
+    {
+      "line": 2041,
+      "content": "    approve_branch: { ar: \"����\", en: \"Approve\" },"
+    },
+    {
+      "line": 2042,
+      "content": "    reject_branch: { ar: \"���\", en: \"Reject\" },"
+    },
+    {
+      "line": 2043,
+      "content": "    block_user: { ar: \"���\", en: \"Block\" },"
+    },
+    {
+      "line": 2044,
+      "content": "    unblock_user: { ar: \"�����\", en: \"Unblock\" },"
+    },
+    {
+      "line": 2045,
+      "content": "    toggle_active: { ar: \"����� ������\", en: \"Toggle\" },"
+    },
+    {
+      "line": 2046,
+      "content": "    edit_row: { ar: \"�����\", en: \"Edit\" },"
+    },
+    {
+      "line": 2107,
+      "content": "        <h2>{lang === \"ar\" ? \"������ ������\" : \"Additional details\"}</h2>"
+    }
+  ],
+  "src\\components\\notification-broadcast.tsx": [
+    {
+      "line": 45,
+      "content": "const DEFAULT_COUNTRY_AR = \"���\";"
+    },
+    {
+      "line": 57,
+      "content": "    ar: \"�� ����������\","
+    },
+    {
+      "line": 59,
+      "content": "    hintAr: \"����� ������ ����\","
+    },
+    {
+      "line": 64,
+      "content": "    ar: \"������� ���\","
+    },
+    {
+      "line": 66,
+      "content": "    hintAr: \"������ �������\","
+    },
+    {
+      "line": 71,
+      "content": "    ar: \"������� ���\","
+    },
+    {
+      "line": 73,
+      "content": "    hintAr: \"����� �������\","
+    },
+    {
+      "line": 78,
+      "content": "    ar: \"������ ���\","
+    },
+    {
+      "line": 80,
+      "content": "    hintAr: \"���� ����\","
+    },
+    {
+      "line": 85,
+      "content": "    ar: \"������ ����\","
+    },
+    {
+      "line": 87,
+      "content": "    hintAr: \"������ ����\","
+    },
+    {
+      "line": 96,
+      "content": "    ar: \"����� ������\","
+    },
+    {
+      "line": 98,
+      "content": "    hintAr: \"���� ���� ����� ������ ������� ���� �������.\","
+    },
+    {
+      "line": 104,
+      "content": "    ar: \"��� ������\","
+    },
+    {
+      "line": 106,
+      "content": "    hintAr: \"���� ������ ����� ������ �������.\","
+    },
+    {
+      "line": 112,
+      "content": "    ar: \"����� ������\","
+    },
+    {
+      "line": 114,
+      "content": "    hintAr: \"���� ������ �������� ������� ������.\","
+    },
+    {
+      "line": 120,
+      "content": "    ar: \"���� ��������\","
+    },
+    {
+      "line": 122,
+      "content": "    hintAr: \"���� ���� �������� ��������� ������.\","
+    },
+    {
+      "line": 128,
+      "content": "    ar: \"����� ������\","
+    },
+    {
+      "line": 130,
+      "content": "    hintAr: \"���� ����� ������� ������� ������.\","
+    },
+    {
+      "line": 136,
+      "content": "    ar: \"����� �������\","
+    },
+    {
+      "line": 138,
+      "content": "    hintAr: \"���� ����� ������� ������� ��� ������.\","
+    },
+    {
+      "line": 144,
+      "content": "    ar: \"������ ������\","
+    },
+    {
+      "line": 146,
+      "content": "    hintAr: \"���� ����� �������� �������� ������.\","
+    },
+    {
+      "line": 152,
+      "content": "    ar: \"������ ������\","
+    },
+    {
+      "line": 154,
+      "content": "    hintAr: \"���� �������� ���������� ����� ������.\","
+    },
+    {
+      "line": 160,
+      "content": "    ar: \"�������� �������� ������\","
+    },
+    {
+      "line": 162,
+      "content": "    hintAr: \"���� ���� �������� ���������� ����������.\","
+    },
+    {
+      "line": 168,
+      "content": "    ar: \"��� ������\","
+    },
+    {
+      "line": 170,
+      "content": "    hintAr: \"���� ������ ����� ������ �������.\","
+    },
+    {
+      "line": 176,
+      "content": "    ar: \"������� ������\","
+    },
+    {
+      "line": 178,
+      "content": "    hintAr: \"���� ������� ������ ���������.\","
+    },
+    {
+      "line": 184,
+      "content": "    ar: \"���� �����\","
+    },
+    {
+      "line": 186,
+      "content": "    hintAr: \"������ ��� �� ����� ���� ����� ��� ����� �� ����������.\","
+    },
+    {
+      "line": 377,
+      "content": "          ? `�� ����� ${result?.inserted_count ?? 0} �����. Firebase ������� ���� ����� �������.`"
+    },
+    {
+      "line": 413,
+      "content": "              ? \"Firebase + ��� �������\""
+    },
+    {
+      "line": 416,
+      "content": "          <h1>{lang === \"ar\" ? \"����� �����\" : \"Send notification\"}</h1>"
+    },
+    {
+      "line": 419,
+      "content": "              ? \"������� ���� ���� ������ޡ ��� ���� �������� ���� ������ ��� ��������� ����� �� Push.\""
+    },
+    {
+      "line": 461,
+      "content": "                {lang === \"ar\" ? \"���� ���� ��� ������\" : \"Location targeting\"}"
+    },
+    {
+      "line": 465,
+      "content": "                  ? \"��� ������� ����� �� ������� ��� ������� �� ����� ��� �� ������ �� �����.\""
+    },
+    {
+      "line": 471,
+      "content": "                {lang === \"ar\" ? \"�����\" : \"Country\"}"
+    },
+    {
+      "line": 481,
+      "content": "                    {lang === \"ar\" ? \"�� ������\" : \"All countries\"}"
+    },
+    {
+      "line": 491,
+      "content": "                {lang === \"ar\" ? \"��������\" : \"Governorate\"}"
+    },
+    {
+      "line": 500,
+      "content": "                    {lang === \"ar\" ? \"�� ���������\" : \"All governorates\"}"
+    },
+    {
+      "line": 511,
+      "content": "              {lang === \"ar\" ? \"�������\" : \"City\"}"
+    },
+    {
+      "line": 517,
+      "content": "                  {lang === \"ar\" ? \"�� �����\" : \"All cities\"}"
+    },
+    {
+      "line": 537,
+      "content": "                      ? \"���� ������ �� �������� �� �������\""
+    },
+    {
+      "line": 567,
+      "content": "                  ? `�����: ${selectedUsers.length}`"
+    },
+    {
+      "line": 575,
+      "content": "              {lang === \"ar\" ? \"����� ������� �������\" : \"Arabic title\"}"
+    },
+    {
+      "line": 584,
+      "content": "              {lang === \"ar\" ? \"����� ������� ����������\" : \"English title\"}"
+    },
+    {
+      "line": 595,
+      "content": "              {lang === \"ar\" ? \"�� ������� �������\" : \"Arabic body\"}"
+    },
+    {
+      "line": 604,
+      "content": "              {lang === \"ar\" ? \"�� ������� ����������\" : \"English body\"}"
+    },
+    {
+      "line": 617,
+      "content": "                  ? \"���� ��� ���� ������޿\""
+    },
+    {
+      "line": 622,
+      "content": "                  ? \"����� ������ ���� �������� ���� �� ��� ���� ��� �������. �� ����� ���� �� ���� �����.\""
+    },
+    {
+      "line": 646,
+      "content": "                  ? \"������ ������� ������\""
+    },
+    {
+      "line": 657,
+      "content": "                {lang === \"ar\" ? \"������ ��������:\" : \"Selected destination:\"}{\" \"}"
+    },
+    {
+      "line": 671,
+      "content": "                ? \"����� �������\""
+    },
+    {
+      "line": 681,
+      "content": "                ? \"��� ������� ������\""
+    }
+  ],
+  "src\\components\\reports-panel.tsx": [
+    {
+      "line": 24,
+      "content": "    title: { ar: \"����� �������\", en: \"Orders report\" },"
+    },
+    {
+      "line": 29,
+      "content": "    title: { ar: \"������� ������ �����\", en: \"Most active stores\" },"
+    },
+    {
+      "line": 34,
+      "content": "    title: { ar: \"������� ������ ����\", en: \"Most requested categories\" },"
+    },
+    {
+      "line": 39,
+      "content": "    title: { ar: \"������ ���� ������� �������\", en: \"Offers chosen by buyers\" },"
+    },
+    {
+      "line": 44,
+      "content": "    title: { ar: \"����� ������� �������\", en: \"Manual RFQ requests\" },"
+    },
+    {
+      "line": 49,
+      "content": "    title: { ar: \"������� �������\", en: \"Store dues\" },"
+    },
+    {
+      "line": 54,
+      "content": "    title: { ar: \"������� ���������\", en: \"Invites and rewards\" },"
+    },
+    {
+      "line": 107,
+      "content": "          <span className=\"eyebrow\">{lang === \"ar\" ? \"������ �������\" : \"Admin summaries\"}</span>"
+    },
+    {
+      "line": 108,
+      "content": "          <h1>{lang === \"ar\" ? \"��������\" : \"Reports\"}</h1>"
+    },
+    {
+      "line": 111,
+      "content": "              ? \"����� ����� �� ������ʡ ������ѡ �������ʡ ��������ʡ ��������.\""
+    },
+    {
+      "line": 129,
+      "content": "                <span>{lang === \"ar\" ? `${report.rows.length} �����` : `${report.rows.length} results`}</span>"
+    },
+    {
+      "line": 133,
+      "content": "                {lang === \"ar\" ? \"�����\" : \"CSV\"}"
+    },
+    {
+      "line": 146,
+      "content": "                        {lang === \"ar\" ? \"�� ���� ������ ������\" : \"No extra details\"}"
+    },
+    {
+      "line": 170,
+      "content": "  if (!details || details === \"No extra details\" || details.includes(\"�� ����\")) return [];"
+    },
+    {
+      "line": 176,
+      "content": "        return { label: lang === \"ar\" ? \"������\" : \"Info\", value: part.trim() };"
+    },
+    {
+      "line": 236,
+      "content": "          ? \"�� ���� ������ ������\""
+    },
+    {
+      "line": 244,
+      "content": "    buyer_name: { ar: \"������\", en: \"Buyer\" },"
+    },
+    {
+      "line": 245,
+      "content": "    store_name: { ar: \"������\", en: \"Store\" },"
+    },
+    {
+      "line": 246,
+      "content": "    merchant_name: { ar: \"������\", en: \"Store\" },"
+    },
+    {
+      "line": 247,
+      "content": "    category_name_ar: { ar: \"�����\", en: \"Category\" },"
+    },
+    {
+      "line": 248,
+      "content": "    categories_ar: { ar: \"�������\", en: \"Categories\" },"
+    },
+    {
+      "line": 249,
+      "content": "    merchants_count: { ar: \"��� �������\", en: \"Stores count\" },"
+    },
+    {
+      "line": 250,
+      "content": "    orders_count: { ar: \"��� �������\", en: \"Orders count\" },"
+    },
+    {
+      "line": 251,
+      "content": "    status_ar: { ar: \"������\", en: \"Status\" },"
+    },
+    {
+      "line": 252,
+      "content": "    status: { ar: \"������\", en: \"Status\" },"
+    },
+    {
+      "line": 253,
+      "content": "    order_total: { ar: \"������ �����\", en: \"Order total\" },"
+    },
+    {
+      "line": 254,
+      "content": "    gross_sales: { ar: \"������ ��������\", en: \"Gross sales\" },"
+    },
+    {
+      "line": 255,
+      "content": "    commissions_due: { ar: \"������ ������\", en: \"Commissions due\" },"
+    },
+    {
+      "line": 256,
+      "content": "    commission_amount: { ar: \"�������\", en: \"Commission\" },"
+    },
+    {
+      "line": 257,
+      "content": "    confirmed_orders_count: { ar: \"����� �����\", en: \"Confirmed orders\" },"
+    },
+    {
+      "line": 258,
+      "content": "    coverage_percentage: { ar: \"����� �����\", en: \"Order coverage\" },"
+    },
+    {
+      "line": 259,
+      "content": "    total_price_snapshot: { ar: \"��� �����\", en: \"Offer price\" },"
+    },
+    {
+      "line": 260,
+      "content": "    ranking: { ar: \"����� �����\", en: \"Offer rank\" },"
+    },
+    {
+      "line": 261,
+      "content": "    balance_due: { ar: \"������� �����\", en: \"Current due\" },"
+    },
+    {
+      "line": 262,
+      "content": "    unpaid_months: { ar: \"���� ��� ������\", en: \"Unpaid months\" },"
+    },
+    {
+      "line": 263,
+      "content": "    grace_months: { ar: \"���� ������\", en: \"Grace period\" },"
+    },
+    {
+      "line": 264,
+      "content": "    confirmed_registrations: { ar: \"������� �����\", en: \"Confirmed registrations\" },"
+    },
+    {
+      "line": 265,
+      "content": "    target_confirmed_registrations: { ar: \"����� �������\", en: \"Required target\" },"
+    },
+    {
+      "line": 266,
+      "content": "    referral_url: { ar: \"���� ������\", en: \"Invite link\" },"
+    },
+    {
+      "line": 267,
+      "content": "    referral_code: { ar: \"��� ������\", en: \"Referral code\" },"
+    },
+    {
+      "line": 268,
+      "content": "    reward_type: { ar: \"��� ��������\", en: \"Reward\" },"
+    },
+    {
+      "line": 269,
+      "content": "    delivery_status: { ar: \"���� �������\", en: \"Delivery\" },"
+    },
+    {
+      "line": 270,
+      "content": "    referrer_email: { ar: \"����� ���� ������\", en: \"Referrer email\" },"
+    },
+    {
+      "line": 271,
+      "content": "    accepted_at: { ar: \"��� ���� �����\", en: \"Accepted at\" },"
+    },
+    {
+      "line": 272,
+      "content": "    confirmed_at: { ar: \"��� �������\", en: \"Confirmed at\" },"
+    },
+    {
+      "line": 273,
+      "content": "    created_at: { ar: \"����� �������\", en: \"Created at\" },"
+    },
+    {
+      "line": 274,
+      "content": "    last_order_at: { ar: \"��� ���\", en: \"Last order\" },"
+    },
+    {
+      "line": 275,
+      "content": "    average_rating: { ar: \"����� �������\", en: \"Average rating\" },"
+    },
+    {
+      "line": 276,
+      "content": "    responses_count: { ar: \"��� ������\", en: \"Responses\" },"
+    },
+    {
+      "line": 277,
+      "content": "    submitted_responses_count: { ar: \"���� �����\", en: \"Submitted responses\" },"
+    },
+    {
+      "line": 278,
+      "content": "    priced_responses_count: { ar: \"���� ����\", en: \"Priced responses\" },"
+    },
+    {
+      "line": 279,
+      "content": "    accepted_total: { ar: \"���� ����� �������\", en: \"Accepted total\" }"
+    },
+    {
+      "line": 281,
+      "content": "  return labels[field]?.[lang] ?? (lang === \"ar\" ? \"������\" : field.split(\"_\").join(\" \"));"
+    },
+    {
+      "line": 316,
+      "content": "    return value ? (lang === \"ar\" ? \"���\" : \"Yes\") : lang === \"ar\" ? \"��\" : \"No\";"
+    },
+    {
+      "line": 318,
+      "content": "  if (lang === \"ar\" && String(value).trim().toLowerCase() === \"deleted user\") return \"������ �����\";"
+    }
+  ],
+  "src\\components\\settings-panel.tsx": [
+    {
+      "line": 71,
+      "content": "    { reward_type: \"tshirt\", label_ar: \"�����\", label_en: \"T-shirt\", is_active: true, display_order: 0 },"
+    },
+    {
+      "line": 72,
+      "content": "    { reward_type: \"football\", label_ar: \"���� ���\", label_en: \"Football\", is_active: true, display_order: 1 },"
+    },
+    {
+      "line": 73,
+      "content": "    { reward_type: \"cap\", label_ar: \"���\", label_en: \"Cap\", is_active: true, display_order: 2 }"
+    },
+    {
+      "line": 78,
+      "content": "      label_ar: \"������ ����\","
+    },
+    {
+      "line": 83,
+      "content": "    { reward_type: \"tshirt\", label_ar: \"�����\", label_en: \"T-shirt\", is_active: true, display_order: 1 }"
+    },
+    {
+      "line": 663,
+      "content": "                ? \"������ �������\""
+    },
+    {
+      "line": 666,
+      "content": "                ? \"������ ��������\""
+    },
+    {
+      "line": 672,
+      "content": "                ? \"������ ���� �� �����\""
+    },
+    {
+      "line": 673,
+      "content": "                : \"����� �� ���� ��� �� ���\""
+    },
+    {
+      "line": 681,
+      "content": "          {lang === \"ar\" ? \"�����\" : \"Add\"}"
+    },
+    {
+      "line": 686,
+      "content": "        {lang === \"ar\" ? \"�������� ������\" : \"Active reward\"}"
+    },
+    {
+      "line": 702,
+      "content": "              {lang === \"ar\" ? \"������\" : \"Arabic\"}"
+    },
+    {
+      "line": 710,
+      "content": "              {lang === \"ar\" ? \"���������\" : \"English\"}"
+    },
+    {
+      "line": 724,
+      "content": "              <span>{lang === \"ar\" ? \"����\" : \"Active\"}</span>"
+    },
+    {
+      "line": 733,
+      "content": "              {lang === \"ar\" ? \"���\" : \"Delete\"}"
+    }
+  ],
+  "src\\components\\staff-management.tsx": [
+    {
+      "line": 38,
+      "content": "    ar: \"������� ��������\","
+    },
+    {
+      "line": 41,
+      "content": "      { key: \"dashboard\", ar: \"��������\", en: \"Dashboard\" },"
+    },
+    {
+      "line": 42,
+      "content": "      { key: \"users\", ar: \"����������\", en: \"Users\" },"
+    },
+    {
+      "line": 43,
+      "content": "      { key: \"staff\", ar: \"������ ����������\", en: \"Team permissions\" },"
+    },
+    {
+      "line": 44,
+      "content": "      { key: \"audit\", ar: \"��� ��������\", en: \"Audit log\" }"
+    },
+    {
+      "line": 48,
+      "content": "    ar: \"������� ���������\","
+    },
+    {
+      "line": 51,
+      "content": "      { key: \"merchant_approvals\", ar: \"������� �������\", en: \"Merchant approvals\" },"
+    },
+    {
+      "line": 52,
+      "content": "      { key: \"branch_approvals\", ar: \"������� ������\", en: \"Branch approvals\" },"
+    },
+    {
+      "line": 53,
+      "content": "      { key: \"stores\", ar: \"����� �������\", en: \"Stores\" },"
+    },
+    {
+      "line": 54,
+      "content": "      { key: \"store_catalog\", ar: \"����� ������� ���������\", en: \"Store catalog moderation\" },"
+    },
+    {
+      "line": 55,
+      "content": "      { key: \"shipping_companies\", ar: \"����� �����\", en: \"Shipping companies\" },"
+    },
+    {
+      "line": 56,
+      "content": "      { key: \"categories\", ar: \"�������\", en: \"Categories\" },"
+    },
+    {
+      "line": 57,
+      "content": "      { key: \"cities\", ar: \"����� ��������\", en: \"Cities and areas\" }"
+    },
+    {
+      "line": 61,
+      "content": "    ar: \"������� ������\","
+    },
+    {
+      "line": 64,
+      "content": "      { key: \"orders\", ar: \"�������\", en: \"Orders\" },"
+    },
+    {
+      "line": 65,
+      "content": "      { key: \"support_chats\", ar: \"������� �����\", en: \"Support chats\" },"
+    },
+    {
+      "line": 66,
+      "content": "      { key: \"complaints\", ar: \"������� ���������\", en: \"Complaints\" },"
+    },
+    {
+      "line": 67,
+      "content": "      { key: \"knowledge_base\", ar: \"����� ����� �����\", en: \"Bot knowledge base\" },"
+    },
+    {
+      "line": 68,
+      "content": "      { key: \"content_moderation\", ar: \"����� �������\", en: \"Content moderation\" },"
+    },
+    {
+      "line": 69,
+      "content": "      { key: \"suspicious_matches\", ar: \"��������� ������� ����\", en: \"Low confidence matches\" },"
+    },
+    {
+      "line": 70,
+      "content": "      { key: \"ai_reads\", ar: \"������ ������ ���������\", en: \"AI reads\" }"
+    },
+    {
+      "line": 74,
+      "content": "    ar: \"������� ���������\","
+    },
+    {
+      "line": 77,
+      "content": "      { key: \"broadcast\", ar: \"����� �������\", en: \"Send notifications\" },"
+    },
+    {
+      "line": 78,
+      "content": "      { key: \"ads\", ar: \"���������\", en: \"Ads\" },"
+    },
+    {
+      "line": 79,
+      "content": "      { key: \"reports\", ar: \"��������\", en: \"Reports\" },"
+    },
+    {
+      "line": 80,
+      "content": "      { key: \"monetization\", ar: \"���������� ����������\", en: \"Monetization\" },"
+    },
+    {
+      "line": 81,
+      "content": "      { key: \"payments\", ar: \"������� �����\", en: \"Payments\" },"
+    },
+    {
+      "line": 82,
+      "content": "      { key: \"referrals\", ar: \"�������� ���������\", en: \"Referrals\" }"
+    },
+    {
+      "line": 200,
+      "content": "      setMessage(lang === \"ar\" ? \"�� ����� ���� ������ ���� ��������.\" : \"Staff account created with permissions.\");"
+    },
+    {
+      "line": 236,
+      "content": "      setMessage(lang === \"ar\" ? \"�� ����� ������� ������.\" : \"Staff permissions updated.\");"
+    },
+    {
+      "line": 256,
+      "content": "      setMessage(enabled ? (lang === \"ar\" ? \"�� ����� ������.\" : \"Account enabled.\") : lang === \"ar\" ? \"�� ����� ������.\" : \"Account disabled.\");"
+    },
+    {
+      "line": 266,
+      "content": "    const password = window.prompt(lang === \"ar\" ? \"���� ���� ���� ����� ���� ������\" : \"Enter a new password for this account\");"
+    },
+    {
+      "line": 268,
+      "content": "    const confirmation = window.prompt(lang === \"ar\" ? \"���� ��� ���� ������ �������\" : \"Confirm the new password\");"
+    },
+    {
+      "line": 270,
+      "content": "      setError(lang === \"ar\" ? \"����� ������ ��� ���������.\" : \"Passwords do not match.\");"
+    },
+    {
+      "line": 283,
+      "content": "      setMessage(lang === \"ar\" ? \"�� ����� ���� ������.\" : \"Password updated.\");"
+    },
+    {
+      "line": 299,
+      "content": "          <span className=\"eyebrow\">{lang === \"ar\" ? \"���� ���� �� ���� ������\" : \"Admin team control\"}</span>"
+    },
+    {
+      "line": 300,
+      "content": "          <h1>{lang === \"ar\" ? \"������ ����������\" : \"Team and permissions\"}</h1>"
+    },
+    {
+      "line": 303,
+      "content": "              ? \"��� ���� ���ϡ ���� ��� �����ɡ ���� ������� ���������� �������� �� �� ��� �� ���� Supabase.\""
+    },
+    {
+      "line": 320,
+      "content": "            <h2>{lang === \"ar\" ? \"����� ��� ����\" : \"Add new staff\"}</h2>"
+    },
+    {
+      "line": 325,
+      "content": "              {lang === \"ar\" ? \"�����\" : \"Name\"}"
+    },
+    {
+      "line": 329,
+      "content": "              {lang === \"ar\" ? \"��� ������\" : \"Rank name\"}"
+    },
+    {
+      "line": 330,
+      "content": "              <input value={form.role_label} onChange={(event) => setForm((current) => ({ ...current, role_label: event.target.value }))} placeholder={lang === \"ar\" ? \"����: ���� �����\" : \"Example: Store manager\"} required />"
+    },
+    {
+      "line": 336,
+      "content": "              {lang === \"ar\" ? \"�������\" : \"Email\"}"
+    },
+    {
+      "line": 340,
+      "content": "              {lang === \"ar\" ? \"��������\" : \"Mobile\"}"
+    },
+    {
+      "line": 347,
+      "content": "              {lang === \"ar\" ? \"���� ������\" : \"Password\"}"
+    },
+    {
+      "line": 351,
+      "content": "              {lang === \"ar\" ? \"����� ���� ������\" : \"Confirm password\"}"
+    },
+    {
+      "line": 379,
+      "content": "            {saving ? t(\"loading\", lang) : lang === \"ar\" ? \"����� ������\" : \"Create account\"}"
+    },
+    {
+      "line": 386,
+      "content": "            <h2>{lang === \"ar\" ? \"������ ������\" : \"Current team\"}</h2>"
+    },
+    {
+      "line": 389,
+      "content": "            {lang === \"ar\" ? `��� ����: ${activeCount}` : `Active now: ${activeCount}`}"
+    },
+    {
+      "line": 404,
+      "content": "                  {row.staff_is_active && !row.is_blocked ? (lang === \"ar\" ? \"���\" : \"Active\") : lang === \"ar\" ? \"�����\" : \"Inactive\"}"
+    },
+    {
+      "line": 410,
+      "content": "                    {lang === \"ar\" ? \"�����\" : \"Edit\"}"
+    },
+    {
+      "line": 414,
+      "content": "                    {lang === \"ar\" ? \"������\" : \"Password\"}"
+    },
+    {
+      "line": 417,
+      "content": "                    {row.staff_is_active && !row.is_blocked ? (lang === \"ar\" ? \"�����\" : \"Disable\") : lang === \"ar\" ? \"�����\" : \"Enable\"}"
+    },
+    {
+      "line": 429,
+      "content": "            <h2>{lang === \"ar\" ? \"����� ������ ����������\" : \"Edit rank and permissions\"}</h2>"
+    },
+    {
+      "line": 431,
+      "content": "              {lang === \"ar\" ? \"��� ������\" : \"Rank name\"}"
+    },
+    {
+      "line": 510,
+      "content": "      title: lang === \"ar\" ? \"���� �������� �����\" : \"Limited admin\","
+    },
+    {
+      "line": 511,
+      "content": "      hint: lang === \"ar\" ? \"���� ������ ��� ���������� ���� ���.\" : \"Can use the dashboard based on the checked permissions.\""
+    },
+    {
+      "line": 515,
+      "content": "      title: lang === \"ar\" ? \"���� ���\" : \"Support agent\","
+    },
+    {
+      "line": 516,
+      "content": "      hint: lang === \"ar\" ? \"����� ����� �������� ����������.\" : \"Best for support, complaints, and chats.\""
+    },
+    {
+      "line": 520,
+      "content": "      title: lang === \"ar\" ? \"���� �������� �����\" : \"Full-permission admin\","
+    },
+    {
+      "line": 521,
+      "content": "      hint: lang === \"ar\" ? \"���� ������ �� �� ���.\" : \"Can see and control everything.\""
+    },
+    {
+      "line": 538,
+      "content": "  if (role === \"admin\") return lang === \"ar\" ? \"���� ����\" : \"Full admin\";"
+    },
+    {
+      "line": 539,
+      "content": "  return lang === \"ar\" ? \"���� ���\" : \"Support agent\";"
+    },
+    {
+      "line": 545,
+      "content": "    return lang === \"ar\" ? \"�� ���������\" : \"All permissions\";"
+    },
+    {
+      "line": 548,
+      "content": "  if (enabled.length === 0) return lang === \"ar\" ? \"�� ���� ������� �����\" : \"No permissions selected\";"
+    },
+    {
+      "line": 549,
+      "content": "  const names = enabled.map((item) => (lang === \"ar\" ? item.ar : item.en)).join(\"� \");"
+    },
+    {
+      "line": 558,
+      "content": "      ar: \"����� ������ ��� ����� �� Vercel� ���� �� ���� ����� �� ����� ������ ������.\","
+    },
+    {
+      "line": 562,
+      "content": "      ar: \"��� SQL ����� ����� ������ �� ��� ������ �� Supabase ���.\","
+    },
+    {
+      "line": 566,
+      "content": "      ar: \"���� ������ ���� ���� 8 ���� ��� �����.\","
+    },
+    {
+      "line": 570,
+      "content": "      ar: \"����� ������ ��� ���������.\","
+    },
+    {
+      "line": 574,
+      "content": "      ar: \"��� ������ �� ���� ������ ����� ��� �������.\","
+    },
+    {
+      "line": 578,
+      "content": "      ar: \"�� ����� ����� ����� ������ �� ���.\","
+    },
+    {
+      "line": 582,
+      "content": "      ar: \"�� ����� ����� ������� ����� ������ �� ���.\","
+    }
+  ],
+  "src\\components\\store-catalog-moderation.tsx": [
+    {
+      "line": 181,
+      "content": "    if (!window.confirm(lang === \"ar\" ? `����� ������ \"${product.free_name}\"�` : `Deactivate \"${product.free_name}\"?`)) return;"
+    },
+    {
+      "line": 192,
+      "content": "        ? `��� ������ \"${product.free_name}\" ������ǿ`"
+    },
+    {
+      "line": 200,
+      "content": "    const reason = window.prompt(lang === \"ar\" ? \"���� ��� �����/��� ������\" : \"Write store suspension reason\", \"����� �����\");"
+    },
+    {
+      "line": 208,
+      "content": "        ? `�� ��� ����� ������ ��� ���� �� ���� �����. ���� ��� ������ �������: ${store.store_name}`"
+    },
+    {
+      "line": 251,
+      "content": "          <span className=\"eyebrow\">{lang === \"ar\" ? \"����� �����\" : \"Visual moderation\"}</span>"
+    },
+    {
+      "line": 252,
+      "content": "          <h1>{lang === \"ar\" ? \"����� ������� ���������\" : \"Store and product moderation\"}</h1>"
+    },
+    {
+      "line": 255,
+      "content": "              ? \"���� �� ���� ����� ����� �������� ��������. �� ����� ����� ���� ����� �� ����� �����.\""
+    },
+    {
+      "line": 271,
+      "content": "            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={lang === \"ar\" ? \"���� �� ����\" : \"Search stores\"} />"
+    },
+    {
+      "line": 294,
+      "content": "                      ? `${counts.active} ��� / ${counts.total} ����`"
+    },
+    {
+      "line": 314,
+      "content": "                    {lang === \"ar\" ? \"����� ������\" : \"Suspend store\"}"
+    },
+    {
+      "line": 318,
+      "content": "                    {lang === \"ar\" ? \"��� ������\" : \"Delete store\"}"
+    },
+    {
+      "line": 331,
+      "content": "                  placeholder={lang === \"ar\" ? \"���� �� ������ ������\" : \"Search store products\"}"
+    },
+    {
+      "line": 348,
+      "content": "                          <span>{lang === \"ar\" ? \"���� ����\" : \"No image\"}</span>"
+    },
+    {
+      "line": 364,
+      "content": "                          <b>{Number(product.price).toLocaleString(\"ar-EG\")} �.�</b>"
+    },
+    {
+      "line": 368,
+      "content": "                          {product.is_active ? (lang === \"ar\" ? \"���� �� �������\" : \"Visible\") : lang === \"ar\" ? \"�����\" : \"Hidden\"}"
+    },
+    {
+      "line": 375,
+      "content": "                            {lang === \"ar\" ? \"�����\" : \"Deactivate\"}"
+    },
+    {
+      "line": 385,
+      "content": "                          {lang === \"ar\" ? \"���\" : \"Delete\"}"
+    },
+    {
+      "line": 394,
+      "content": "            <div className=\"empty-state\">{lang === \"ar\" ? \"����� ���� ��������\" : \"Choose a store to review\"}</div>"
+    }
+  ],
+  "src\\components\\support-console.tsx": [
+    {
+      "line": 35,
+      "content": "  if (message.sender_type === \"user\") return lang === \"ar\" ? \"������\" : \"Customer\";"
+    },
+    {
+      "line": 36,
+      "content": "  if (message.sender_type === \"bot\") return lang === \"ar\" ? \"�����\" : \"Bot\";"
+    },
+    {
+      "line": 37,
+      "content": "  if (message.sender_type === \"support_agent\") return lang === \"ar\" ? \"���� �������\" : \"Support\";"
+    },
+    {
+      "line": 38,
+      "content": "  if (message.sender_type === \"system\") return lang === \"ar\" ? \"������\" : \"System\";"
+    },
+    {
+      "line": 43,
+      "content": "  if (status === \"transferred\") return lang === \"ar\" ? \"����� ����� �������\" : \"Transferred to support\";"
+    },
+    {
+      "line": 44,
+      "content": "  if (status === \"bot\") return lang === \"ar\" ? \"�� �����\" : \"With bot\";"
+    },
+    {
+      "line": 49,
+      "content": "  return conversation.assigned_agent_name || (lang === \"ar\" ? \"�� ������� ���\" : \"Unassigned\");"
+    },
+    {
+      "line": 165,
+      "content": "          <h1>{lang === \"ar\" ? \"���� �������\" : \"Support\"}</h1>"
+    },
+    {
+      "line": 168,
+      "content": "              ? \"������ ��������� ������� �� ����� ����� ����� ������ ���� �������.\""
+    },
+    {
+      "line": 182,
+      "content": "          <h2>{lang === \"ar\" ? \"���������\" : \"Conversations\"}</h2>"
+    },
+    {
+      "line": 192,
+      "content": "                <strong>{conversation.title || (lang === \"ar\" ? \"������ ���\" : \"Support chat\")}</strong>"
+    },
+    {
+      "line": 195,
+      "content": "                  {lang === \"ar\" ? \"�������: \" : \"Handled by: \"}"
+    },
+    {
+      "line": 209,
+      "content": "                  <strong>{selected.title || (lang === \"ar\" ? \"������ ���\" : \"Support chat\")}</strong>"
+    },
+    {
+      "line": 212,
+      "content": "                    {lang === \"ar\" ? \"�������: \" : \"Handled by: \"}"
+    },
+    {
+      "line": 259,
+      "content": "              <strong>{lang === \"ar\" ? \"����� ������ �� �������\" : \"Choose a conversation\"}</strong>"
+    },
+    {
+      "line": 260,
+      "content": "              <span>{lang === \"ar\" ? \"���� ��� ������ ��� Realtime.\" : \"Replies arrive through Realtime.\"}</span>"
+    }
+  ],
+  "src\\lib\\admin\\i18n.ts": [
+    {
+      "line": 5,
+      "content": "  appName: { ar: \"���� �����\", en: \"Saarly Admin\" },"
+    },
+    {
+      "line": 6,
+      "content": "  loginTitle: { ar: \"���� ���� �������\", en: \"Admin sign in\" },"
+    },
+    {
+      "line": 8,
+      "content": "    ar: \"����� ��� ������ ������ ����� ��������.\","
+    },
+    {
+      "line": 11,
+      "content": "  email: { ar: \"������ ����������\", en: \"Email\" },"
+    },
+    {
+      "line": 12,
+      "content": "  password: { ar: \"���� ������\", en: \"Password\" },"
+    },
+    {
+      "line": 13,
+      "content": "  signIn: { ar: \"����\", en: \"Sign in\" },"
+    },
+    {
+      "line": 14,
+      "content": "  sendLink: { ar: \"����� ���� ����\", en: \"Send magic link\" },"
+    },
+    {
+      "line": 15,
+      "content": "  signOut: { ar: \"����\", en: \"Sign out\" },"
+    },
+    {
+      "line": 16,
+      "content": "  search: { ar: \"���\", en: \"Search\" },"
+    },
+    {
+      "line": 17,
+      "content": "  refresh: { ar: \"�����\", en: \"Refresh\" },"
+    },
+    {
+      "line": 18,
+      "content": "  save: { ar: \"���\", en: \"Save\" },"
+    },
+    {
+      "line": 19,
+      "content": "  cancel: { ar: \"�����\", en: \"Cancel\" },"
+    },
+    {
+      "line": 20,
+      "content": "  approve: { ar: \"����\", en: \"Approve\" },"
+    },
+    {
+      "line": 21,
+      "content": "  reject: { ar: \"���\", en: \"Reject\" },"
+    },
+    {
+      "line": 22,
+      "content": "  block: { ar: \"���\", en: \"Block\" },"
+    },
+    {
+      "line": 23,
+      "content": "  unblock: { ar: \"�����\", en: \"Unblock\" },"
+    },
+    {
+      "line": 24,
+      "content": "  reason: { ar: \"��� �����\", en: \"Rejection reason\" },"
+    },
+    {
+      "line": 25,
+      "content": "  loading: { ar: \"���� �������...\", en: \"Loading...\" },"
+    },
+    {
+      "line": 26,
+      "content": "  noRows: { ar: \"�� ���� ������ �����\", en: \"No data yet\" },"
+    },
+    {
+      "line": 28,
+      "content": "    ar: \"��� ������ ��� ���� �� ���� ��� �����.\","
+    },
+    {
+      "line": 32,
+      "content": "    ar: \"��� ����� ������ �� Vercel ������ ��� �������.\","
+    },
+    {
+      "line": 35,
+      "content": "  supportQueue: { ar: \"����� �����\", en: \"Support queue\" },"
+    },
+    {
+      "line": 36,
+      "content": "  message: { ar: \"���� ����\", en: \"Write reply\" },"
+    },
+    {
+      "line": 37,
+      "content": "  assignToMe: { ar: \"������ ��������\", en: \"Assign to me\" },"
+    },
+    {
+      "line": 38,
+      "content": "  closeConversation: { ar: \"����� ��������\", en: \"Close conversation\" },"
+    },
+    {
+      "line": 39,
+      "content": "  openApp: { ar: \"��� �����\", en: \"Open section\" },"
+    },
+    {
+      "line": 40,
+      "content": "  connected: { ar: \"���� ������� Supabase\", en: \"Connected to Supabase data\" },"
+    },
+    {
+      "line": 42,
+      "content": "    ar: \"����� �����ɡ �������� ������ ��� API ����.\","
+    },
+    {
+      "line": 45,
+      "content": "  theme: { ar: \"�����\", en: \"Theme\" },"
+    },
+    {
+      "line": 46,
+      "content": "  language: { ar: \"�����\", en: \"Language\" },"
+    },
+    {
+      "line": 47,
+      "content": "  light: { ar: \"����\", en: \"Light\" },"
+    },
+    {
+      "line": 48,
+      "content": "  dark: { ar: \"����\", en: \"Dark\" }"
+    }
+  ],
+  "src\\lib\\admin\\messages.ts": [
+    {
+      "line": 3,
+      "content": "  awaiting_confirmation: { ar: \"�� ������ ����� ������\", en: \"Waiting for store confirmation\" },"
+    },
+    {
+      "line": 4,
+      "content": "  confirmed: { ar: \"�� �������\", en: \"Confirmed\" },"
+    },
+    {
+      "line": 5,
+      "content": "  cancelled_by_merchant: { ar: \"����� ������\", en: \"Cancelled by store\" },"
+    },
+    {
+      "line": 6,
+      "content": "  cancelled_by_buyer: { ar: \"����� ������\", en: \"Cancelled by buyer\" },"
+    },
+    {
+      "line": 7,
+      "content": "  completed: { ar: \"�����\", en: \"Completed\" },"
+    },
+    {
+      "line": 8,
+      "content": "  pending: { ar: \"��� ��������\", en: \"Pending\" },"
+    },
+    {
+      "line": 9,
+      "content": "  processing: { ar: \"���� �������\", en: \"Processing\" },"
+    },
+    {
+      "line": 10,
+      "content": "  succeeded: { ar: \"�� �����\", en: \"Succeeded\" },"
+    },
+    {
+      "line": 11,
+      "content": "  failed: { ar: \"���\", en: \"Failed\" },"
+    },
+    {
+      "line": 12,
+      "content": "  due: { ar: \"�����\", en: \"Due\" },"
+    },
+    {
+      "line": 13,
+      "content": "  paid: { ar: \"�����\", en: \"Paid\" },"
+    },
+    {
+      "line": 14,
+      "content": "  active: { ar: \"���\", en: \"Active\" },"
+    },
+    {
+      "line": 15,
+      "content": "  inactive: { ar: \"�����\", en: \"Inactive\" },"
+    },
+    {
+      "line": 16,
+      "content": "  approved: { ar: \"�����\", en: \"Approved\" },"
+    },
+    {
+      "line": 17,
+      "content": "  rejected: { ar: \"�����\", en: \"Rejected\" },"
+    },
+    {
+      "line": 18,
+      "content": "  submitted: { ar: \"�� �������\", en: \"Submitted\" },"
+    },
+    {
+      "line": 19,
+      "content": "  open: { ar: \"�����\", en: \"Open\" },"
+    },
+    {
+      "line": 20,
+      "content": "  closed: { ar: \"����\", en: \"Closed\" }"
+    },
+    {
+      "line": 30,
+      "content": "    return lang === \"ar\" ? \"���� ��� ����� ����.\" : \"Enter the country name first.\";"
+    },
+    {
+      "line": 35,
+      "content": "      ? \"����� ���� ������. ���� ���� ����� ����� ��� ������ ������� ���� ������ Supabase �� Vercel.\""
+    },
+    {
+      "line": 41,
+      "content": "      ? \"����� ������ ��� ����� �� Vercel� ���� ��������� ������� ������.\""
+    },
+    {
+      "line": 47,
+      "content": "      ? \"������ ������ ��� ����� �������� ���� �������. ���� ���� ������ �� ���� ������ ���������� �� ��� ��� ����� ������� ������ �� Supabase.\""
+    },
+    {
+      "line": 53,
+      "content": "      ? \"���� ������ �������� ��� Vercel ��� �� ����� ��� ����� �������. ���� ��� ���� �� Admin Web ��� GitHub ������ Deploy ����.\""
+    },
+    {
+      "line": 59,
+      "content": "      ? \"����� ���� Supabase ��� ����� �� ��� ���� �� Vercel. ���� ���� SUPABASE_SERVICE_ROLE_KEY �� Environment Variables.\""
+    },
+    {
+      "line": 65,
+      "content": "      ? \"����� ���� Supabase �� Vercel ��� ���� �� ������ �������. ���� �� SUPABASE_SERVICE_ROLE_KEY �� ����� service_role� �� ���� Redeploy ������.\""
+    },
+    {
+      "line": 71,
+      "content": "      ? \"������� �� ���� ���� ������� �������� ������. ���� ��� SQL ����� �������� service_role� ����� �� SUPABASE_SERVICE_ROLE_KEY ����� �� Vercel �� service_role� �� ���� Redeploy.\""
+    },
+    {
+      "line": 77,
+      "content": "      ? \"�� ���� ��� ������ �������� ������ �� ���� �������.\""
+    },
+    {
+      "line": 83,
+      "content": "      ? \"�� ��� ������ ��� ��� ������. ���� ������ ���� ��� ����.\""
+    },
+    {
+      "line": 89,
+      "content": "      ? \"���� ������ ���� �͡ ��� ����� �������� ��� ����� ��� �������. ���� ��� SQL ����� ���� ������� ������ �� ���� ���� ����� �� ������.\""
+    },
+    {
+      "line": 101,
+      "content": "      ? \"������ ������ �� ���� ������ ����� �� ��� ��� �����. �� ��� ���� ���� ��� SQL ������ �� ���� ������� ������.\""
+    },
+    {
+      "line": 107,
+      "content": "      ? \"��� SQL ����� ������� ���������� �� ��� ������ �� Supabase ���.\""
+    },
+    {
+      "line": 113,
+      "content": "      ? \"��� ������ �� ���� ������ ����� ��� �������.\""
+    },
+    {
+      "line": 125,
+      "content": "      ? \"��� �������� ������ ������. ���� ����� �� ������ �����.\""
+    },
+    {
+      "line": 131,
+      "content": "      ? \"���� ���� �����ѡ ���� ���� ����� �������.\""
+    }
+  ],
+  "src\\lib\\admin\\sections.ts": [
+    {
+      "line": 8,
+      "content": "    title: { ar: \"��������\", en: \"Dashboard\" },"
+    },
+    {
+      "line": 10,
+      "content": "      ar: \"����� ������� ������� ���������� ������.\","
+    },
+    {
+      "line": 24,
+      "content": "    title: { ar: \"������� �������\", en: \"Merchant approvals\" },"
+    },
+    {
+      "line": 26,
+      "content": "      ar: \"������ ������ ������ ���� ��������� ����� �� ��� �����.\","
+    },
+    {
+      "line": 39,
+      "content": "      { key: \"store_name\", label: { ar: \"������\", en: \"Store\" } },"
+    },
+    {
+      "line": 40,
+      "content": "      { key: \"owner_name\", label: { ar: \"������\", en: \"Owner\" } },"
+    },
+    {
+      "line": 43,
+      "content": "        label: { ar: \"������ ������\", en: \"Owner mobile\" },"
+    },
+    {
+      "line": 45,
+      "content": "      { key: \"category_name_ar\", label: { ar: \"�����\", en: \"Category\" } },"
+    },
+    {
+      "line": 48,
+      "content": "        label: { ar: \"������\", en: \"Status\" },"
+    },
+    {
+      "line": 53,
+      "content": "        label: { ar: \"��� �����\", en: \"Rejection reason\" },"
+    },
+    {
+      "line": 58,
+      "content": "        label: { ar: \"����� �������\", en: \"Created\" },"
+    },
+    {
+      "line": 72,
+      "content": "    title: { ar: \"������� ������\", en: \"Branch approvals\" },"
+    },
+    {
+      "line": 74,
+      "content": "      ar: \"������ ������ ������� ��� ������ �� ����� �����.\","
+    },
+    {
+      "line": 87,
+      "content": "      { key: \"branch_name\", label: { ar: \"�����\", en: \"Branch\" } },"
+    },
+    {
+      "line": 88,
+      "content": "      { key: \"store_name\", label: { ar: \"������\", en: \"Store\" } },"
+    },
+    {
+      "line": 89,
+      "content": "      { key: \"city_name\", label: { ar: \"�������\", en: \"City\" } },"
+    },
+    {
+      "line": 90,
+      "content": "      { key: \"governorate_name\", label: { ar: \"��������\", en: \"Governorate\" } },"
+    },
+    {
+      "line": 93,
+      "content": "        label: { ar: \"����� �����\", en: \"Branch contact\" },"
+    },
+    {
+      "line": 97,
+      "content": "        label: { ar: \"������\", en: \"Status\" },"
+    },
+    {
+      "line": 102,
+      "content": "        label: { ar: \"����� �������\", en: \"Created\" },"
+    },
+    {
+      "line": 116,
+      "content": "    title: { ar: \"����� �����\", en: \"Shipping Companies\" },"
+    },
+    {
+      "line": 118,
+      "content": "      ar: \"������ ����� ����� ���� ������� �������.\","
+    },
+    {
+      "line": 126,
+      "content": "      { key: \"store_name\", label: { ar: \"������\", en: \"Store\" } },"
+    },
+    {
+      "line": 127,
+      "content": "      { key: \"company_name\", label: { ar: \"���� �����\", en: \"Company\" } },"
+    },
+    {
+      "line": 128,
+      "content": "      { key: \"batches_count\", label: { ar: \"��� ��������\", en: \"Batches count\" } },"
+    },
+    {
+      "line": 129,
+      "content": "      { key: \"status_ar\", label: { ar: \"������\", en: \"Status\" }, tone: \"status\" },"
+    },
+    {
+      "line": 130,
+      "content": "      { key: \"created_at\", label: { ar: \"����� �������\", en: \"Created\" }, tone: \"date\" },"
+    },
+    {
+      "line": 142,
+      "content": "    title: { ar: \"����������\", en: \"Users\" },"
+    },
+    {
+      "line": 144,
+      "content": "      ar: \"��ˡ ������ ����� �������ʡ ���� �� ����� ����������.\","
+    },
+    {
+      "line": 156,
+      "content": "      { key: \"full_name\", label: { ar: \"�����\", en: \"Name\" } },"
+    },
+    {
+      "line": 157,
+      "content": "      { key: \"mobile\", label: { ar: \"��������\", en: \"Mobile\" } },"
+    },
+    {
+      "line": 158,
+      "content": "      { key: \"primary_email\", label: { ar: \"�������\", en: \"Email\" } },"
+    },
+    {
+      "line": 159,
+      "content": "      { key: \"role_ar\", label: { ar: \"�����\", en: \"Role\" }, tone: \"status\" },"
+    },
+    {
+      "line": 162,
+      "content": "        label: { ar: \"������\", en: \"Account\" },"
+    },
+    {
+      "line": 165,
+      "content": "      { key: \"created_at\", label: { ar: \"���\", en: \"Created\" }, tone: \"date\" },"
+    },
+    {
+      "line": 199,
+      "content": "    title: { ar: \"���������\", en: \"Categories\" },"
+    },
+    {
+      "line": 201,
+      "content": "      ar: \"����� ������ �������� �������� ��� ��� �������.\","
+    },
+    {
+      "line": 208,
+      "content": "      { key: \"name_ar\", label: { ar: \"����� ������\", en: \"Arabic name\" } },"
+    },
+    {
+      "line": 209,
+      "content": "      { key: \"name_en\", label: { ar: \"����� ���������\", en: \"English name\" } },"
+    },
+    {
+      "line": 210,
+      "content": "      { key: \"parent_id\", label: { ar: \"����\", en: \"Parent\" }, tone: \"long\" },"
+    },
+    {
+      "line": 211,
+      "content": "      { key: \"display_order\", label: { ar: \"�������\", en: \"Order\" } },"
+    },
+    {
+      "line": 212,
+      "content": "      { key: \"is_active\", label: { ar: \"����\", en: \"Active\" }, tone: \"status\" },"
+    },
+    {
+      "line": 237,
+      "content": "    title: { ar: \"����� ��������\", en: \"Cities and areas\" },"
+    },
+    {
+      "line": 239,
+      "content": "      ar: \"����� ������ ������� �������.\","
+    },
+    {
+      "line": 256,
+      "content": "      { key: \"country_ar\", label: { ar: \"�����\", en: \"Country\" } },"
+    },
+    {
+      "line": 257,
+      "content": "      { key: \"currency_name_ar\", label: { ar: \"������\", en: \"Currency\" } },"
+    },
+    {
+      "line": 258,
+      "content": "      { key: \"currency_code\", label: { ar: \"��� ������\", en: \"Currency code\" } },"
+    },
+    {
+      "line": 259,
+      "content": "      { key: \"governorate_ar\", label: { ar: \"��������\", en: \"Governorate\" } },"
+    },
+    {
+      "line": 260,
+      "content": "      { key: \"name_ar\", label: { ar: \"�������\", en: \"City\" } },"
+    },
+    {
+      "line": 261,
+      "content": "      { key: \"display_order\", label: { ar: \"�������\", en: \"Order\" } },"
+    },
+    {
+      "line": 265,
+      "content": "        label: { ar: \"�����\", en: \"Active\" },"
+    },
+    {
+      "line": 278,
+      "content": "    title: { ar: \"����� �������\", en: \"Stores\" },"
+    },
+    {
+      "line": 280,
+      "content": "      ar: \"������ ������ѡ �����ڡ �������ʡ ������ ��������.\","
+    },
+    {
+      "line": 291,
+      "content": "      { key: \"store_name\", label: { ar: \"������\", en: \"Store\" } },"
+    },
+    {
+      "line": 292,
+      "content": "      { key: \"contact_mobile\", label: { ar: \"�������\", en: \"Contact\" } },"
+    },
+    {
+      "line": 295,
+      "content": "        label: { ar: \"��������\", en: \"Approval\" },"
+    },
+    {
+      "line": 300,
+      "content": "        label: { ar: \"��������\", en: \"Billing\" },"
+    },
+    {
+      "line": 305,
+      "content": "        label: { ar: \"��� �����\", en: \"Updated\" },"
+    },
+    {
+      "line": 316,
+      "content": "      ar: \"����� ������� ���������\","
+    },
+    {
+      "line": 320,
+      "content": "      ar: \"���� ������� ������ ����� �� ���� ������� �������� ������ ���� �������.\","
+    },
+    {
+      "line": 333,
+      "content": "    title: { ar: \"�������\", en: \"Orders\" },"
+    },
+    {
+      "line": 335,
+      "content": "      ar: \"�� ������� ������� ����� ������� ����� ������� ������.\","
+    },
+    {
+      "line": 342,
+      "content": "      { key: \"buyer_name\", label: { ar: \"������\", en: \"Buyer\" } },"
+    },
+    {
+      "line": 343,
+      "content": "      { key: \"store_name\", label: { ar: \"������\", en: \"Store\" } },"
+    },
+    {
+      "line": 346,
+      "content": "        label: { ar: \"���� �����\", en: \"Status\" },"
+    },
+    {
+      "line": 351,
+      "content": "        label: { ar: \"�����\", en: \"Payment\" },"
+    },
+    {
+      "line": 356,
+      "content": "        label: { ar: \"��������\", en: \"Subtotal\" },"
+    },
+    {
+      "line": 359,
+      "content": "      { key: \"created_at\", label: { ar: \"�������\", en: \"Date\" }, tone: \"date\" },"
+    },
+    {
+      "line": 371,
+      "content": "    title: { ar: \"������� ����� ����\", en: \"Low confidence matches\" },"
+    },
+    {
+      "line": 373,
+      "content": "      ar: \"������ ������ ��� ��� ������ ��� ����� ��������.\","
+    },
+    {
+      "line": 384,
+      "content": "      { key: \"store_name\", label: { ar: \"������\", en: \"Store\" } },"
+    },
+    {
+      "line": 385,
+      "content": "      { key: \"requested_name\", label: { ar: \"�������\", en: \"Requested\" } },"
+    },
+    {
+      "line": 386,
+      "content": "      { key: \"matched_name_snapshot\", label: { ar: \"�������\", en: \"Matched\" } },"
+    },
+    {
+      "line": 389,
+      "content": "        label: { ar: \"��������\", en: \"Total\" },"
+    },
+    {
+      "line": 394,
+      "content": "        label: { ar: \"�����\", en: \"Confidence\" },"
+    },
+    {
+      "line": 407,
+      "content": "    title: { ar: \"������ ������ ���������\", en: \"AI reads\" },"
+    },
+    {
+      "line": 409,
+      "content": "      ar: \"������ ������� �������� ������� ����� ��������.\","
+    },
+    {
+      "line": 422,
+      "content": "      { key: \"owner_name\", label: { ar: \"��������\", en: \"User\" } },"
+    },
+    {
+      "line": 425,
+      "content": "        label: { ar: \"��� �������\", en: \"Reading type\" },"
+    },
+    {
+      "line": 430,
+      "content": "        label: { ar: \"������\", en: \"Source\" },"
+    },
+    {
+      "line": 435,
+      "content": "        label: { ar: \"������\", en: \"Status\" },"
+    },
+    {
+      "line": 438,
+      "content": "      { key: \"confidence\", label: { ar: \"�����\", en: \"Confidence\" } },"
+    },
+    {
+      "line": 439,
+      "content": "      { key: \"error_code\", label: { ar: \"��� �����\", en: \"Error code\" } },"
+    },
+    {
+      "line": 440,
+      "content": "      { key: \"created_at\", label: { ar: \"�������\", en: \"Date\" }, tone: \"date\" },"
+    },
+    {
+      "line": 448,
+      "content": "    title: { ar: \"���� �������\", en: \"Support\" },"
+    },
+    {
+      "line": 450,
+      "content": "      ar: \"����� ��������� ������� �� ����� ����� ������.\","
+    },
+    {
+      "line": 461,
+      "content": "    title: { ar: \"����� �����\", en: \"Send notification\" },"
+    },
+    {
+      "line": 463,
+      "content": "      ar: \"����� ����� ���� ���� �� ��� ������� ����� Firebase Push ���������� ���������.\","
+    },
+    {
+      "line": 532,
+      "content": "      { key: \"target_country_ar\", label: { ar: \"�����\", en: \"Country\" } },"
+    },
+    {
+      "line": 535,
+      "content": "        label: { ar: \"��������\", en: \"Governorate\" },"
+    },
+    {
+      "line": 537,
+      "content": "      { key: \"target_city_ar\", label: { ar: \"�������\", en: \"City\" } },"
+    },
+    {
+      "line": 560,
+      "content": "    title: { ar: \"������� ���������\", en: \"Complaints\" },"
+    },
+    {
+      "line": 562,
+      "content": "      ar: \"������� �������� �������� ����� ����.\","
+    },
+    {
+      "line": 578,
+      "content": "      { key: \"reporter_name\", label: { ar: \"������\", en: \"Reporter\" } },"
+    },
+    {
+      "line": 579,
+      "content": "      { key: \"store_name\", label: { ar: \"������\", en: \"Store\" } },"
+    },
+    {
+      "line": 580,
+      "content": "      { key: \"title\", label: { ar: \"�������\", en: \"Title\" } },"
+    },
+    {
+      "line": 583,
+      "content": "        label: { ar: \"�����\", en: \"Type\" },"
+    },
+    {
+      "line": 586,
+      "content": "      { key: \"status\", label: { ar: \"������\", en: \"Status\" }, tone: \"status\" },"
+    },
+    {
+      "line": 589,
+      "content": "        label: { ar: \"��������\", en: \"Priority\" },"
+    },
+    {
+      "line": 592,
+      "content": "      { key: \"created_at\", label: { ar: \"�������\", en: \"Date\" }, tone: \"date\" },"
+    },
+    {
+      "line": 612,
+      "content": "    title: { ar: \"����� ����� �����\", en: \"Bot knowledge base\" },"
+    },
+    {
+      "line": 614,
+      "content": "      ar: \"����� ����� ����� ������ ����� ��� embeddings ��� �������.\","
+    },
+    {
+      "line": 622,
+      "content": "      { key: \"title_ar\", label: { ar: \"�������\", en: \"Title\" } },"
+    },
+    {
+      "line": 625,
+      "content": "        label: { ar: \"�������\", en: \"Category\" },"
+    },
+    {
+      "line": 628,
+      "content": "      { key: \"is_active\", label: { ar: \"����\", en: \"Active\" }, tone: \"status\" },"
+    },
+    {
+      "line": 631,
+      "content": "        label: { ar: \"����� �����\", en: \"Needs embedding\" },"
+    },
+    {
+      "line": 636,
+      "content": "        label: { ar: \"��� �����\", en: \"Updated\" },"
+    },
+    {
+      "line": 646,
+      "content": "    title: { ar: \"��������\", en: \"Reports\" },"
+    },
+    {
+      "line": 648,
+      "content": "      ar: \"����ʡ ����� ���ɡ ������ҡ RFQ� �������.\","
+    },
+    {
+      "line": 671,
+      "content": "    title: { ar: \"����� �������\", en: \"Content moderation\" },"
+    },
+    {
+      "line": 673,
+      "content": "      ar: \"����� ������� ��������� ���� ���� ������� �� �������� ��� ��������.\","
+    },
+    {
+      "line": 687,
+      "content": "      { key: \"term\", label: { ar: \"������ �� �������\", en: \"Term\" } },"
+    },
+    {
+      "line": 690,
+      "content": "        label: { ar: \"�����\", en: \"Language\" },"
+    },
+    {
+      "line": 695,
+      "content": "        label: { ar: \"����� �����\", en: \"Match type\" },"
+    },
+    {
+      "line": 700,
+      "content": "        label: { ar: \"�������\", en: \"Category\" },"
+    },
+    {
+      "line": 705,
+      "content": "        label: { ar: \"�������\", en: \"Action\" },"
+    },
+    {
+      "line": 708,
+      "content": "      { key: \"is_active\", label: { ar: \"����\", en: \"Active\" }, tone: \"status\" },"
+    },
+    {
+      "line": 711,
+      "content": "        label: { ar: \"��� �����\", en: \"Updated\" },"
+    },
+    {
+      "line": 731,
+      "content": "    title: { ar: \"���������� ����������\", en: \"Monetization\" },"
+    },
+    {
+      "line": 733,
+      "content": "      ar: \"Feature flags ���� �������� ������ �����.\","
+    },
+    {
+      "line": 748,
+      "content": "    title: { ar: \"������� �����\", en: \"Payments\" },"
+    },
+    {
+      "line": 750,
+      "content": "      ar: \"����� ����� ��������� ������ ��� ����� �����.\","
+    },
+    {
+      "line": 762,
+      "content": "      { key: \"user_name\", label: { ar: \"��������\", en: \"User\" } },"
+    },
+    {
+      "line": 763,
+      "content": "      { key: \"store_name\", label: { ar: \"������\", en: \"Store\" } },"
+    },
+    {
+      "line": 766,
+      "content": "        label: { ar: \"����� �����\", en: \"Provider\" },"
+    },
+    {
+      "line": 769,
+      "content": "      { key: \"amount\", label: { ar: \"������\", en: \"Amount\" }, tone: \"money\" },"
+    },
+    {
+      "line": 770,
+      "content": "      { key: \"status\", label: { ar: \"������\", en: \"Status\" }, tone: \"status\" },"
+    },
+    {
+      "line": 771,
+      "content": "      { key: \"created_at\", label: { ar: \"�������\", en: \"Date\" }, tone: \"date\" },"
+    },
+    {
+      "line": 782,
+      "content": "    title: { ar: \"�������� ���������\", en: \"Referrals and rewards\" },"
+    },
+    {
+      "line": 784,
+      "content": "      ar: \"������ ������ϡ ��������� ������ɡ ������ ��������.\","
+    },
+    {
+      "line": 795,
+      "content": "      { key: \"referrer_name\", label: { ar: \"���� ������\", en: \"Referrer\" } },"
+    },
+    {
+      "line": 798,
+      "content": "        label: { ar: \"�������\", en: \"Rewarded user\" },"
+    },
+    {
+      "line": 802,
+      "content": "        label: { ar: \"�����\", en: \"Code\" },"
+    },
+    {
+      "line": 807,
+      "content": "        label: { ar: \"��������\", en: \"Reward\" },"
+    },
+    {
+      "line": 812,
+      "content": "        label: { ar: \"�������\", en: \"Delivery\" },"
+    },
+    {
+      "line": 815,
+      "content": "      { key: \"created_at\", label: { ar: \"�������\", en: \"Date\" }, tone: \"date\" },"
+    },
+    {
+      "line": 826,
+      "content": "    title: { ar: \"��� ��������\", en: \"Audit logs\" },"
+    },
+    {
+      "line": 828,
+      "content": "      ar: \"�� ����� ���� ���� ��� ��������.\","
+    },
+    {
+      "line": 840,
+      "content": "      { key: \"actor_name\", label: { ar: \"�������\", en: \"Actor\" } },"
+    },
+    {
+      "line": 841,
+      "content": "      { key: \"action\", label: { ar: \"�������\", en: \"Action\" }, tone: \"status\" },"
+    },
+    {
+      "line": 844,
+      "content": "        label: { ar: \"������\", en: \"Table\" },"
+    },
+    {
+      "line": 847,
+      "content": "      { key: \"target_id\", label: { ar: \"�����\", en: \"Target\" }, tone: \"long\" },"
+    },
+    {
+      "line": 848,
+      "content": "      { key: \"created_at\", label: { ar: \"�������\", en: \"Date\" }, tone: \"date\" },"
+    }
+  ]
+}
