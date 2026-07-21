@@ -53,6 +53,7 @@ const permissionGroups = [
       { key: "branch_approvals", ar: "موافقات الفروع", en: "Branch approvals" },
       { key: "stores", ar: "إدارة المتاجر", en: "Stores" },
       { key: "store_catalog", ar: "رقابة المتاجر والمنتجات", en: "Store catalog moderation" },
+      { key: "shipping_companies", ar: "شركات الشحن", en: "Shipping companies" },
       { key: "categories", ar: "الأقسام", en: "Categories" },
       { key: "cities", ar: "المدن والمناطق", en: "Cities and areas" }
     ]

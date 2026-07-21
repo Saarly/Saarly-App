@@ -42,6 +42,7 @@ body {
   margin: 0;
   background: var(--off-white);
   color: var(--text);
+  font-family: var(--font-tajawal), Arial, sans-serif;
 }
 
 button,
