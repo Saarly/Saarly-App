@@ -33,21 +33,21 @@ type Message = {
 
 function senderLabel(message: Message, lang: Lang) {
   if (message.sender_name) return message.sender_name;
-  if (message.sender_type === "user") return lang === "ar" ? "العميل" : "Customer";
-  if (message.sender_type === "bot") return lang === "ar" ? "البوت" : "Bot";
-  if (message.sender_type === "support_agent") return lang === "ar" ? "خدمة العملاء" : "Support";
-  if (message.sender_type === "system") return lang === "ar" ? "النظام" : "System";
+  if (message.sender_type === "user") return lang === "ar" ? "������" : "Customer";
+  if (message.sender_type === "bot") return lang === "ar" ? "�����" : "Bot";
+  if (message.sender_type === "support_agent") return lang === "ar" ? "���� �������" : "Support";
+  if (message.sender_type === "system") return lang === "ar" ? "������" : "System";
   return message.sender_type;
 }
 
 function supportStatusLabel(status: string, lang: Lang) {
-  if (status === "transferred") return lang === "ar" ? "محولة لخدمة العملاء" : "Transferred to support";
-  if (status === "bot") return lang === "ar" ? "مع البوت" : "With bot";
+  if (status === "transferred") return lang === "ar" ? "����� ����� �������" : "Transferred to support";
+  if (status === "bot") return lang === "ar" ? "�� �����" : "With bot";
   return friendlyStatus(status, lang);
 }
 
 function assignedLabel(conversation: Conversation, lang: Lang) {
-  return conversation.assigned_agent_name || (lang === "ar" ? "لم يستلمها أحد" : "Unassigned");
+  return conversation.assigned_agent_name || (lang === "ar" ? "�� ������� ���" : "Unassigned");
 }
 
 export function SupportConsole({ lang }: { lang: Lang }) {
@@ -163,10 +163,10 @@ export function SupportConsole({ lang }: { lang: Lang }) {
       <div className="section-head">
         <div>
           <span className="eyebrow">{t("supportQueue", lang)}</span>
-          <h1>{lang === "ar" ? "خدمة العملاء" : "Support"}</h1>
+          <h1>{lang === "ar" ? "���� �������" : "Support"}</h1>
           <p>
             {lang === "ar"
-              ? "استلام المحادثات المحولة من البوت والرد عليها مباشرة داخل التطبيق."
+              ? "������ ��������� ������� �� ����� ����� ����� ������ ���� �������."
               : "Pick up bot transfers and reply directly into the app."}
           </p>
         </div>
@@ -180,7 +180,7 @@ export function SupportConsole({ lang }: { lang: Lang }) {
 
       <div className="support-grid">
         <aside className="queue-card">
-          <h2>{lang === "ar" ? "المحادثات" : "Conversations"}</h2>
+          <h2>{lang === "ar" ? "���������" : "Conversations"}</h2>
           {loading ? <div className="empty-state">{t("loading", lang)}</div> : null}
           {!loading && conversations.length === 0 ? <div className="empty-state">{t("noRows", lang)}</div> : null}
           <div className="queue-list">
@@ -190,10 +190,10 @@ export function SupportConsole({ lang }: { lang: Lang }) {
                 className={selected?.id === conversation.id ? "queue-item active" : "queue-item"}
                 onClick={() => setSelected(conversation)}
               >
-                <strong>{conversation.title || (lang === "ar" ? "محادثة دعم" : "Support chat")}</strong>
+                <strong>{conversation.title || (lang === "ar" ? "������ ���" : "Support chat")}</strong>
                 <span>{supportStatusLabel(conversation.status, lang)}</span>
                 <span>
-                  {lang === "ar" ? "استلمها: " : "Handled by: "}
+                  {lang === "ar" ? "�������: " : "Handled by: "}
                   {assignedLabel(conversation, lang)}
                 </span>
                 {conversation.last_message_preview ? <small>{conversation.last_message_preview}</small> : null}
@@ -207,10 +207,10 @@ export function SupportConsole({ lang }: { lang: Lang }) {
             <>
               <div className="chat-head">
                 <div>
-                  <strong>{selected.title || (lang === "ar" ? "محادثة دعم" : "Support chat")}</strong>
+                  <strong>{selected.title || (lang === "ar" ? "������ ���" : "Support chat")}</strong>
                   <span>{supportStatusLabel(selected.status, lang)}</span>
                   <span>
-                    {lang === "ar" ? "استلمها: " : "Handled by: "}
+                    {lang === "ar" ? "�������: " : "Handled by: "}
                     {assignedLabel(selected, lang)}
                   </span>
                 </div>
@@ -257,8 +257,8 @@ export function SupportConsole({ lang }: { lang: Lang }) {
           ) : (
             <div className="empty-chat">
               <CheckCircle2 size={36} />
-              <strong>{lang === "ar" ? "اختار محادثة من الطابور" : "Choose a conversation"}</strong>
-              <span>{lang === "ar" ? "الرد يصل للعميل عبر Realtime." : "Replies arrive through Realtime."}</span>
+              <strong>{lang === "ar" ? "����� ������ �� �������" : "Choose a conversation"}</strong>
+              <span>{lang === "ar" ? "���� ��� ������ ��� Realtime." : "Replies arrive through Realtime."}</span>
             </div>
           )}
         </article>

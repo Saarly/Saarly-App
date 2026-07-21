@@ -36,51 +36,51 @@ type StaffForm = {
 
 const permissionGroups = [
   {
-    ar: "الإدارة الرئيسية",
+    ar: "������� ��������",
     en: "Core admin",
     items: [
-      { key: "dashboard", ar: "الرئيسية", en: "Dashboard" },
-      { key: "users", ar: "المستخدمون", en: "Users" },
-      { key: "staff", ar: "الفريق والصلاحيات", en: "Team permissions" },
-      { key: "audit", ar: "سجل العمليات", en: "Audit log" }
+      { key: "dashboard", ar: "��������", en: "Dashboard" },
+      { key: "users", ar: "����������", en: "Users" },
+      { key: "staff", ar: "������ ����������", en: "Team permissions" },
+      { key: "audit", ar: "��� ��������", en: "Audit log" }
     ]
   },
   {
-    ar: "المتاجر والمنتجات",
+    ar: "������� ���������",
     en: "Stores and catalog",
     items: [
-      { key: "merchant_approvals", ar: "موافقات المتاجر", en: "Merchant approvals" },
-      { key: "branch_approvals", ar: "موافقات الفروع", en: "Branch approvals" },
-      { key: "stores", ar: "إدارة المتاجر", en: "Stores" },
-      { key: "store_catalog", ar: "رقابة المتاجر والمنتجات", en: "Store catalog moderation" },
-      { key: "shipping_companies", ar: "شركات الشحن", en: "Shipping companies" },
-      { key: "categories", ar: "الأقسام", en: "Categories" },
-      { key: "cities", ar: "المدن والمناطق", en: "Cities and areas" }
+      { key: "merchant_approvals", ar: "������� �������", en: "Merchant approvals" },
+      { key: "branch_approvals", ar: "������� ������", en: "Branch approvals" },
+      { key: "stores", ar: "����� �������", en: "Stores" },
+      { key: "store_catalog", ar: "����� ������� ���������", en: "Store catalog moderation" },
+      { key: "shipping_companies", ar: "����� �����", en: "Shipping companies" },
+      { key: "categories", ar: "�������", en: "Categories" },
+      { key: "cities", ar: "����� ��������", en: "Cities and areas" }
     ]
   },
   {
-    ar: "الطلبات والدعم",
+    ar: "������� ������",
     en: "Orders and support",
     items: [
-      { key: "orders", ar: "الطلبات", en: "Orders" },
-      { key: "support_chats", ar: "محادثات الدعم", en: "Support chats" },
-      { key: "complaints", ar: "الشكاوى والنزاعات", en: "Complaints" },
-      { key: "knowledge_base", ar: "قاعدة معرفة البوت", en: "Bot knowledge base" },
-      { key: "content_moderation", ar: "فلترة المحتوى", en: "Content moderation" },
-      { key: "suspicious_matches", ar: "المطابقات المشكوك فيها", en: "Low confidence matches" },
-      { key: "ai_reads", ar: "قراءات الذكاء الاصطناعي", en: "AI reads" }
+      { key: "orders", ar: "�������", en: "Orders" },
+      { key: "support_chats", ar: "������� �����", en: "Support chats" },
+      { key: "complaints", ar: "������� ���������", en: "Complaints" },
+      { key: "knowledge_base", ar: "����� ����� �����", en: "Bot knowledge base" },
+      { key: "content_moderation", ar: "����� �������", en: "Content moderation" },
+      { key: "suspicious_matches", ar: "��������� ������� ����", en: "Low confidence matches" },
+      { key: "ai_reads", ar: "������ ������ ���������", en: "AI reads" }
     ]
   },
   {
-    ar: "التسويق والماليات",
+    ar: "������� ���������",
     en: "Marketing and finance",
     items: [
-      { key: "broadcast", ar: "إرسال إشعارات", en: "Send notifications" },
-      { key: "ads", ar: "الإعلانات", en: "Ads" },
-      { key: "reports", ar: "التقارير", en: "Reports" },
-      { key: "monetization", ar: "الاشتراكات والمدفوعات", en: "Monetization" },
-      { key: "payments", ar: "معاملات الدفع", en: "Payments" },
-      { key: "referrals", ar: "الإحالات والمكافآت", en: "Referrals" }
+      { key: "broadcast", ar: "����� �������", en: "Send notifications" },
+      { key: "ads", ar: "���������", en: "Ads" },
+      { key: "reports", ar: "��������", en: "Reports" },
+      { key: "monetization", ar: "���������� ����������", en: "Monetization" },
+      { key: "payments", ar: "������� �����", en: "Payments" },
+      { key: "referrals", ar: "�������� ���������", en: "Referrals" }
     ]
   }
 ];
@@ -198,7 +198,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
       });
 
       setForm(initialForm());
-      setMessage(lang === "ar" ? "تم إنشاء حساب الفريق وحفظ صلاحياته." : "Staff account created with permissions.");
+      setMessage(lang === "ar" ? "�� ����� ���� ������ ���� ��������." : "Staff account created with permissions.");
       await loadStaff();
     } catch (createError) {
       setError(normalizeError(createError, lang));
@@ -234,7 +234,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
       });
 
       setEditing(null);
-      setMessage(lang === "ar" ? "تم تحديث صلاحيات الموظف." : "Staff permissions updated.");
+      setMessage(lang === "ar" ? "�� ����� ������� ������." : "Staff permissions updated.");
       await loadStaff();
     } catch (saveError) {
       setError(normalizeError(saveError, lang));
@@ -254,7 +254,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
         id: row.id,
         payload: { enabled }
       });
-      setMessage(enabled ? (lang === "ar" ? "تم تفعيل الحساب." : "Account enabled.") : lang === "ar" ? "تم إيقاف الحساب." : "Account disabled.");
+      setMessage(enabled ? (lang === "ar" ? "�� ����� ������." : "Account enabled.") : lang === "ar" ? "�� ����� ������." : "Account disabled.");
       await loadStaff();
     } catch (toggleError) {
       setError(normalizeError(toggleError, lang));
@@ -264,11 +264,11 @@ export function StaffManagement({ lang }: { lang: Lang }) {
   }
 
   async function setPassword(row: StaffRow) {
-    const password = window.prompt(lang === "ar" ? "اكتب كلمة مرور جديدة لهذا الحساب" : "Enter a new password for this account");
+    const password = window.prompt(lang === "ar" ? "���� ���� ���� ����� ���� ������" : "Enter a new password for this account");
     if (!password) return;
-    const confirmation = window.prompt(lang === "ar" ? "اكتب نفس كلمة المرور للتأكيد" : "Confirm the new password");
+    const confirmation = window.prompt(lang === "ar" ? "���� ��� ���� ������ �������" : "Confirm the new password");
     if (password !== confirmation) {
-      setError(lang === "ar" ? "كلمتا المرور غير متطابقتين." : "Passwords do not match.");
+      setError(lang === "ar" ? "����� ������ ��� ���������." : "Passwords do not match.");
       return;
     }
 
@@ -281,7 +281,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
         id: row.id,
         payload: { password }
       });
-      setMessage(lang === "ar" ? "تم تعيين كلمة المرور." : "Password updated.");
+      setMessage(lang === "ar" ? "�� ����� ���� ������." : "Password updated.");
     } catch (passwordError) {
       setError(normalizeError(passwordError, lang));
     } finally {
@@ -297,11 +297,11 @@ export function StaffManagement({ lang }: { lang: Lang }) {
     <section className="content-panel">
       <div className="section-head">
         <div>
-          <span className="eyebrow">{lang === "ar" ? "تحكم كامل في فريق اللوحة" : "Admin team control"}</span>
-          <h1>{lang === "ar" ? "الفريق والصلاحيات" : "Team and permissions"}</h1>
+          <span className="eyebrow">{lang === "ar" ? "���� ���� �� ���� ������" : "Admin team control"}</span>
+          <h1>{lang === "ar" ? "������ ����������" : "Team and permissions"}</h1>
           <p>
             {lang === "ar"
-              ? "أضف حساب جديد، اكتب اسم الرتبة، وحدد الصفحات والإجراءات المسموحة له من غير ما تدخل Supabase."
+              ? "��� ���� ���ϡ ���� ��� �����ɡ ���� ������� ���������� �������� �� �� ��� �� ���� Supabase."
               : "Add a staff account, name the rank, and choose what it can access without opening Supabase."}
           </p>
         </div>
@@ -318,38 +318,38 @@ export function StaffManagement({ lang }: { lang: Lang }) {
         <form className="staff-form ops-card" onSubmit={createStaff}>
           <div className="staff-form-head">
             <Plus size={20} />
-            <h2>{lang === "ar" ? "إضافة شخص جديد" : "Add new staff"}</h2>
+            <h2>{lang === "ar" ? "����� ��� ����" : "Add new staff"}</h2>
           </div>
 
           <div className="form-split">
             <label>
-              {lang === "ar" ? "الاسم" : "Name"}
+              {lang === "ar" ? "�����" : "Name"}
               <input value={form.full_name} onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))} required />
             </label>
             <label>
-              {lang === "ar" ? "اسم الرتبة" : "Rank name"}
-              <input value={form.role_label} onChange={(event) => setForm((current) => ({ ...current, role_label: event.target.value }))} placeholder={lang === "ar" ? "مثال: مدير متاجر" : "Example: Store manager"} required />
+              {lang === "ar" ? "��� ������" : "Rank name"}
+              <input value={form.role_label} onChange={(event) => setForm((current) => ({ ...current, role_label: event.target.value }))} placeholder={lang === "ar" ? "����: ���� �����" : "Example: Store manager"} required />
             </label>
           </div>
 
           <div className="form-split">
             <label>
-              {lang === "ar" ? "الإيميل" : "Email"}
+              {lang === "ar" ? "�������" : "Email"}
               <input dir="ltr" type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required />
             </label>
             <label>
-              {lang === "ar" ? "الموبايل" : "Mobile"}
+              {lang === "ar" ? "��������" : "Mobile"}
               <input dir="ltr" value={form.mobile} onChange={(event) => setForm((current) => ({ ...current, mobile: event.target.value }))} required />
             </label>
           </div>
 
           <div className="form-split">
             <label>
-              {lang === "ar" ? "كلمة المرور" : "Password"}
+              {lang === "ar" ? "���� ������" : "Password"}
               <input dir="ltr" type="password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required />
             </label>
             <label>
-              {lang === "ar" ? "تأكيد كلمة المرور" : "Confirm password"}
+              {lang === "ar" ? "����� ���� ������" : "Confirm password"}
               <input dir="ltr" type="password" value={form.confirm_password} onChange={(event) => setForm((current) => ({ ...current, confirm_password: event.target.value }))} required />
             </label>
           </div>
@@ -377,17 +377,17 @@ export function StaffManagement({ lang }: { lang: Lang }) {
 
           <button className="primary-button broadcast-submit" disabled={saving}>
             <Save size={18} />
-            {saving ? t("loading", lang) : lang === "ar" ? "إنشاء الحساب" : "Create account"}
+            {saving ? t("loading", lang) : lang === "ar" ? "����� ������" : "Create account"}
           </button>
         </form>
 
         <aside className="staff-list ops-card">
           <div className="staff-form-head">
             <ShieldCheck size={20} />
-            <h2>{lang === "ar" ? "الفريق الحالي" : "Current team"}</h2>
+            <h2>{lang === "ar" ? "������ ������" : "Current team"}</h2>
           </div>
           <p className="muted">
-            {lang === "ar" ? `نشط الآن: ${activeCount}` : `Active now: ${activeCount}`}
+            {lang === "ar" ? `��� ����: ${activeCount}` : `Active now: ${activeCount}`}
           </p>
 
           {loading ? <div className="empty-state">{t("loading", lang)}</div> : null}
@@ -402,20 +402,20 @@ export function StaffManagement({ lang }: { lang: Lang }) {
                   <small>{row.primary_email} | {row.mobile || "-"}</small>
                 </div>
                 <span className={row.staff_is_active && !row.is_blocked ? "status-pill active" : "status-pill muted"}>
-                  {row.staff_is_active && !row.is_blocked ? (lang === "ar" ? "نشط" : "Active") : lang === "ar" ? "متوقف" : "Inactive"}
+                  {row.staff_is_active && !row.is_blocked ? (lang === "ar" ? "���" : "Active") : lang === "ar" ? "�����" : "Inactive"}
                 </span>
                 <p className="muted">{permissionSummary(row, lang)}</p>
                 <div className="row-actions">
                   <button className="tiny-button" type="button" onClick={() => startEdit(row)}>
                     <UserCog size={14} />
-                    {lang === "ar" ? "تعديل" : "Edit"}
+                    {lang === "ar" ? "�����" : "Edit"}
                   </button>
                   <button className="tiny-button" type="button" onClick={() => void setPassword(row)}>
                     <KeyRound size={14} />
-                    {lang === "ar" ? "باسورد" : "Password"}
+                    {lang === "ar" ? "������" : "Password"}
                   </button>
                   <button className="tiny-button" type="button" onClick={() => void toggleStaffActive(row)} disabled={saving}>
-                    {row.staff_is_active && !row.is_blocked ? (lang === "ar" ? "إيقاف" : "Disable") : lang === "ar" ? "تفعيل" : "Enable"}
+                    {row.staff_is_active && !row.is_blocked ? (lang === "ar" ? "�����" : "Disable") : lang === "ar" ? "�����" : "Enable"}
                   </button>
                 </div>
               </article>
@@ -427,9 +427,9 @@ export function StaffManagement({ lang }: { lang: Lang }) {
       {editing ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card staff-edit-modal">
-            <h2>{lang === "ar" ? "تعديل الرتبة والصلاحيات" : "Edit rank and permissions"}</h2>
+            <h2>{lang === "ar" ? "����� ������ ����������" : "Edit rank and permissions"}</h2>
             <label>
-              {lang === "ar" ? "اسم الرتبة" : "Rank name"}
+              {lang === "ar" ? "��� ������" : "Rank name"}
               <input value={editRoleLabel} onChange={(event) => setEditRoleLabel(event.target.value)} />
             </label>
             <div className="access-options">
@@ -508,18 +508,18 @@ function accessOptions(lang: Lang): Array<{ id: AccessLevel; title: string; hint
   return [
     {
       id: "limited_admin",
-      title: lang === "ar" ? "مدير بصلاحيات محددة" : "Limited admin",
-      hint: lang === "ar" ? "يدخل اللوحة حسب الاختيارات اللي تحت." : "Can use the dashboard based on the checked permissions."
+      title: lang === "ar" ? "���� �������� �����" : "Limited admin",
+      hint: lang === "ar" ? "���� ������ ��� ���������� ���� ���." : "Can use the dashboard based on the checked permissions."
     },
     {
       id: "support_agent",
-      title: lang === "ar" ? "موظف دعم" : "Support agent",
-      hint: lang === "ar" ? "مناسب للدعم والشكاوى والمحادثات." : "Best for support, complaints, and chats."
+      title: lang === "ar" ? "���� ���" : "Support agent",
+      hint: lang === "ar" ? "����� ����� �������� ����������." : "Best for support, complaints, and chats."
     },
     {
       id: "full_admin",
-      title: lang === "ar" ? "مدير بصلاحيات كاملة" : "Full-permission admin",
-      hint: lang === "ar" ? "يشوف ويتحكم في كل شيء." : "Can see and control everything."
+      title: lang === "ar" ? "���� �������� �����" : "Full-permission admin",
+      hint: lang === "ar" ? "���� ������ �� �� ���." : "Can see and control everything."
     }
   ];
 }
@@ -536,18 +536,18 @@ function readPermissions(value: PermissionMap | null | undefined) {
 }
 
 function internalRoleLabel(role: string, lang: Lang) {
-  if (role === "admin") return lang === "ar" ? "مدير كامل" : "Full admin";
-  return lang === "ar" ? "موظف دعم" : "Support agent";
+  if (role === "admin") return lang === "ar" ? "���� ����" : "Full admin";
+  return lang === "ar" ? "���� ���" : "Support agent";
 }
 
 function permissionSummary(row: StaffRow, lang: Lang) {
   const permissions = readPermissions(row.permissions);
   if (row.internal_role === "admin" && permissions.__limit_admin !== true) {
-    return lang === "ar" ? "كل الصلاحيات" : "All permissions";
+    return lang === "ar" ? "�� ���������" : "All permissions";
   }
   const enabled = permissionItems.filter((item) => permissions[item.key]).slice(0, 5);
-  if (enabled.length === 0) return lang === "ar" ? "لا توجد صلاحيات محددة" : "No permissions selected";
-  const names = enabled.map((item) => (lang === "ar" ? item.ar : item.en)).join("، ");
+  if (enabled.length === 0) return lang === "ar" ? "�� ���� ������� �����" : "No permissions selected";
+  const names = enabled.map((item) => (lang === "ar" ? item.ar : item.en)).join("� ");
   const extra = permissionItems.filter((item) => permissions[item.key]).length - enabled.length;
   return extra > 0 ? `${names} +${extra}` : names;
 }
@@ -556,31 +556,31 @@ function normalizeError(error: unknown, lang: Lang) {
   const message = error instanceof Error ? error.message : String(error);
   const labels: Record<string, { ar: string; en: string }> = {
     service_role_key_missing: {
-      ar: "مفتاح الخدمة غير موجود في Vercel، لذلك لا يمكن إنشاء أو تعديل حسابات الفريق.",
+      ar: "����� ������ ��� ����� �� Vercel� ���� �� ���� ����� �� ����� ������ ������.",
       en: "The service role key is missing in Vercel, so staff accounts cannot be changed."
     },
     admin_staff_sql_not_applied: {
-      ar: "ملف SQL الخاص بصفحة الفريق لم يتم تشغيله في Supabase بعد.",
+      ar: "��� SQL ����� ����� ������ �� ��� ������ �� Supabase ���.",
       en: "The staff permissions SQL file has not been run in Supabase yet."
     },
     password_must_be_at_least_8_chars: {
-      ar: "كلمة المرور لازم تكون 8 حروف على الأقل.",
+      ar: "���� ������ ���� ���� 8 ���� ��� �����.",
       en: "Password must be at least 8 characters."
     },
     passwords_do_not_match: {
-      ar: "كلمتا المرور غير متطابقتين.",
+      ar: "����� ������ ��� ���������.",
       en: "Passwords do not match."
     },
     permission_denied: {
-      ar: "هذا الحساب لا يملك صلاحية تنفيذ هذا الإجراء.",
+      ar: "��� ������ �� ���� ������ ����� ��� �������.",
       en: "This account does not have permission for this action."
     },
     cannot_disable_your_own_account: {
-      ar: "لا يمكنك إيقاف حسابك الحالي من هنا.",
+      ar: "�� ����� ����� ����� ������ �� ���.",
       en: "You cannot disable your current account here."
     },
     cannot_limit_your_own_admin_account: {
-      ar: "لا يمكنك تقليل صلاحيات حسابك الحالي من هنا.",
+      ar: "�� ����� ����� ������� ����� ������ �� ���.",
       en: "You cannot limit your current admin account here."
     }
   };

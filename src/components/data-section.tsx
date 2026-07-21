@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   useEffect,
@@ -29,7 +29,7 @@ import {
 import { humanizeAdminError } from "@/lib/admin/messages";
 
 type Row = Record<string, unknown>;
-const DEFAULT_COUNTRY_AR = "ظ…طµط±";
+const DEFAULT_COUNTRY_AR = "مصر";
 const DEFAULT_COUNTRY_EN = "Egypt";
 const COUNTRY_MARKER = "__country__";
 
@@ -308,7 +308,7 @@ export function DataSection({
         );
         const ok = window.confirm(
           lang === "ar"
-            ? `ط³ظٹطھظ… ط­ط°ظپ ط¯ط®ظˆظ„ ط§ظ„ط­ط³ط§ط¨ ظˆظ…ط³ط­ ط¨ظٹط§ظ†ط§طھظ‡ ط§ظ„ط´ط®طµظٹط© ظˆظ…ظ„ظپط§طھظ‡ ط§ظ„طھط§ط¨ط¹ط© ظپظ‚ط·. ظ‡ظ„ طھط±ظٹط¯ ط­ط°ظپ ${title || "ظ‡ط°ط§ ط§ظ„ط­ط³ط§ط¨"}طں`
+            ? `سيتم حذف دخول الحساب ومسح بياناته الشخصية وملفاته التابعة فقط. هل تريد حذف ${title || "هذا الحساب"}؟`
             : `This removes sign-in, personal data, and only this account's files. Delete ${title || "this account"}?`,
         );
         if (!ok) return;
@@ -389,7 +389,7 @@ export function DataSection({
             values.currency_code || "EGP",
           ).trim().toUpperCase();
           values.currency_name_ar = String(
-            values.currency_name_ar || "ط¬ظ†ظٹظ‡ ظ…طµط±ظٹ",
+            values.currency_name_ar || "جنيه مصري",
           ).trim();
           values.currency_name_en = String(
             values.currency_name_en || values.currency_code,
@@ -446,10 +446,10 @@ export function DataSection({
               <Plus size={17} />
               {section.id === "cities"
                 ? lang === "ar"
-                  ? "ط¥ط¶ط§ظپط© ط¨ظ„ط¯ ط£ظˆ ظ…ط­ط§ظپط¸ط© ط£ظˆ ظ…ط¯ظٹظ†ط©"
+                  ? "إضافة بلد أو محافظة أو مدينة"
                   : "Add country, governorate, or city"
                 : lang === "ar"
-                  ? "ط¥ط¶ط§ظپط©"
+                  ? "إضافة"
                   : "Add"}
             </button>
           ) : null}
@@ -552,10 +552,10 @@ export function DataSection({
                     >
                       {group.governorateRow.is_active
                         ? lang === "ar"
-                          ? "ظ…ظپط¹ظ„ط©"
+                          ? "مفعلة"
                           : "Active"
                         : lang === "ar"
-                          ? "ظ…طھظˆظ‚ظپط©"
+                          ? "متوقفة"
                           : "Inactive"}
                     </span>
                     {section.actions?.map((action) => (
@@ -611,7 +611,7 @@ export function DataSection({
                     <strong>{country.country}</strong>
                     <small>
                       {lang === "ar"
-                        ? `${country.governorates.length} ظ…ط­ط§ظپط¸ط© - ${cityCount} ظ…ط¯ظٹظ†ط©`
+                        ? `${country.governorates.length} محافظة - ${cityCount} مدينة`
                         : `${country.governorates.length} governorates - ${cityCount} cities`}
                     </small>
                   </span>
@@ -657,10 +657,10 @@ export function DataSection({
                                 >
                                   {group.governorateRow.is_active
                                     ? lang === "ar"
-                                      ? "ظ…ظپط¹ظ„ط©"
+                                      ? "مفعلة"
                                       : "Active"
                                     : lang === "ar"
-                                      ? "ظ…طھظˆظ‚ظپط©"
+                                      ? "متوقفة"
                                       : "Inactive"}
                                 </span>
                                 {section.actions?.map((action) => (
@@ -681,7 +681,7 @@ export function DataSection({
                             ) : null}
                             <span>
                               {lang === "ar"
-                                ? `${group.cities.length} ظ…ط¯ظٹظ†ط©`
+                                ? `${group.cities.length} مدينة`
                                 : `${group.cities.length} cities`}
                             </span>
                           </div>
@@ -704,10 +704,10 @@ export function DataSection({
                               <span>
                                 {row.is_active
                                   ? lang === "ar"
-                                    ? "ظ…ظپط¹ظ„ط©"
+                                    ? "مفعلة"
                                     : "Active"
                                   : lang === "ar"
-                                    ? "ظ…طھظˆظ‚ظپط©"
+                                    ? "متوقفة"
                                     : "Inactive"}
                               </span>
                             </div>
@@ -744,7 +744,7 @@ export function DataSection({
                   <th key={column.key}>{tr(column.label, lang)}</th>
                 ))}
                 {section.actions?.length ? (
-                  <th>{lang === "ar" ? "ط¥ط¬ط±ط§ط،ط§طھ" : "Actions"}</th>
+                  <th>{lang === "ar" ? "إجراءات" : "Actions"}</th>
                 ) : null}
               </tr>
             </thead>
@@ -789,10 +789,10 @@ export function DataSection({
             <h2>
               {editing === "new"
                 ? lang === "ar"
-                  ? "ط¥ط¶ط§ظپط© ط³ط¬ظ„"
+                  ? "إضافة سجل"
                   : "Add row"
                 : lang === "ar"
-                  ? "طھط¹ط¯ظٹظ„ ط³ط±ظٹط¹"
+                  ? "تعديل سريع"
                   : "Quick edit"}
             </h2>
             <div className="edit-grid">
@@ -856,7 +856,7 @@ export function DataSection({
                         }
                       >
                         <option value="">
-                          {lang === "ar" ? "ظƒظ„ ط§ظ„ط¨ظ„ط§ط¯" : "All countries"}
+                          {lang === "ar" ? "كل البلاد" : "All countries"}
                         </option>
                         {adCountries.map((country) => (
                           <option value={country} key={country}>
@@ -877,7 +877,7 @@ export function DataSection({
                         }
                       >
                         <option value="">
-                          {lang === "ar" ? "ظƒظ„ ط§ظ„ظ…ط­ط§ظپط¸ط§طھ" : "All governorates"}
+                          {lang === "ar" ? "كل المحافظات" : "All governorates"}
                         </option>
                         {adGovernorates.map((governorate) => (
                           <option value={governorate} key={governorate}>
@@ -896,7 +896,7 @@ export function DataSection({
                         }
                       >
                         <option value="">
-                          {lang === "ar" ? "ظƒظ„ ط§ظ„ظ…ط¯ظ†" : "All cities"}
+                          {lang === "ar" ? "كل المدن" : "All cities"}
                         </option>
                         {adCities.map((city) => (
                           <option value={city} key={city}>
@@ -1017,29 +1017,29 @@ function coerceEditableFormValue(field: string, value: string | boolean) {
 function contentModerationSelectOptions(field: string, lang: Lang) {
   const options: Record<string, { value: string; ar: string; en: string }[]> = {
     language: [
-      { value: "mixed", ar: "ط£ظٹ ظ„ط؛ط©", en: "Any language" },
-      { value: "arabic", ar: "ط¹ط±ط¨ظٹ", en: "Arabic" },
+      { value: "mixed", ar: "أي لغة", en: "Any language" },
+      { value: "arabic", ar: "عربي", en: "Arabic" },
       {
         value: "latin",
-        ar: "ط¥ظ†ط¬ظ„ظٹط²ظٹ ط£ظˆ ط­ط±ظˆظپ ظ„ط§طھظٹظ†ظٹط©",
+        ar: "إنجليزي أو حروف لاتينية",
         en: "English or Latin letters",
       },
     ],
     match_type: [
-      { value: "contains", ar: "ظ„ظˆ ط¸ظ‡ط±طھ ط¯ط§ط®ظ„ ط§ظ„ظƒظ„ط§ظ…", en: "Appears anywhere" },
-      { value: "word", ar: "ظƒظ„ظ…ط© ظ…ط³طھظ‚ظ„ط©", en: "Whole word" },
-      { value: "exact", ar: "ط§ظ„ظ†طµ ظ…ط·ط§ط¨ظ‚ ط¨ط§ظ„ط¶ط¨ط·", en: "Exact match" },
+      { value: "contains", ar: "لو ظهرت داخل الكلام", en: "Appears anywhere" },
+      { value: "word", ar: "كلمة مستقلة", en: "Whole word" },
+      { value: "exact", ar: "النص مطابق بالضبط", en: "Exact match" },
     ],
     category: [
-      { value: "general", ar: "ط¹ط§ظ…", en: "General" },
-      { value: "profanity", ar: "ط´طھط§ط¦ظ…", en: "Profanity" },
-      { value: "sexual", ar: "ظ…ط­طھظˆظ‰ ط¬ظ†ط³ظٹ", en: "Sexual content" },
-      { value: "abuse", ar: "ط¥ط³ط§ط،ط© ط£ظˆ طھظ†ظ…ط±", en: "Abuse" },
-      { value: "scam", ar: "ط§ط­طھظٹط§ظ„ ط£ظˆ ط±ظˆط§ط¨ط· ظ…ط´ط¨ظˆظ‡ط©", en: "Scam" },
+      { value: "general", ar: "عام", en: "General" },
+      { value: "profanity", ar: "شتائم", en: "Profanity" },
+      { value: "sexual", ar: "محتوى جنسي", en: "Sexual content" },
+      { value: "abuse", ar: "إساءة أو تنمر", en: "Abuse" },
+      { value: "scam", ar: "احتيال أو روابط مشبوهة", en: "Scam" },
     ],
     severity: [
-      { value: "block", ar: "ظ…ظ†ط¹ ط§ظ„ظ†ط´ط± ط£ظˆ ط§ظ„ط¥ط±ط³ط§ظ„", en: "Block" },
-      { value: "review", ar: "ظ„ظ„ظ…ط±ط§ط¬ط¹ط© ظ„ط§ط­ظ‚ط§", en: "Review later" },
+      { value: "block", ar: "منع النشر أو الإرسال", en: "Block" },
+      { value: "review", ar: "للمراجعة لاحقا", en: "Review later" },
     ],
   };
   return options[field]?.map((option) => ({
@@ -1352,7 +1352,7 @@ function CategoryEditor({
   return (
     <>
       <label>
-        {lang === "ar" ? "ط§ط³ظ… ط§ظ„ظ‚ط³ظ…" : "Category name"}
+        {lang === "ar" ? "اسم القسم" : "Category name"}
         <input
           dir="auto"
           value={String(formValues.name_ar ?? "")}
@@ -1380,7 +1380,7 @@ function CategoryEditor({
         </label>
       ) : null}
       <label>
-        {lang === "ar" ? "ظ†ظˆط¹ ط§ظ„ظ‚ط³ظ…" : "Category type"}
+        {lang === "ar" ? "نوع القسم" : "Category type"}
         <select
           value={String(formValues.parent_id ?? "")}
           onChange={(event) =>
@@ -1391,7 +1391,7 @@ function CategoryEditor({
           }
         >
           <option value="">
-            {lang === "ar" ? "ظ‚ط³ظ… ط±ط¦ظٹط³ظٹ" : "Main category"}
+            {lang === "ar" ? "قسم رئيسي" : "Main category"}
           </option>
           {roots.map((row) => (
             <option value={String(row.id)} key={String(row.id)}>
@@ -1405,7 +1405,7 @@ function CategoryEditor({
         </select>
       </label>
       <label>
-        {lang === "ar" ? "ط§ظ„طھط±طھظٹط¨" : "Order"}
+        {lang === "ar" ? "الترتيب" : "Order"}
         <input
           dir="ltr"
           type="number"
@@ -1430,7 +1430,7 @@ function CategoryEditor({
             }))
           }
         />
-        <span>{lang === "ar" ? "ظ…ظپط¹ظ„" : "Active"}</span>
+        <span>{lang === "ar" ? "مفعل" : "Active"}</span>
       </label>
     </>
   );
@@ -1508,7 +1508,7 @@ function CityEditorV2({
             }));
           }}
         >
-          <option value="country">{lang === "ar" ? "ط¨ظ„ط¯" : "Country"}</option>
+          <option value="country">{lang === "ar" ? "بلد" : "Country"}</option>
           <option value="governorate">
             {lang === "ar"
               ? "\u0645\u062d\u0627\u0641\u0638\u0629"
@@ -1521,7 +1521,7 @@ function CityEditorV2({
       </label>
 
       <label>
-        {lang === "ar" ? "ط§ظ„ط¨ظ„ط¯" : "Country"}
+        {lang === "ar" ? "البلد" : "Country"}
         {placeKind === "country" ? (
           <input
             dir="auto"
@@ -1567,7 +1567,7 @@ function CityEditorV2({
       {placeKind === "country" ? (
         <>
           <label>
-            {lang === "ar" ? "ظƒظˆط¯ ط§ظ„ط¹ظ…ظ„ط©" : "Currency code"}
+            {lang === "ar" ? "كود العملة" : "Currency code"}
             <input
               dir="ltr"
               value={String(formValues.currency_code ?? "EGP")}
@@ -1582,10 +1582,10 @@ function CityEditorV2({
             />
           </label>
           <label>
-            {lang === "ar" ? "ط§ط³ظ… ط§ظ„ط¹ظ…ظ„ط© ط¨ط§ظ„ط¹ط±ط¨ظٹ" : "Arabic currency name"}
+            {lang === "ar" ? "اسم العملة بالعربي" : "Arabic currency name"}
             <input
               dir="auto"
-              value={String(formValues.currency_name_ar ?? "ط¬ظ†ظٹظ‡ ظ…طµط±ظٹ")}
+              value={String(formValues.currency_name_ar ?? "جنيه مصري")}
               onChange={(event) =>
                 setFormValues((current) => ({
                   ...current,
@@ -1596,7 +1596,7 @@ function CityEditorV2({
             />
           </label>
           <label>
-            {lang === "ar" ? "ط§ط³ظ… ط§ظ„ط¹ظ…ظ„ط© ط¨ط§ظ„ط¥ظ†ط¬ظ„ظٹط²ظٹ" : "English currency name"}
+            {lang === "ar" ? "اسم العملة بالإنجليزي" : "English currency name"}
             <input
               dir="auto"
               value={String(formValues.currency_name_en ?? "Egyptian pound")}
@@ -1725,7 +1725,7 @@ function CityEditorV2({
       ) : null}
 
       <label>
-        {lang === "ar" ? "ط§ظ„طھط±طھظٹط¨" : "Order"}
+        {lang === "ar" ? "الترتيب" : "Order"}
         <input
           dir="ltr"
           type="number"
@@ -1781,7 +1781,7 @@ function CityEditor({
   return (
     <>
       <label>
-        {lang === "ar" ? "ط§ظ„ظ…ط­ط§ظپط¸ط©" : "Governorate"}
+        {lang === "ar" ? "المحافظة" : "Governorate"}
         <input
           list="governorates-list"
           dir="auto"
@@ -1800,7 +1800,7 @@ function CityEditor({
         </datalist>
       </label>
       <label>
-        {lang === "ar" ? "ط§ط³ظ… ط§ظ„ظ…ط¯ظٹظ†ط©" : "City name"}
+        {lang === "ar" ? "اسم المدينة" : "City name"}
         <input
           dir="auto"
           value={String(formValues.name_ar ?? "")}
@@ -1853,7 +1853,7 @@ function CityEditor({
             }))
           }
         />
-        <span>{lang === "ar" ? "ظ…ظپط¹ظ„ط©" : "Active"}</span>
+        <span>{lang === "ar" ? "مفعلة" : "Active"}</span>
       </label>
     </>
   );
@@ -1878,12 +1878,12 @@ function fieldLabel(field: string, lang: Lang) {
       en: "Display order",
     },
     is_active: { ar: "\u0645\u0641\u0639\u0644", en: "Active" },
-    country_ar: { ar: "ط§ظ„ط¨ظ„ط¯", en: "Country" },
-    country_en: { ar: "ط§ظ„ط¨ظ„ط¯ ط¨ط§ظ„ط¥ظ†ط¬ظ„ظٹط²ظٹ", en: "English country" },
-    currency_code: { ar: "ظƒظˆط¯ ط§ظ„ط¹ظ…ظ„ط©", en: "Currency code" },
-    currency_name_ar: { ar: "ط§ط³ظ… ط§ظ„ط¹ظ…ظ„ط© ط¨ط§ظ„ط¹ط±ط¨ظٹ", en: "Arabic currency name" },
+    country_ar: { ar: "البلد", en: "Country" },
+    country_en: { ar: "البلد بالإنجليزي", en: "English country" },
+    currency_code: { ar: "كود العملة", en: "Currency code" },
+    currency_name_ar: { ar: "اسم العملة بالعربي", en: "Arabic currency name" },
     currency_name_en: {
-      ar: "ط§ط³ظ… ط§ظ„ط¹ظ…ظ„ط© ط¨ط§ظ„ط¥ظ†ط¬ظ„ظٹط²ظٹ",
+      ar: "اسم العملة بالإنجليزي",
       en: "English currency name",
     },
     governorate_ar: {
@@ -1975,9 +1975,9 @@ function fieldLabel(field: string, lang: Lang) {
       ar: "\u0645\u0643\u0627\u0646 \u0627\u0644\u0638\u0647\u0648\u0631",
       en: "Placement",
     },
-    target_country_ar: { ar: "ظٹط¸ظ‡ط± ظپظٹ ط¨ظ„ط¯", en: "Target country" },
-    target_governorate_ar: { ar: "ظٹط¸ظ‡ط± ظپظٹ ظ…ط­ط§ظپط¸ط©", en: "Target governorate" },
-    target_city_ar: { ar: "ظٹط¸ظ‡ط± ظپظٹ ظ…ط¯ظٹظ†ط©", en: "Target city" },
+    target_country_ar: { ar: "يظهر في بلد", en: "Target country" },
+    target_governorate_ar: { ar: "يظهر في محافظة", en: "Target governorate" },
+    target_city_ar: { ar: "يظهر في مدينة", en: "Target city" },
     starts_at: { ar: "\u064a\u0628\u062f\u0623 \u0645\u0646", en: "Starts at" },
     ends_at: {
       ar: "\u064a\u0646\u062a\u0647\u064a \u0641\u064a",
@@ -1988,10 +1988,10 @@ function fieldLabel(field: string, lang: Lang) {
       ar: "\u0635\u0644\u0627\u062d\u064a\u0627\u062a \u0627\u0644\u0645\u0648\u0638\u0641",
       en: "Permissions",
     },
-    term: { ar: "ط§ظ„ظƒظ„ظ…ط© ط£ظˆ ط§ظ„ط¹ط¨ط§ط±ط©", en: "Term or phrase" },
-    language: { ar: "ط§ظ„ظ„ط؛ط©", en: "Language" },
-    match_type: { ar: "ط·ط±ظٹظ‚ط© ط§ظ„ظپط­طµ", en: "Match type" },
-    severity: { ar: "ط§ظ„ط¥ط¬ط±ط§ط،", en: "Action" },
+    term: { ar: "الكلمة أو العبارة", en: "Term or phrase" },
+    language: { ar: "اللغة", en: "Language" },
+    match_type: { ar: "طريقة الفحص", en: "Match type" },
+    severity: { ar: "الإجراء", en: "Action" },
     needs_embedding: {
       ar: "\u064a\u062d\u062a\u0627\u062c \u062a\u062c\u0647\u064a\u0632 \u0644\u0644\u0628\u0648\u062a",
       en: "Needs bot indexing",
@@ -2033,18 +2033,18 @@ function actionLabel(action: string, lang: Lang) {
     return lang === "ar" ? "\u062d\u0630\u0641" : "Delete";
   }
   if (action === "delete_user_account") {
-    return lang === "ar" ? "ط­ط°ظپ ط§ظ„ط­ط³ط§ط¨" : "Delete account";
+    return lang === "ar" ? "��� ������" : "Delete account";
   }
   const labels: Record<string, { ar: string; en: string }> = {
-    review_details: { ar: "ظ…ط±ط§ط¬ط¹ط© ط§ظ„طھظپط§طµظٹظ„", en: "Review details" },
-    approve_merchant: { ar: "ظ‚ط¨ظˆظ„", en: "Approve" },
-    reject_merchant: { ar: "ط±ظپط¶", en: "Reject" },
-    approve_branch: { ar: "ظ‚ط¨ظˆظ„", en: "Approve" },
-    reject_branch: { ar: "ط±ظپط¶", en: "Reject" },
-    block_user: { ar: "ط­ط¸ط±", en: "Block" },
-    unblock_user: { ar: "طھظپط¹ظٹظ„", en: "Unblock" },
-    toggle_active: { ar: "طھط¨ط¯ظٹظ„ ط§ظ„ط­ط§ظ„ط©", en: "Toggle" },
-    edit_row: { ar: "طھط¹ط¯ظٹظ„", en: "Edit" },
+    review_details: { ar: "������ ��������", en: "Review details" },
+    approve_merchant: { ar: "����", en: "Approve" },
+    reject_merchant: { ar: "���", en: "Reject" },
+    approve_branch: { ar: "����", en: "Approve" },
+    reject_branch: { ar: "���", en: "Reject" },
+    block_user: { ar: "���", en: "Block" },
+    unblock_user: { ar: "�����", en: "Unblock" },
+    toggle_active: { ar: "����� ������", en: "Toggle" },
+    edit_row: { ar: "�����", en: "Edit" },
   };
   return labels[action]?.[lang] ?? action;
 }
@@ -2105,7 +2105,7 @@ function ReviewDetailsModal({
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
-        <h2>{lang === "ar" ? "تفاصيل إضافية" : "Additional details"}</h2>
+        <h2>{lang === "ar" ? "������ ������" : "Additional details"}</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
           {Object.entries(row).map(([key, value]) => {
             if (!value || typeof value === "object" || key.endsWith("_url") || key === "id") return null;

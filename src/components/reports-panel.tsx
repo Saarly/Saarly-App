@@ -22,37 +22,37 @@ type ReportSummary = {
 const reportDefinitions = [
   {
     key: "admin_report_orders",
-    title: { ar: "تقرير الطلبات", en: "Orders report" },
+    title: { ar: "����� �������", en: "Orders report" },
     args: { p_from: null, p_to: null, p_status: null, p_merchant_id: null, p_category_id: null }
   },
   {
     key: "admin_report_active_merchants",
-    title: { ar: "المتاجر الأكثر نشاطا", en: "Most active stores" },
+    title: { ar: "������� ������ �����", en: "Most active stores" },
     args: { p_from: null, p_to: null, p_limit: 10 }
   },
   {
     key: "admin_report_active_categories",
-    title: { ar: "الأقسام الأكثر طلبا", en: "Most requested categories" },
+    title: { ar: "������� ������ ����", en: "Most requested categories" },
     args: { p_from: null, p_to: null, p_limit: 10 }
   },
   {
     key: "admin_report_top_accepted_offers",
-    title: { ar: "العروض التي اختارها العملاء", en: "Offers chosen by buyers" },
+    title: { ar: "������ ���� ������� �������", en: "Offers chosen by buyers" },
     args: { p_from: null, p_to: null, p_limit: 10 }
   },
   {
     key: "admin_report_rfq_acceptance",
-    title: { ar: "طلبات التسعير اليدوية", en: "Manual RFQ requests" },
+    title: { ar: "����� ������� �������", en: "Manual RFQ requests" },
     args: { p_from: null, p_to: null }
   },
   {
     key: "admin_report_merchant_arrears",
-    title: { ar: "مستحقات المتاجر", en: "Store dues" },
+    title: { ar: "������� �������", en: "Store dues" },
     args: {}
   },
   {
     key: "admin_report_referrals_rewards",
-    title: { ar: "الدعوات والمكافآت", en: "Invites and rewards" },
+    title: { ar: "������� ���������", en: "Invites and rewards" },
     args: {}
   }
 ] as const;
@@ -105,11 +105,11 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
     <section className="content-panel">
       <div className="section-head">
         <div>
-          <span className="eyebrow">{lang === "ar" ? "ملخصات الإدارة" : "Admin summaries"}</span>
-          <h1>{lang === "ar" ? "التقارير" : "Reports"}</h1>
+          <span className="eyebrow">{lang === "ar" ? "������ �������" : "Admin summaries"}</span>
+          <h1>{lang === "ar" ? "��������" : "Reports"}</h1>
           <p>
             {lang === "ar"
-              ? "أرقام بسيطة عن الطلبات، المتاجر، المبيعات، المستحقات، والدعوات."
+              ? "����� ����� �� ������ʡ ������ѡ �������ʡ ��������ʡ ��������."
               : "Simple summaries for orders, stores, sales, dues, and invites."}
           </p>
         </div>
@@ -127,11 +127,11 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
             <div className="report-head">
               <div>
                 <h2>{report.title[lang]}</h2>
-                <span>{lang === "ar" ? `${report.rows.length} نتيجة` : `${report.rows.length} results`}</span>
+                <span>{lang === "ar" ? `${report.rows.length} �����` : `${report.rows.length} results`}</span>
               </div>
               <button className="tiny-button" onClick={() => exportCsv(report)} disabled={report.rows.length === 0}>
                 <Download size={15} />
-                {lang === "ar" ? "تحميل" : "CSV"}
+                {lang === "ar" ? "�����" : "CSV"}
               </button>
             </div>
             {report.error ? <div className="alert">{report.error}</div> : null}
@@ -144,7 +144,7 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
                     <strong className="report-row-title">{summary.title}</strong>
                     {details.length === 0 ? (
                       <span className="muted">
-                        {lang === "ar" ? "لا توجد تفاصيل إضافية" : "No extra details"}
+                        {lang === "ar" ? "�� ���� ������ ������" : "No extra details"}
                       </span>
                     ) : (
                       <div className="report-details">
@@ -168,13 +168,13 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
 }
 
 function splitReportDetails(details: string, lang: Lang) {
-  if (!details || details === "No extra details" || details.includes("لا توجد")) return [];
+  if (!details || details === "No extra details" || details.includes("�� ����")) return [];
   return details
     .split(" | ")
     .map((part) => {
       const separator = part.indexOf(":");
       if (separator === -1) {
-        return { label: lang === "ar" ? "معلومة" : "Info", value: part.trim() };
+        return { label: lang === "ar" ? "������" : "Info", value: part.trim() };
       }
       return {
         label: part.slice(0, separator).trim(),
@@ -234,7 +234,7 @@ function reportRowSummary(key: string, row: Record<string, unknown>, lang: Lang)
     details:
       detailEntries.length === 0
         ? lang === "ar"
-          ? "لا توجد تفاصيل إضافية"
+          ? "�� ���� ������ ������"
           : "No extra details"
         : detailEntries.map(([field, value]) => `${reportFieldLabel(field, lang)}: ${formatReportValue(field, value, lang)}`).join(" | ")
   };
@@ -242,44 +242,44 @@ function reportRowSummary(key: string, row: Record<string, unknown>, lang: Lang)
 
 function reportFieldLabel(field: string, lang: Lang) {
   const labels: Record<string, { ar: string; en: string }> = {
-    buyer_name: { ar: "العميل", en: "Buyer" },
-    store_name: { ar: "المتجر", en: "Store" },
-    merchant_name: { ar: "المتجر", en: "Store" },
-    category_name_ar: { ar: "القسم", en: "Category" },
-    categories_ar: { ar: "الأقسام", en: "Categories" },
-    merchants_count: { ar: "عدد المتاجر", en: "Stores count" },
-    orders_count: { ar: "عدد الطلبات", en: "Orders count" },
-    status_ar: { ar: "الحالة", en: "Status" },
-    status: { ar: "الحالة", en: "Status" },
-    order_total: { ar: "إجمالي الطلب", en: "Order total" },
-    gross_sales: { ar: "إجمالي المبيعات", en: "Gross sales" },
-    commissions_due: { ar: "عمولات مستحقة", en: "Commissions due" },
-    commission_amount: { ar: "العمولة", en: "Commission" },
-    confirmed_orders_count: { ar: "طلبات مؤكدة", en: "Confirmed orders" },
-    coverage_percentage: { ar: "تغطية الطلب", en: "Order coverage" },
-    total_price_snapshot: { ar: "سعر العرض", en: "Offer price" },
-    ranking: { ar: "ترتيب العرض", en: "Offer rank" },
-    balance_due: { ar: "المستحق حاليا", en: "Current due" },
-    unpaid_months: { ar: "شهور غير مدفوعة", en: "Unpaid months" },
-    grace_months: { ar: "مهلة السماح", en: "Grace period" },
-    confirmed_registrations: { ar: "تسجيلات مؤكدة", en: "Confirmed registrations" },
-    target_confirmed_registrations: { ar: "الهدف المطلوب", en: "Required target" },
-    referral_url: { ar: "رابط الدعوة", en: "Invite link" },
-    referral_code: { ar: "كود الدعوة", en: "Referral code" },
-    reward_type: { ar: "نوع المكافأة", en: "Reward" },
-    delivery_status: { ar: "حالة التسليم", en: "Delivery" },
-    referrer_email: { ar: "إيميل صاحب الدعوة", en: "Referrer email" },
-    accepted_at: { ar: "وقت قبول العرض", en: "Accepted at" },
-    confirmed_at: { ar: "وقت التأكيد", en: "Confirmed at" },
-    created_at: { ar: "تاريخ الإنشاء", en: "Created at" },
-    last_order_at: { ar: "آخر طلب", en: "Last order" },
-    average_rating: { ar: "متوسط التقييم", en: "Average rating" },
-    responses_count: { ar: "عدد الردود", en: "Responses" },
-    submitted_responses_count: { ar: "ردود مرسلة", en: "Submitted responses" },
-    priced_responses_count: { ar: "ردود بسعر", en: "Priced responses" },
-    accepted_total: { ar: "قيمة العرض المقبول", en: "Accepted total" }
+    buyer_name: { ar: "������", en: "Buyer" },
+    store_name: { ar: "������", en: "Store" },
+    merchant_name: { ar: "������", en: "Store" },
+    category_name_ar: { ar: "�����", en: "Category" },
+    categories_ar: { ar: "�������", en: "Categories" },
+    merchants_count: { ar: "��� �������", en: "Stores count" },
+    orders_count: { ar: "��� �������", en: "Orders count" },
+    status_ar: { ar: "������", en: "Status" },
+    status: { ar: "������", en: "Status" },
+    order_total: { ar: "������ �����", en: "Order total" },
+    gross_sales: { ar: "������ ��������", en: "Gross sales" },
+    commissions_due: { ar: "������ ������", en: "Commissions due" },
+    commission_amount: { ar: "�������", en: "Commission" },
+    confirmed_orders_count: { ar: "����� �����", en: "Confirmed orders" },
+    coverage_percentage: { ar: "����� �����", en: "Order coverage" },
+    total_price_snapshot: { ar: "��� �����", en: "Offer price" },
+    ranking: { ar: "����� �����", en: "Offer rank" },
+    balance_due: { ar: "������� �����", en: "Current due" },
+    unpaid_months: { ar: "���� ��� ������", en: "Unpaid months" },
+    grace_months: { ar: "���� ������", en: "Grace period" },
+    confirmed_registrations: { ar: "������� �����", en: "Confirmed registrations" },
+    target_confirmed_registrations: { ar: "����� �������", en: "Required target" },
+    referral_url: { ar: "���� ������", en: "Invite link" },
+    referral_code: { ar: "��� ������", en: "Referral code" },
+    reward_type: { ar: "��� ��������", en: "Reward" },
+    delivery_status: { ar: "���� �������", en: "Delivery" },
+    referrer_email: { ar: "����� ���� ������", en: "Referrer email" },
+    accepted_at: { ar: "��� ���� �����", en: "Accepted at" },
+    confirmed_at: { ar: "��� �������", en: "Confirmed at" },
+    created_at: { ar: "����� �������", en: "Created at" },
+    last_order_at: { ar: "��� ���", en: "Last order" },
+    average_rating: { ar: "����� �������", en: "Average rating" },
+    responses_count: { ar: "��� ������", en: "Responses" },
+    submitted_responses_count: { ar: "���� �����", en: "Submitted responses" },
+    priced_responses_count: { ar: "���� ����", en: "Priced responses" },
+    accepted_total: { ar: "���� ����� �������", en: "Accepted total" }
   };
-  return labels[field]?.[lang] ?? (lang === "ar" ? "معلومة" : field.split("_").join(" "));
+  return labels[field]?.[lang] ?? (lang === "ar" ? "������" : field.split("_").join(" "));
 }
 
 function formatReportValue(field: string, value: unknown, lang: Lang) {
@@ -314,8 +314,8 @@ function formatReportValue(field: string, value: unknown, lang: Lang) {
     if (Number.isFinite(number)) return `${number.toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}%`;
   }
   if (typeof value === "boolean") {
-    return value ? (lang === "ar" ? "نعم" : "Yes") : lang === "ar" ? "لا" : "No";
+    return value ? (lang === "ar" ? "���" : "Yes") : lang === "ar" ? "��" : "No";
   }
-  if (lang === "ar" && String(value).trim().toLowerCase() === "deleted user") return "مستخدم محذوف";
+  if (lang === "ar" && String(value).trim().toLowerCase() === "deleted user") return "������ �����";
   return String(value);
 }

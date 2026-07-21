@@ -179,7 +179,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   }
 
   async function deactivateProduct(product: ProductRow) {
-    if (!window.confirm(lang === "ar" ? `إيقاف المنتج "${product.free_name}"؟` : `Deactivate "${product.free_name}"?`)) return;
+    if (!window.confirm(lang === "ar" ? `����� ������ "${product.free_name}"�` : `Deactivate "${product.free_name}"?`)) return;
     await runAction({ action: "deactivate_product", id: product.id });
   }
 
@@ -190,7 +190,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   async function deleteProduct(product: ProductRow) {
     const ok = window.confirm(
       lang === "ar"
-        ? `حذف المنتج "${product.free_name}" نهائيًا؟`
+        ? `��� ������ "${product.free_name}" ������ǿ`
         : `Permanently delete "${product.free_name}"?`
     );
     if (!ok) return;
@@ -198,7 +198,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   }
 
   async function suspendStore(store: StoreRow) {
-    const reason = window.prompt(lang === "ar" ? "اكتب سبب إيقاف/رفض المتجر" : "Write store suspension reason", "محتوى مخالف");
+    const reason = window.prompt(lang === "ar" ? "���� ��� �����/��� ������" : "Write store suspension reason", "����� �����");
     if (!reason) return;
     await runAction({ action: "suspend_merchant", id: store.id, payload: { reason } });
   }
@@ -206,7 +206,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   async function deleteStore(store: StoreRow) {
     const typed = window.prompt(
       lang === "ar"
-        ? `ده حذف نهائي للمتجر وقد يفشل لو عليه طلبات. اكتب اسم المتجر للتأكيد: ${store.store_name}`
+        ? `�� ��� ����� ������ ��� ���� �� ���� �����. ���� ��� ������ �������: ${store.store_name}`
         : `This permanently deletes the store and may fail if it has restricted orders. Type the store name: ${store.store_name}`
     );
     if (typed !== store.store_name) return;
@@ -249,11 +249,11 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     <section className="content-panel catalog-panel">
       <div className="section-head">
         <div>
-          <span className="eyebrow">{lang === "ar" ? "رقابة بصرية" : "Visual moderation"}</span>
-          <h1>{lang === "ar" ? "رقابة المتاجر والمنتجات" : "Store and product moderation"}</h1>
+          <span className="eyebrow">{lang === "ar" ? "����� �����" : "Visual moderation"}</span>
+          <h1>{lang === "ar" ? "����� ������� ���������" : "Store and product moderation"}</h1>
           <p>
             {lang === "ar"
-              ? "افتح أي متجر وراجع الصور والأسماء والأسعار. أي محتوى مخالف تقدر توقفه أو تحذفه فورًا."
+              ? "���� �� ���� ����� ����� �������� ��������. �� ����� ����� ���� ����� �� ����� �����."
               : "Open any store and review images, names, and prices. Remove violations immediately."}
           </p>
         </div>
@@ -269,7 +269,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
         <aside className="store-gallery">
           <label className="search-box">
             <Search size={18} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={lang === "ar" ? "ابحث عن متجر" : "Search stores"} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={lang === "ar" ? "���� �� ����" : "Search stores"} />
           </label>
           {loading ? <div className="empty-state">{t("loading", lang)}</div> : null}
           <div className="store-card-grid">
@@ -292,7 +292,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                   <span>{store.category_name_ar || store.approval_status_ar || "-"}</span>
                   <small>
                     {lang === "ar"
-                      ? `${counts.active} نشط / ${counts.total} منتج`
+                      ? `${counts.active} ��� / ${counts.total} ����`
                       : `${counts.active} active / ${counts.total} products`}
                   </small>
                 </button>
@@ -312,11 +312,11 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                 <div className="row-actions">
                   <button className="tiny-button danger" onClick={() => void suspendStore(selectedStore)}>
                     <Ban size={15} />
-                    {lang === "ar" ? "إيقاف المتجر" : "Suspend store"}
+                    {lang === "ar" ? "����� ������" : "Suspend store"}
                   </button>
                   <button className="tiny-button danger" onClick={() => void deleteStore(selectedStore)}>
                     <Trash2 size={15} />
-                    {lang === "ar" ? "حذف المتجر" : "Delete store"}
+                    {lang === "ar" ? "��� ������" : "Delete store"}
                   </button>
                 </div>
               </div>
@@ -329,7 +329,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                 <input
                   value={productQuery}
                   onChange={(event) => setProductQuery(event.target.value)}
-                  placeholder={lang === "ar" ? "ابحث في منتجات المتجر" : "Search store products"}
+                  placeholder={lang === "ar" ? "���� �� ������ ������" : "Search store products"}
                 />
               </label>
 
@@ -346,7 +346,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                       ) : (
                         <div className="image-placeholder">
                           <AlertTriangle size={28} />
-                          <span>{lang === "ar" ? "بدون صورة" : "No image"}</span>
+                          <span>{lang === "ar" ? "���� ����" : "No image"}</span>
                         </div>
                       )}
                       {images.length > 1 ? (
@@ -362,18 +362,18 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                           <span>{[product.brand, product.size, product.color].filter(Boolean).join(" | ") || product.unit}</span>
                         </div>
                         <div className="price-line">
-                          <b>{Number(product.price).toLocaleString("ar-EG")} ج.م</b>
+                          <b>{Number(product.price).toLocaleString("ar-EG")} �.�</b>
                           <span>{product.quantity} {product.unit}</span>
                         </div>
                         <span className={product.is_active ? "status-pill active" : "status-pill muted"}>
-                          {product.is_active ? (lang === "ar" ? "ظاهر في التطبيق" : "Visible") : lang === "ar" ? "متوقف" : "Hidden"}
+                          {product.is_active ? (lang === "ar" ? "���� �� �������" : "Visible") : lang === "ar" ? "�����" : "Hidden"}
                         </span>
                       </div>
                       <div className="moderation-actions">
                         {product.is_active ? (
                           <button className="tiny-button" onClick={() => void deactivateProduct(product)}>
                             <Ban size={15} />
-                            {lang === "ar" ? "إيقاف" : "Deactivate"}
+                            {lang === "ar" ? "�����" : "Deactivate"}
                           </button>
                         ) : (
                           <button className="tiny-button" onClick={() => void activateProduct(product)}>
@@ -383,7 +383,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                         )}
                         <button className="tiny-button danger" onClick={() => void deleteProduct(product)}>
                           <Trash2 size={15} />
-                          {lang === "ar" ? "حذف" : "Delete"}
+                          {lang === "ar" ? "���" : "Delete"}
                         </button>
                       </div>
                     </article>
@@ -392,7 +392,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
               </div>
             </>
           ) : (
-            <div className="empty-state">{lang === "ar" ? "اختار متجر للمراجعة" : "Choose a store to review"}</div>
+            <div className="empty-state">{lang === "ar" ? "����� ���� ��������" : "Choose a store to review"}</div>
           )}
         </main>
       </div>

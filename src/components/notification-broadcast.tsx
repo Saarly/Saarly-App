@@ -43,7 +43,7 @@ type LocationRow = {
   is_active?: boolean | null;
 };
 
-const DEFAULT_COUNTRY_AR = "مصر";
+const DEFAULT_COUNTRY_AR = "���";
 const COUNTRY_MARKER = "__country__";
 
 const audiences: Array<{
@@ -55,37 +55,37 @@ const audiences: Array<{
 }> = [
   {
     id: "all",
-    ar: "كل المستخدمين",
+    ar: "�� ����������",
     en: "All users",
-    hintAr: "عملاء ومتاجر ودعم",
+    hintAr: "����� ������ ����",
     hintEn: "Buyers, stores, and staff",
   },
   {
     id: "buyers",
-    ar: "العملاء فقط",
+    ar: "������� ���",
     en: "Buyers only",
-    hintAr: "حسابات العملاء",
+    hintAr: "������ �������",
     hintEn: "Buyer accounts",
   },
   {
     id: "merchants",
-    ar: "المتاجر فقط",
+    ar: "������� ���",
     en: "Stores only",
-    hintAr: "أصحاب المتاجر",
+    hintAr: "����� �������",
     hintEn: "Merchant accounts",
   },
   {
     id: "staff",
-    ar: "الفريق فقط",
+    ar: "������ ���",
     en: "Staff only",
-    hintAr: "أدمن ودعم",
+    hintAr: "���� ����",
     hintEn: "Admins and support",
   },
   {
     id: "specific",
-    ar: "مستخدم محدد",
+    ar: "������ ����",
     en: "Specific users",
-    hintAr: "اختيار يدوي",
+    hintAr: "������ ����",
     hintEn: "Manual selection",
   },
 ];
@@ -94,97 +94,97 @@ const destinationOptions: DestinationOption[] = [
   {
     id: "buyer_orders",
     deepLink: "saarly://buyer/orders",
-    ar: "طلبات العميل",
+    ar: "����� ������",
     en: "Buyer orders",
-    hintAr: "يفتح صفحة طلبات العميل ومتابعة حالة الطلبات.",
+    hintAr: "���� ���� ����� ������ ������� ���� �������.",
     hintEn: "Opens the buyer orders and request status screen.",
   },
   {
     id: "buyer_support",
     deepLink: "saarly://buyer/support",
-    ar: "دعم العميل",
+    ar: "��� ������",
     en: "Buyer support",
-    hintAr: "يفتح محادثة الدعم الخاصة بالعميل.",
+    hintAr: "���� ������ ����� ������ �������.",
     hintEn: "Opens the buyer support chat.",
   },
   {
     id: "buyer_favorites",
     deepLink: "saarly://buyer/favorites",
-    ar: "مفضلة العميل",
+    ar: "����� ������",
     en: "Buyer favorites",
-    hintAr: "يفتح منتجات وتنبيهات المفضلة للعميل.",
+    hintAr: "���� ������ �������� ������� ������.",
     hintEn: "Opens buyer favorites and price alerts.",
   },
   {
     id: "buyer_referrals",
     deepLink: "saarly://buyer/referrals",
-    ar: "دعوة الأصدقاء",
+    ar: "���� ��������",
     en: "Invite friends",
-    hintAr: "يفتح شاشة الإحالات والمكافآت للعميل.",
+    hintAr: "���� ���� �������� ��������� ������.",
     hintEn: "Opens referrals and rewards for buyers.",
   },
   {
     id: "merchant_requests",
     deepLink: "saarly://merchant/requests",
-    ar: "طلبات المتجر",
+    ar: "����� ������",
     en: "Store requests",
-    hintAr: "يفتح طلبات العملاء الواردة للمتجر.",
+    hintAr: "���� ����� ������� ������� ������.",
     hintEn: "Opens incoming customer requests for the store.",
   },
   {
     id: "merchant_rfqs",
     deepLink: "saarly://merchant/rfqs",
-    ar: "طلبات التسعير",
+    ar: "����� �������",
     en: "RFQs",
-    hintAr: "يفتح طلبات التسعير اليدوية عند المتجر.",
+    hintAr: "���� ����� ������� ������� ��� ������.",
     hintEn: "Opens manual RFQs for the store.",
   },
   {
     id: "merchant_products",
     deepLink: "saarly://merchant/products",
-    ar: "منتجات المتجر",
+    ar: "������ ������",
     en: "Store products",
-    hintAr: "يفتح إدارة المنتجات والأسعار والصور.",
+    hintAr: "���� ����� �������� �������� ������.",
     hintEn: "Opens product, price, and image management.",
   },
   {
     id: "merchant_reports",
     deepLink: "saarly://merchant/reports",
-    ar: "تقارير المتجر",
+    ar: "������ ������",
     en: "Store reports",
-    hintAr: "يفتح المبيعات والتقييمات وملخص الأداء.",
+    hintAr: "���� �������� ���������� ����� ������.",
     hintEn: "Opens sales, ratings, and performance reports.",
   },
   {
     id: "merchant_billing",
     deepLink: "saarly://merchant/billing",
-    ar: "اشتراكات ومدفوعات المتجر",
+    ar: "�������� �������� ������",
     en: "Store billing",
-    hintAr: "يفتح حالة الاشتراك والمستحقات والمدفوعات.",
+    hintAr: "���� ���� �������� ���������� ����������.",
     hintEn: "Opens subscriptions, dues, and payments.",
   },
   {
     id: "merchant_support",
     deepLink: "saarly://merchant/support",
-    ar: "دعم المتجر",
+    ar: "��� ������",
     en: "Store support",
-    hintAr: "يفتح محادثة الدعم الخاصة بالمتجر.",
+    hintAr: "���� ������ ����� ������ �������.",
     hintEn: "Opens the store support chat.",
   },
   {
     id: "merchant_settings",
     deepLink: "saarly://merchant/settings",
-    ar: "إعدادات المتجر",
+    ar: "������� ������",
     en: "Store settings",
-    hintAr: "يفتح إعدادات الحساب والسياسات.",
+    hintAr: "���� ������� ������ ���������.",
     hintEn: "Opens account settings and policies.",
   },
   {
     id: "custom",
     deepLink: "",
-    ar: "وجهة مخصصة",
+    ar: "���� �����",
     en: "Custom destination",
-    hintAr: "للمطور فقط لو محتاج رابط داخلي غير موجود في الاختيارات.",
+    hintAr: "������ ��� �� ����� ���� ����� ��� ����� �� ����������.",
     hintEn: "For a developer-only internal destination not listed above.",
     custom: true,
   },
@@ -375,7 +375,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
 
       setMessage(
         lang === "ar"
-          ? `تم إنشاء ${result?.inserted_count ?? 0} إشعار. Firebase هيرسلها خلال دقيقة تقريبًا.`
+          ? `�� ����� ${result?.inserted_count ?? 0} �����. Firebase ������� ���� ����� �������.`
           : `${result?.inserted_count ?? 0} notifications queued. Firebase should send them in about a minute.`,
       );
       setTitleAr("");
@@ -411,13 +411,13 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
         <div>
           <span className="eyebrow">
             {lang === "ar"
-              ? "Firebase + جرس التطبيق"
+              ? "Firebase + ��� �������"
               : "Firebase + in-app bell"}
           </span>
-          <h1>{lang === "ar" ? "إرسال إشعار" : "Send notification"}</h1>
+          <h1>{lang === "ar" ? "����� �����" : "Send notification"}</h1>
           <p>
             {lang === "ar"
-              ? "الإشعار يظهر داخل التطبيق، ولو جهاز المستخدم مسجل وموافق على الإشعارات هيوصل كـ Push."
+              ? "������� ���� ���� ������ޡ ��� ���� �������� ���� ������ ��� ��������� ����� �� Push."
               : "The notification appears in-app, and reaches Push when the user's device is registered and permissions are enabled."}
           </p>
         </div>
@@ -459,17 +459,17 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
           <div className="notification-destination-panel">
             <div>
               <strong>
-                {lang === "ar" ? "يوصل لمين حسب المكان؟" : "Location targeting"}
+                {lang === "ar" ? "���� ���� ��� ������" : "Location targeting"}
               </strong>
               <p className="muted">
                 {lang === "ar"
-                  ? "سيب الخانات فاضية لو الإشعار لكل الأماكن، أو اختار بلد ثم محافظة ثم مدينة."
+                  ? "��� ������� ����� �� ������� ��� ������� �� ����� ��� �� ������ �� �����."
                   : "Leave fields empty for all locations, or pick a country, governorate, and city."}
               </p>
             </div>
             <div className="form-split">
               <label>
-                {lang === "ar" ? "البلد" : "Country"}
+                {lang === "ar" ? "�����" : "Country"}
                 <select
                   value={targetCountry}
                   onChange={(event) => {
@@ -479,7 +479,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                   }}
                 >
                   <option value="">
-                    {lang === "ar" ? "كل البلاد" : "All countries"}
+                    {lang === "ar" ? "�� ������" : "All countries"}
                   </option>
                   {countries.map((country) => (
                     <option value={country} key={country}>
@@ -489,7 +489,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                 </select>
               </label>
               <label>
-                {lang === "ar" ? "المحافظة" : "Governorate"}
+                {lang === "ar" ? "��������" : "Governorate"}
                 <select
                   value={targetGovernorate}
                   onChange={(event) => {
@@ -498,7 +498,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                   }}
                 >
                   <option value="">
-                    {lang === "ar" ? "كل المحافظات" : "All governorates"}
+                    {lang === "ar" ? "�� ���������" : "All governorates"}
                   </option>
                   {governorates.map((governorate) => (
                     <option value={governorate} key={governorate}>
@@ -509,13 +509,13 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               </label>
             </div>
             <label>
-              {lang === "ar" ? "المدينة" : "City"}
+              {lang === "ar" ? "�������" : "City"}
               <select
                 value={targetCity}
                 onChange={(event) => setTargetCity(event.target.value)}
               >
                 <option value="">
-                  {lang === "ar" ? "كل المدن" : "All cities"}
+                  {lang === "ar" ? "�� �����" : "All cities"}
                 </option>
                 {cities.map((city) => (
                   <option value={city} key={city}>
@@ -535,7 +535,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                   onChange={(event) => setUserQuery(event.target.value)}
                   placeholder={
                     lang === "ar"
-                      ? "ابحث بالاسم أو الموبايل أو الإيميل"
+                      ? "���� ������ �� �������� �� �������"
                       : "Search name, mobile, or email"
                   }
                 />
@@ -565,7 +565,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               </div>
               <p className="muted">
                 {lang === "ar"
-                  ? `مختار: ${selectedUsers.length}`
+                  ? `�����: ${selectedUsers.length}`
                   : `Selected: ${selectedUsers.length}`}
               </p>
             </div>
@@ -573,7 +573,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
 
           <div className="form-split">
             <label>
-              {lang === "ar" ? "عنوان الإشعار بالعربي" : "Arabic title"}
+              {lang === "ar" ? "����� ������� �������" : "Arabic title"}
               <input
                 value={titleAr}
                 onChange={(event) => setTitleAr(event.target.value)}
@@ -582,7 +582,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               />
             </label>
             <label>
-              {lang === "ar" ? "عنوان الإشعار بالإنجليزي" : "English title"}
+              {lang === "ar" ? "����� ������� ����������" : "English title"}
               <input
                 value={titleEn}
                 onChange={(event) => setTitleEn(event.target.value)}
@@ -593,7 +593,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
 
           <div className="form-split">
             <label>
-              {lang === "ar" ? "نص الإشعار بالعربي" : "Arabic body"}
+              {lang === "ar" ? "�� ������� �������" : "Arabic body"}
               <textarea
                 value={bodyAr}
                 onChange={(event) => setBodyAr(event.target.value)}
@@ -602,7 +602,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               />
             </label>
             <label>
-              {lang === "ar" ? "نص الإشعار بالإنجليزي" : "English body"}
+              {lang === "ar" ? "�� ������� ����������" : "English body"}
               <textarea
                 value={bodyEn}
                 onChange={(event) => setBodyEn(event.target.value)}
@@ -615,12 +615,12 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             <div>
               <strong>
                 {lang === "ar"
-                  ? "يفتح فين داخل التطبيق؟"
+                  ? "���� ��� ���� ������޿"
                   : "Open where in the app?"}
               </strong>
               <p className="muted">
                 {lang === "ar"
-                  ? "اختار المكان اللي المستخدم يروح له لما يضغط على الإشعار. مش محتاج تكتب أي لينك بنفسك."
+                  ? "����� ������ ���� �������� ���� �� ��� ���� ��� �������. �� ����� ���� �� ���� �����."
                   : "Choose where the user goes after tapping the notification. No manual link is needed."}
               </p>
             </div>
@@ -644,7 +644,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             {selectedDestination.custom ? (
               <label className="destination-custom-field">
                 {lang === "ar"
-                  ? "الرابط الداخلي المخصص"
+                  ? "������ ������� ������"
                   : "Custom internal link"}
                 <input
                   dir="ltr"
@@ -655,7 +655,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               </label>
             ) : (
               <p className="selected-destination-note">
-                {lang === "ar" ? "الوجهة المختارة:" : "Selected destination:"}{" "}
+                {lang === "ar" ? "������ ��������:" : "Selected destination:"}{" "}
                 <span dir="ltr">{deepLink}</span>
               </p>
             )}
@@ -669,7 +669,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             {sending
               ? t("loading", lang)
               : lang === "ar"
-                ? "إرسال الإشعار"
+                ? "����� �������"
                 : "Send notification"}
           </button>
         </form>
@@ -679,7 +679,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             <BellRing size={20} />
             <h2>
               {lang === "ar"
-                ? "آخر إشعارات الأدمن"
+                ? "��� ������� ������"
                 : "Recent admin notifications"}
             </h2>
           </div>

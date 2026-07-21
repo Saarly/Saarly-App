@@ -69,19 +69,19 @@ type ReferralSettingsDraft = {
 
 const referralRewardCatalog: Record<ReferralAudience, ReferralRewardOptionDraft[]> = {
   buyer: [
-    { reward_type: "tshirt", label_ar: "تيشرت", label_en: "T-shirt", is_active: true, display_order: 0 },
-    { reward_type: "football", label_ar: "كورة قدم", label_en: "Football", is_active: true, display_order: 1 },
-    { reward_type: "cap", label_ar: "كاب", label_en: "Cap", is_active: true, display_order: 2 }
+    { reward_type: "tshirt", label_ar: "�����", label_en: "T-shirt", is_active: true, display_order: 0 },
+    { reward_type: "football", label_ar: "���� ���", label_en: "Football", is_active: true, display_order: 1 },
+    { reward_type: "cap", label_ar: "���", label_en: "Cap", is_active: true, display_order: 2 }
   ],
   merchant: [
     {
       reward_type: "monthly_subscription",
-      label_ar: "اشتراك شهري",
+      label_ar: "������ ����",
       label_en: "Monthly subscription",
       is_active: true,
       display_order: 0
     },
-    { reward_type: "tshirt", label_ar: "تيشرت", label_en: "T-shirt", is_active: true, display_order: 1 }
+    { reward_type: "tshirt", label_ar: "�����", label_en: "T-shirt", is_active: true, display_order: 1 }
   ]
 };
 
@@ -661,17 +661,17 @@ function ReferralRewardEditor({
           <strong>
             {audience === "merchant"
               ? lang === "ar"
-                ? "مكافآت المتاجر"
+                ? "������ �������"
                 : "Merchant rewards"
               : lang === "ar"
-                ? "مكافآت المشترين"
+                ? "������ ��������"
                 : "Buyer rewards"}
           </strong>
           <span>
             {lang === "ar"
               ? audience === "merchant"
-                ? "اشتراك شهري أو تيشرت"
-                : "تيشرت أو كورة قدم أو كاب"
+                ? "������ ���� �� �����"
+                : "����� �� ���� ��� �� ���"
               : audience === "merchant"
                 ? "Monthly subscription or T-shirt"
                 : "T-shirt, football, or cap"}
@@ -679,12 +679,12 @@ function ReferralRewardEditor({
         </div>
         <button className="tiny-button" type="button" disabled={!canAdd} onClick={onRewardAdd}>
           <Plus size={14} />
-          {lang === "ar" ? "إضافة" : "Add"}
+          {lang === "ar" ? "�����" : "Add"}
         </button>
       </div>
 
       <label className="reward-active-select">
-        {lang === "ar" ? "المكافأة النشطة" : "Active reward"}
+        {lang === "ar" ? "�������� ������" : "Active reward"}
         <select value={activeRewardType} onChange={(event) => onActiveChange(event.target.value as ReferralRewardType)}>
           {rewards
             .filter((reward) => reward.is_active)
@@ -700,7 +700,7 @@ function ReferralRewardEditor({
         {rewards.map((reward) => (
           <div className="reward-option-row" key={reward.reward_type}>
             <label>
-              {lang === "ar" ? "العربي" : "Arabic"}
+              {lang === "ar" ? "������" : "Arabic"}
               <input
                 dir="auto"
                 value={reward.label_ar}
@@ -708,7 +708,7 @@ function ReferralRewardEditor({
               />
             </label>
             <label>
-              {lang === "ar" ? "الإنجليزي" : "English"}
+              {lang === "ar" ? "���������" : "English"}
               <input
                 dir="auto"
                 value={reward.label_en}
@@ -722,7 +722,7 @@ function ReferralRewardEditor({
                 disabled={reward.is_active && activeRewardsCount <= 1}
                 onChange={(event) => onRewardChange(reward.reward_type, { is_active: event.target.checked })}
               />
-              <span>{lang === "ar" ? "نشطة" : "Active"}</span>
+              <span>{lang === "ar" ? "����" : "Active"}</span>
             </label>
             <button
               className="tiny-button danger"
@@ -731,7 +731,7 @@ function ReferralRewardEditor({
               onClick={() => onRewardDelete(reward.reward_type)}
             >
               <Trash2 size={14} />
-              {lang === "ar" ? "حذف" : "Delete"}
+              {lang === "ar" ? "���" : "Delete"}
             </button>
           </div>
         ))}
