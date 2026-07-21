@@ -14,7 +14,7 @@ const config: Config = {
         }
       },
       fontFamily: {
-        tajawal: ["Tajawal", "Arial", "sans-serif"]
+        tajawal: ["var(--font-tajawal)", "Arial", "sans-serif"]
       }
     }
   },
@@ -22,4 +22,3 @@ const config: Config = {
 };
 
 export default config;
-
