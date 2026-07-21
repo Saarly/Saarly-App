@@ -60,6 +60,53 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
       ),
     []
   );
+  const operationalAlerts = useMemo(() => {
+    const count = (key: string) => Number(row?.[key] ?? 0);
+    const format = (value: number) =>
+      value.toLocaleString(lang === "ar" ? "ar-EG" : "en-US");
+    const alerts: string[] = [];
+    const pendingMerchantsCount = count("pending_merchants_count");
+    const pendingBranchesCount = count("pending_branches_count");
+    const awaitingOrdersCount = count("awaiting_orders_count");
+    const openSupportChatsCount = count("open_support_chats_count");
+
+    if (pendingMerchantsCount > 0) {
+      alerts.push(
+        lang === "ar"
+          ? `${format(pendingMerchantsCount)} متجر بانتظار الموافقة.`
+          : `${format(pendingMerchantsCount)} stores are waiting for approval.`
+      );
+    }
+    if (pendingBranchesCount > 0) {
+      alerts.push(
+        lang === "ar"
+          ? `${format(pendingBranchesCount)} فرع بانتظار الموافقة.`
+          : `${format(pendingBranchesCount)} branches are waiting for approval.`
+      );
+    }
+    if (awaitingOrdersCount > 0) {
+      alerts.push(
+        lang === "ar"
+          ? `${format(awaitingOrdersCount)} طلب ينتظر تأكيد المتجر.`
+          : `${format(awaitingOrdersCount)} orders are waiting for store confirmation.`
+      );
+    }
+    if (openSupportChatsCount > 0) {
+      alerts.push(
+        lang === "ar"
+          ? `${format(openSupportChatsCount)} محادثة دعم مفتوحة.`
+          : `${format(openSupportChatsCount)} support chats are open.`
+      );
+    }
+
+    return alerts.length > 0
+      ? alerts
+      : [
+          lang === "ar"
+            ? "لا توجد تنبيهات تشغيلية حرجة حاليا."
+            : "No critical operational alerts right now."
+        ];
+  }, [lang, row]);
 
   return (
     <section className="content-panel">
@@ -90,22 +137,12 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
       <div className="dashboard-grid">
         <article className="ops-card">
           <h2>{lang === "ar" ? "تنبيهات تشغيلية" : "Operational alerts"}</h2>
-          <div className="alert-list">
-            <AlertTriangle size={18} />
-            <span>
-              {lang === "ar"
-                ? "راجع المتاجر والفروع المعلقة حتى لا تتأخر نتائج البحث داخل التطبيق."
-                : "Review pending stores and branches so app search stays healthy."}
-            </span>
-          </div>
-          <div className="alert-list">
-            <AlertTriangle size={18} />
-            <span>
-              {lang === "ar"
-                ? "لو فعلت المدفوعات، تأكد أن مقدمي الدفع مفعلين قبل ظهورها للتطبيق."
-                : "If payments are enabled, confirm providers are active before exposing them in app."}
-            </span>
-          </div>
+          {operationalAlerts.map((alert) => (
+            <div className="alert-list" key={alert}>
+              <AlertTriangle size={18} />
+              <span>{alert}</span>
+            </div>
+          ))}
         </article>
 
         <article className="ops-card">

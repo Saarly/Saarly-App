@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard, RefreshCw, Save, ShieldCheck } from "lucide-react";
+import { CreditCard, Plus, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
@@ -47,10 +47,42 @@ type SubscriptionPlan = {
   grace_months?: number | null;
 };
 
+type ReferralRewardType = "tshirt" | "monthly_subscription" | "football" | "cap";
+type ReferralAudience = "buyer" | "merchant";
+
+type ReferralRewardOptionDraft = {
+  reward_type: ReferralRewardType;
+  label_ar: string;
+  label_en: string;
+  is_active: boolean;
+  display_order: number;
+};
+
 type ReferralSettingsDraft = {
   target_confirmed_registrations: string;
-  default_reward_type: "tshirt" | "monthly_subscription";
+  active_buyer_reward_type: ReferralRewardType;
+  active_merchant_reward_type: ReferralRewardType;
+  buyer_rewards: ReferralRewardOptionDraft[];
+  merchant_rewards: ReferralRewardOptionDraft[];
   apply_existing: boolean;
+};
+
+const referralRewardCatalog: Record<ReferralAudience, ReferralRewardOptionDraft[]> = {
+  buyer: [
+    { reward_type: "tshirt", label_ar: "تيشرت", label_en: "T-shirt", is_active: true, display_order: 0 },
+    { reward_type: "football", label_ar: "كورة قدم", label_en: "Football", is_active: true, display_order: 1 },
+    { reward_type: "cap", label_ar: "كاب", label_en: "Cap", is_active: true, display_order: 2 }
+  ],
+  merchant: [
+    {
+      reward_type: "monthly_subscription",
+      label_ar: "اشتراك شهري",
+      label_en: "Monthly subscription",
+      is_active: true,
+      display_order: 0
+    },
+    { reward_type: "tshirt", label_ar: "تيشرت", label_en: "T-shirt", is_active: true, display_order: 1 }
+  ]
 };
 
 const monetizationKeys = [
@@ -250,7 +282,10 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
         action: "update_referral_settings",
         payload: {
           target_confirmed_registrations: Number(referralDraft.target_confirmed_registrations),
-          reward_type: referralDraft.default_reward_type,
+          buyer_reward_type: referralDraft.active_buyer_reward_type,
+          merchant_reward_type: referralDraft.active_merchant_reward_type,
+          buyer_rewards: referralDraft.buyer_rewards,
+          merchant_rewards: referralDraft.merchant_rewards,
           apply_existing: referralDraft.apply_existing
         }
       });
@@ -260,6 +295,45 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
     } finally {
       setSavingKey(key, false);
     }
+  }
+
+  function updateRewardOption(audience: ReferralAudience, rewardType: ReferralRewardType, values: Partial<ReferralRewardOptionDraft>) {
+    const listKey = audience === "merchant" ? "merchant_rewards" : "buyer_rewards";
+    setReferralDraft((current) => ({
+      ...current,
+      [listKey]: current[listKey].map((reward) => (reward.reward_type === rewardType ? { ...reward, ...values } : reward))
+    }));
+  }
+
+  function addRewardOption(audience: ReferralAudience) {
+    const listKey = audience === "merchant" ? "merchant_rewards" : "buyer_rewards";
+    setReferralDraft((current) => {
+      const existingTypes = new Set(current[listKey].map((reward) => reward.reward_type));
+      const nextReward = referralRewardCatalog[audience].find((reward) => !existingTypes.has(reward.reward_type));
+      if (!nextReward) return current;
+      return {
+        ...current,
+        [listKey]: [...current[listKey], { ...nextReward, display_order: current[listKey].length }]
+      };
+    });
+  }
+
+  function deleteRewardOption(audience: ReferralAudience, rewardType: ReferralRewardType) {
+    const listKey = audience === "merchant" ? "merchant_rewards" : "buyer_rewards";
+    const activeKey = audience === "merchant" ? "active_merchant_reward_type" : "active_buyer_reward_type";
+    setReferralDraft((current) => {
+      const nextRewards = current[listKey].filter((reward) => reward.reward_type !== rewardType);
+      if (nextRewards.length === 0) return current;
+      const safeRewards = nextRewards.some((reward) => reward.is_active)
+        ? nextRewards
+        : nextRewards.map((reward, index) => ({ ...reward, is_active: index === 0 }));
+      const fallbackActiveReward = safeRewards.find((reward) => reward.is_active) ?? safeRewards[0];
+      return {
+        ...current,
+        [listKey]: safeRewards.map((reward, index) => ({ ...reward, display_order: index })),
+        [activeKey]: current[activeKey] === rewardType ? fallbackActiveReward.reward_type : current[activeKey]
+      };
+    });
   }
 
   useEffect(() => {
@@ -334,21 +408,38 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
               }
             />
           </label>
-          <label>
-            {lang === "ar" ? "\u0646\u0648\u0639 \u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629" : "Reward type"}
-            <select
-              value={referralDraft.default_reward_type}
-              onChange={(event) =>
-                setReferralDraft((current) => ({
-                  ...current,
-                  default_reward_type: event.target.value === "monthly_subscription" ? "monthly_subscription" : "tshirt"
-                }))
-              }
-            >
-              <option value="tshirt">{lang === "ar" ? "\u062a\u064a\u0634\u064a\u0631\u062a" : "T-shirt"}</option>
-              <option value="monthly_subscription">{lang === "ar" ? "\u0627\u0634\u062a\u0631\u0627\u0643 \u0634\u0647\u0631\u064a" : "Monthly subscription"}</option>
-            </select>
-          </label>
+        </div>
+        <div className="reward-settings-grid">
+          <ReferralRewardEditor
+            audience="buyer"
+            lang={lang}
+            rewards={referralDraft.buyer_rewards}
+            activeRewardType={referralDraft.active_buyer_reward_type}
+            onActiveChange={(rewardType) =>
+              setReferralDraft((current) => ({
+                ...current,
+                active_buyer_reward_type: rewardType
+              }))
+            }
+            onRewardChange={(rewardType, values) => updateRewardOption("buyer", rewardType, values)}
+            onRewardDelete={(rewardType) => deleteRewardOption("buyer", rewardType)}
+            onRewardAdd={() => addRewardOption("buyer")}
+          />
+          <ReferralRewardEditor
+            audience="merchant"
+            lang={lang}
+            rewards={referralDraft.merchant_rewards}
+            activeRewardType={referralDraft.active_merchant_reward_type}
+            onActiveChange={(rewardType) =>
+              setReferralDraft((current) => ({
+                ...current,
+                active_merchant_reward_type: rewardType
+              }))
+            }
+            onRewardChange={(rewardType, values) => updateRewardOption("merchant", rewardType, values)}
+            onRewardDelete={(rewardType) => deleteRewardOption("merchant", rewardType)}
+            onRewardAdd={() => addRewardOption("merchant")}
+          />
         </div>
         <div className="provider-actions-row">
           <label className="checkbox-field">
@@ -539,6 +630,116 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
   );
 }
 
+function ReferralRewardEditor({
+  audience,
+  lang,
+  rewards,
+  activeRewardType,
+  onActiveChange,
+  onRewardChange,
+  onRewardDelete,
+  onRewardAdd
+}: {
+  audience: ReferralAudience;
+  lang: Lang;
+  rewards: ReferralRewardOptionDraft[];
+  activeRewardType: ReferralRewardType;
+  onActiveChange: (rewardType: ReferralRewardType) => void;
+  onRewardChange: (rewardType: ReferralRewardType, values: Partial<ReferralRewardOptionDraft>) => void;
+  onRewardDelete: (rewardType: ReferralRewardType) => void;
+  onRewardAdd: () => void;
+}) {
+  const canAdd = referralRewardCatalog[audience].some(
+    (catalogReward) => !rewards.some((reward) => reward.reward_type === catalogReward.reward_type)
+  );
+  const activeRewardsCount = rewards.filter((reward) => reward.is_active).length;
+
+  return (
+    <section className="reward-editor">
+      <div className="reward-editor-head">
+        <div>
+          <strong>
+            {audience === "merchant"
+              ? lang === "ar"
+                ? "مكافآت المتاجر"
+                : "Merchant rewards"
+              : lang === "ar"
+                ? "مكافآت المشترين"
+                : "Buyer rewards"}
+          </strong>
+          <span>
+            {lang === "ar"
+              ? audience === "merchant"
+                ? "اشتراك شهري أو تيشرت"
+                : "تيشرت أو كورة قدم أو كاب"
+              : audience === "merchant"
+                ? "Monthly subscription or T-shirt"
+                : "T-shirt, football, or cap"}
+          </span>
+        </div>
+        <button className="tiny-button" type="button" disabled={!canAdd} onClick={onRewardAdd}>
+          <Plus size={14} />
+          {lang === "ar" ? "إضافة" : "Add"}
+        </button>
+      </div>
+
+      <label className="reward-active-select">
+        {lang === "ar" ? "المكافأة النشطة" : "Active reward"}
+        <select value={activeRewardType} onChange={(event) => onActiveChange(event.target.value as ReferralRewardType)}>
+          {rewards
+            .filter((reward) => reward.is_active)
+            .map((reward) => (
+              <option key={reward.reward_type} value={reward.reward_type}>
+                {lang === "ar" ? reward.label_ar || reward.label_en : reward.label_en || reward.label_ar}
+              </option>
+            ))}
+        </select>
+      </label>
+
+      <div className="reward-option-list">
+        {rewards.map((reward) => (
+          <div className="reward-option-row" key={reward.reward_type}>
+            <label>
+              {lang === "ar" ? "العربي" : "Arabic"}
+              <input
+                dir="auto"
+                value={reward.label_ar}
+                onChange={(event) => onRewardChange(reward.reward_type, { label_ar: event.target.value })}
+              />
+            </label>
+            <label>
+              {lang === "ar" ? "الإنجليزي" : "English"}
+              <input
+                dir="auto"
+                value={reward.label_en}
+                onChange={(event) => onRewardChange(reward.reward_type, { label_en: event.target.value })}
+              />
+            </label>
+            <label className="checkbox-field reward-check">
+              <input
+                type="checkbox"
+                checked={reward.is_active}
+                disabled={reward.is_active && activeRewardsCount <= 1}
+                onChange={(event) => onRewardChange(reward.reward_type, { is_active: event.target.checked })}
+              />
+              <span>{lang === "ar" ? "نشطة" : "Active"}</span>
+            </label>
+            <button
+              className="tiny-button danger"
+              type="button"
+              disabled={rewards.length <= 1}
+              onClick={() => onRewardDelete(reward.reward_type)}
+            >
+              <Trash2 size={14} />
+              {lang === "ar" ? "حذف" : "Delete"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function providerDraftFrom(provider: PaymentProvider): ProviderDraft {
   const config = provider.configuration ?? {};
   return {
@@ -557,7 +758,10 @@ function providerDraftFrom(provider: PaymentProvider): ProviderDraft {
 function defaultReferralSettingsDraft(): ReferralSettingsDraft {
   return {
     target_confirmed_registrations: "10",
-    default_reward_type: "tshirt",
+    active_buyer_reward_type: "tshirt",
+    active_merchant_reward_type: "monthly_subscription",
+    buyer_rewards: referralRewardCatalog.buyer,
+    merchant_rewards: referralRewardCatalog.merchant,
     apply_existing: true
   };
 }
@@ -566,12 +770,58 @@ function referralDraftFromFlags(flags: Flag[]): ReferralSettingsDraft {
   const referralFlag = flags.find((flag) => flag.key === "referrals_enabled");
   const configuration = referralFlag?.configuration ?? {};
   const threshold = configuration["confirmed_referrals_threshold"];
-  const rewardType = configuration["default_reward_type"];
+  const buyerRewards = normalizeRewardOptions(configuration["buyer_rewards"], "buyer");
+  const merchantRewards = normalizeRewardOptions(configuration["merchant_rewards"], "merchant");
+  const defaultRewardType = rewardTypeFromUnknown(configuration["default_reward_type"], "tshirt");
+  const activeBuyerRewardType = rewardTypeFromUnknown(configuration["active_buyer_reward_type"], defaultRewardType);
+  const activeMerchantRewardType = rewardTypeFromUnknown(configuration["active_merchant_reward_type"], "monthly_subscription");
   return {
     target_confirmed_registrations: String(typeof threshold === "number" && Number.isFinite(threshold) ? threshold : 10),
-    default_reward_type: rewardType === "monthly_subscription" ? "monthly_subscription" : "tshirt",
+    active_buyer_reward_type: rewardExists(buyerRewards, activeBuyerRewardType) ? activeBuyerRewardType : buyerRewards[0].reward_type,
+    active_merchant_reward_type: rewardExists(merchantRewards, activeMerchantRewardType)
+      ? activeMerchantRewardType
+      : merchantRewards[0].reward_type,
+    buyer_rewards: buyerRewards,
+    merchant_rewards: merchantRewards,
     apply_existing: true
   };
+}
+
+function normalizeRewardOptions(value: unknown, audience: ReferralAudience): ReferralRewardOptionDraft[] {
+  const catalog = referralRewardCatalog[audience];
+  const allowedTypes = new Set(catalog.map((reward) => reward.reward_type));
+  const source = Array.isArray(value) ? value : catalog;
+  const normalized = source
+    .map((item, index) => {
+      const raw = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const rewardType = rewardTypeFromUnknown(raw.reward_type, catalog[index]?.reward_type ?? catalog[0].reward_type);
+      if (!allowedTypes.has(rewardType)) return null;
+      const fallback = catalog.find((reward) => reward.reward_type === rewardType) ?? catalog[0];
+      return {
+        reward_type: rewardType,
+        label_ar: String(raw.label_ar ?? fallback.label_ar).trim() || fallback.label_ar,
+        label_en: String(raw.label_en ?? fallback.label_en).trim() || fallback.label_en,
+        is_active: raw.is_active !== false,
+        display_order: Number.isFinite(Number(raw.display_order)) ? Number(raw.display_order) : index
+      } satisfies ReferralRewardOptionDraft;
+    })
+    .filter((reward): reward is ReferralRewardOptionDraft => reward !== null);
+
+  const uniqueRewards = Array.from(new Map(normalized.map((reward) => [reward.reward_type, reward])).values()).sort(
+    (left, right) => left.display_order - right.display_order
+  );
+  const rewards = uniqueRewards.length > 0 ? uniqueRewards : catalog;
+  return rewards.some((reward) => reward.is_active)
+    ? rewards
+    : rewards.map((reward, index) => ({ ...reward, is_active: index === 0 }));
+}
+
+function rewardTypeFromUnknown(value: unknown, fallback: ReferralRewardType): ReferralRewardType {
+  return value === "monthly_subscription" || value === "football" || value === "cap" || value === "tshirt" ? value : fallback;
+}
+
+function rewardExists(rewards: ReferralRewardOptionDraft[], rewardType: ReferralRewardType) {
+  return rewards.some((reward) => reward.reward_type === rewardType && reward.is_active);
 }
 
 function emptyProviderDraft(): ProviderDraft {

@@ -36,13 +36,58 @@ type RecentNotification = {
   push_error: string | null;
   created_at: string;
 };
+type LocationRow = {
+  country_ar: string | null;
+  governorate_ar: string | null;
+  name_ar: string | null;
+  is_active?: boolean | null;
+};
 
-const audiences: Array<{ id: Audience; ar: string; en: string; hintAr: string; hintEn: string }> = [
-  { id: "all", ar: "كل المستخدمين", en: "All users", hintAr: "عملاء ومتاجر ودعم", hintEn: "Buyers, stores, and staff" },
-  { id: "buyers", ar: "العملاء فقط", en: "Buyers only", hintAr: "حسابات العملاء", hintEn: "Buyer accounts" },
-  { id: "merchants", ar: "المتاجر فقط", en: "Stores only", hintAr: "أصحاب المتاجر", hintEn: "Merchant accounts" },
-  { id: "staff", ar: "الفريق فقط", en: "Staff only", hintAr: "أدمن ودعم", hintEn: "Admins and support" },
-  { id: "specific", ar: "مستخدم محدد", en: "Specific users", hintAr: "اختيار يدوي", hintEn: "Manual selection" }
+const DEFAULT_COUNTRY_AR = "مصر";
+const COUNTRY_MARKER = "__country__";
+
+const audiences: Array<{
+  id: Audience;
+  ar: string;
+  en: string;
+  hintAr: string;
+  hintEn: string;
+}> = [
+  {
+    id: "all",
+    ar: "كل المستخدمين",
+    en: "All users",
+    hintAr: "عملاء ومتاجر ودعم",
+    hintEn: "Buyers, stores, and staff",
+  },
+  {
+    id: "buyers",
+    ar: "العملاء فقط",
+    en: "Buyers only",
+    hintAr: "حسابات العملاء",
+    hintEn: "Buyer accounts",
+  },
+  {
+    id: "merchants",
+    ar: "المتاجر فقط",
+    en: "Stores only",
+    hintAr: "أصحاب المتاجر",
+    hintEn: "Merchant accounts",
+  },
+  {
+    id: "staff",
+    ar: "الفريق فقط",
+    en: "Staff only",
+    hintAr: "أدمن ودعم",
+    hintEn: "Admins and support",
+  },
+  {
+    id: "specific",
+    ar: "مستخدم محدد",
+    en: "Specific users",
+    hintAr: "اختيار يدوي",
+    hintEn: "Manual selection",
+  },
 ];
 
 const destinationOptions: DestinationOption[] = [
@@ -52,7 +97,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "طلبات العميل",
     en: "Buyer orders",
     hintAr: "يفتح صفحة طلبات العميل ومتابعة حالة الطلبات.",
-    hintEn: "Opens the buyer orders and request status screen."
+    hintEn: "Opens the buyer orders and request status screen.",
   },
   {
     id: "buyer_support",
@@ -60,7 +105,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "دعم العميل",
     en: "Buyer support",
     hintAr: "يفتح محادثة الدعم الخاصة بالعميل.",
-    hintEn: "Opens the buyer support chat."
+    hintEn: "Opens the buyer support chat.",
   },
   {
     id: "buyer_favorites",
@@ -68,7 +113,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "مفضلة العميل",
     en: "Buyer favorites",
     hintAr: "يفتح منتجات وتنبيهات المفضلة للعميل.",
-    hintEn: "Opens buyer favorites and price alerts."
+    hintEn: "Opens buyer favorites and price alerts.",
   },
   {
     id: "buyer_referrals",
@@ -76,7 +121,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "دعوة الأصدقاء",
     en: "Invite friends",
     hintAr: "يفتح شاشة الإحالات والمكافآت للعميل.",
-    hintEn: "Opens referrals and rewards for buyers."
+    hintEn: "Opens referrals and rewards for buyers.",
   },
   {
     id: "merchant_requests",
@@ -84,7 +129,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "طلبات المتجر",
     en: "Store requests",
     hintAr: "يفتح طلبات العملاء الواردة للمتجر.",
-    hintEn: "Opens incoming customer requests for the store."
+    hintEn: "Opens incoming customer requests for the store.",
   },
   {
     id: "merchant_rfqs",
@@ -92,7 +137,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "طلبات التسعير",
     en: "RFQs",
     hintAr: "يفتح طلبات التسعير اليدوية عند المتجر.",
-    hintEn: "Opens manual RFQs for the store."
+    hintEn: "Opens manual RFQs for the store.",
   },
   {
     id: "merchant_products",
@@ -100,7 +145,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "منتجات المتجر",
     en: "Store products",
     hintAr: "يفتح إدارة المنتجات والأسعار والصور.",
-    hintEn: "Opens product, price, and image management."
+    hintEn: "Opens product, price, and image management.",
   },
   {
     id: "merchant_reports",
@@ -108,7 +153,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "تقارير المتجر",
     en: "Store reports",
     hintAr: "يفتح المبيعات والتقييمات وملخص الأداء.",
-    hintEn: "Opens sales, ratings, and performance reports."
+    hintEn: "Opens sales, ratings, and performance reports.",
   },
   {
     id: "merchant_billing",
@@ -116,7 +161,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "اشتراكات ومدفوعات المتجر",
     en: "Store billing",
     hintAr: "يفتح حالة الاشتراك والمستحقات والمدفوعات.",
-    hintEn: "Opens subscriptions, dues, and payments."
+    hintEn: "Opens subscriptions, dues, and payments.",
   },
   {
     id: "merchant_support",
@@ -124,7 +169,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "دعم المتجر",
     en: "Store support",
     hintAr: "يفتح محادثة الدعم الخاصة بالمتجر.",
-    hintEn: "Opens the store support chat."
+    hintEn: "Opens the store support chat.",
   },
   {
     id: "merchant_settings",
@@ -132,7 +177,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "إعدادات المتجر",
     en: "Store settings",
     hintAr: "يفتح إعدادات الحساب والسياسات.",
-    hintEn: "Opens account settings and policies."
+    hintEn: "Opens account settings and policies.",
   },
   {
     id: "custom",
@@ -141,8 +186,8 @@ const destinationOptions: DestinationOption[] = [
     en: "Custom destination",
     hintAr: "للمطور فقط لو محتاج رابط داخلي غير موجود في الاختيارات.",
     hintEn: "For a developer-only internal destination not listed above.",
-    custom: true
-  }
+    custom: true,
+  },
 ];
 
 export function NotificationBroadcast({ lang }: { lang: Lang }) {
@@ -154,6 +199,10 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
   const [bodyEn, setBodyEn] = useState("");
   const [deepLink, setDeepLink] = useState("saarly://buyer/orders");
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [locationRows, setLocationRows] = useState<LocationRow[]>([]);
+  const [targetCountry, setTargetCountry] = useState("");
+  const [targetGovernorate, setTargetGovernorate] = useState("");
+  const [targetCity, setTargetCity] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userQuery, setUserQuery] = useState("");
   const [recent, setRecent] = useState<RecentNotification[]>([]);
@@ -167,16 +216,75 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     if (!needle) return users.slice(0, 50);
     return users
       .filter((user) =>
-        [user.full_name, user.mobile, user.primary_email, user.role_ar, user.role]
+        [
+          user.full_name,
+          user.mobile,
+          user.primary_email,
+          user.role_ar,
+          user.role,
+        ]
           .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(needle))
+          .some((value) => String(value).toLowerCase().includes(needle)),
       )
       .slice(0, 80);
   }, [userQuery, users]);
   const selectedDestination = useMemo(
-    () => destinationOptions.find((option) => option.id === destinationId) ?? destinationOptions[0],
-    [destinationId]
+    () =>
+      destinationOptions.find((option) => option.id === destinationId) ??
+      destinationOptions[0],
+    [destinationId],
   );
+  const countries = useMemo(() => {
+    return Array.from(
+      new Set(
+        locationRows
+          .map((row) => String(row.country_ar ?? DEFAULT_COUNTRY_AR).trim())
+          .filter(Boolean),
+      ),
+    ).sort();
+  }, [locationRows]);
+  const governorates = useMemo(() => {
+    return Array.from(
+      new Set(
+        locationRows
+          .filter(
+            (row) => String(row.governorate_ar ?? "").trim() !== COUNTRY_MARKER,
+          )
+          .filter(
+            (row) =>
+              !targetCountry ||
+              String(row.country_ar ?? DEFAULT_COUNTRY_AR).trim() ===
+                targetCountry,
+          )
+          .map((row) => String(row.governorate_ar ?? "").trim())
+          .filter(Boolean),
+      ),
+    ).sort();
+  }, [locationRows, targetCountry]);
+  const cities = useMemo(() => {
+    return Array.from(
+      new Set(
+        locationRows
+          .filter((row) => row.is_active !== false)
+          .filter(
+            (row) => String(row.governorate_ar ?? "").trim() !== COUNTRY_MARKER,
+          )
+          .filter(
+            (row) =>
+              !targetCountry ||
+              String(row.country_ar ?? DEFAULT_COUNTRY_AR).trim() ===
+                targetCountry,
+          )
+          .filter(
+            (row) =>
+              !targetGovernorate ||
+              String(row.governorate_ar ?? "").trim() === targetGovernorate,
+          )
+          .map((row) => String(row.name_ar ?? "").trim())
+          .filter(Boolean),
+      ),
+    ).sort();
+  }, [locationRows, targetCountry, targetGovernorate]);
 
   function chooseDestination(option: DestinationOption) {
     setDestinationId(option.id);
@@ -200,11 +308,24 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
   async function loadRecent() {
     const { data } = await supabase
       .from("notifications")
-      .select("id, type, title_ar, body_ar, push_status, push_error, created_at")
+      .select(
+        "id, type, title_ar, body_ar, push_status, push_error, created_at",
+      )
       .eq("type", "admin_broadcast")
       .order("created_at", { ascending: false })
       .limit(12);
     setRecent((data ?? []) as RecentNotification[]);
+  }
+
+  async function loadLocations() {
+    const { data } = await supabase
+      .from("cities")
+      .select("country_ar,governorate_ar,name_ar,is_active")
+      .order("country_ar", { ascending: true })
+      .order("governorate_ar", { ascending: true })
+      .order("name_ar", { ascending: true })
+      .limit(1000);
+    setLocationRows((data ?? []) as LocationRow[]);
   }
 
   async function postAdminAction(body: Record<string, unknown>) {
@@ -216,9 +337,9 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
     const payload = (await response.json().catch(() => ({}))) as {
       error?: string;
@@ -245,14 +366,17 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
           body_ar: bodyAr,
           body_en: bodyEn || bodyAr,
           deep_link: deepLink,
-          type: "admin_broadcast"
-        }
+          target_country_ar: targetCountry || null,
+          target_governorate_ar: targetGovernorate || null,
+          target_city_ar: targetCity || null,
+          type: "admin_broadcast",
+        },
       });
 
       setMessage(
         lang === "ar"
           ? `تم إنشاء ${result?.inserted_count ?? 0} إشعار. Firebase هيرسلها خلال دقيقة تقريبًا.`
-          : `${result?.inserted_count ?? 0} notifications queued. Firebase should send them in about a minute.`
+          : `${result?.inserted_count ?? 0} notifications queued. Firebase should send them in about a minute.`,
       );
       setTitleAr("");
       setTitleEn("");
@@ -269,20 +393,27 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
 
   function toggleUser(userId: string) {
     setSelectedUsers((current) =>
-      current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]
+      current.includes(userId)
+        ? current.filter((id) => id !== userId)
+        : [...current, userId],
     );
   }
 
   useEffect(() => {
     void loadUsers();
     void loadRecent();
+    void loadLocations();
   }, []);
 
   return (
     <section className="content-panel broadcast-panel">
       <div className="section-head">
         <div>
-          <span className="eyebrow">{lang === "ar" ? "Firebase + جرس التطبيق" : "Firebase + in-app bell"}</span>
+          <span className="eyebrow">
+            {lang === "ar"
+              ? "Firebase + جرس التطبيق"
+              : "Firebase + in-app bell"}
+          </span>
           <h1>{lang === "ar" ? "إرسال إشعار" : "Send notification"}</h1>
           <p>
             {lang === "ar"
@@ -296,8 +427,14 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
         </button>
       </div>
 
-      {error ? <div className="alert">{humanizeAdminError(error, lang)}</div> : null}
-      {message ? <div className="success-alert"><CheckCircle2 size={18} /> {message}</div> : null}
+      {error ? (
+        <div className="alert">{humanizeAdminError(error, lang)}</div>
+      ) : null}
+      {message ? (
+        <div className="success-alert">
+          <CheckCircle2 size={18} /> {message}
+        </div>
+      ) : null}
 
       <div className="broadcast-grid">
         <form className="broadcast-form" onSubmit={sendNotification}>
@@ -306,13 +443,87 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               <button
                 type="button"
                 key={option.id}
-                className={audience === option.id ? "audience-card active" : "audience-card"}
+                className={
+                  audience === option.id
+                    ? "audience-card active"
+                    : "audience-card"
+                }
                 onClick={() => setAudience(option.id)}
               >
                 <strong>{lang === "ar" ? option.ar : option.en}</strong>
                 <span>{lang === "ar" ? option.hintAr : option.hintEn}</span>
               </button>
             ))}
+          </div>
+
+          <div className="notification-destination-panel">
+            <div>
+              <strong>
+                {lang === "ar" ? "يوصل لمين حسب المكان؟" : "Location targeting"}
+              </strong>
+              <p className="muted">
+                {lang === "ar"
+                  ? "سيب الخانات فاضية لو الإشعار لكل الأماكن، أو اختار بلد ثم محافظة ثم مدينة."
+                  : "Leave fields empty for all locations, or pick a country, governorate, and city."}
+              </p>
+            </div>
+            <div className="form-split">
+              <label>
+                {lang === "ar" ? "البلد" : "Country"}
+                <select
+                  value={targetCountry}
+                  onChange={(event) => {
+                    setTargetCountry(event.target.value);
+                    setTargetGovernorate("");
+                    setTargetCity("");
+                  }}
+                >
+                  <option value="">
+                    {lang === "ar" ? "كل البلاد" : "All countries"}
+                  </option>
+                  {countries.map((country) => (
+                    <option value={country} key={country}>
+                      {country}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {lang === "ar" ? "المحافظة" : "Governorate"}
+                <select
+                  value={targetGovernorate}
+                  onChange={(event) => {
+                    setTargetGovernorate(event.target.value);
+                    setTargetCity("");
+                  }}
+                >
+                  <option value="">
+                    {lang === "ar" ? "كل المحافظات" : "All governorates"}
+                  </option>
+                  {governorates.map((governorate) => (
+                    <option value={governorate} key={governorate}>
+                      {governorate}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label>
+              {lang === "ar" ? "المدينة" : "City"}
+              <select
+                value={targetCity}
+                onChange={(event) => setTargetCity(event.target.value)}
+              >
+                <option value="">
+                  {lang === "ar" ? "كل المدن" : "All cities"}
+                </option>
+                {cities.map((city) => (
+                  <option value={city} key={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {audience === "specific" ? (
@@ -322,10 +533,16 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                 <input
                   value={userQuery}
                   onChange={(event) => setUserQuery(event.target.value)}
-                  placeholder={lang === "ar" ? "ابحث بالاسم أو الموبايل أو الإيميل" : "Search name, mobile, or email"}
+                  placeholder={
+                    lang === "ar"
+                      ? "ابحث بالاسم أو الموبايل أو الإيميل"
+                      : "Search name, mobile, or email"
+                  }
                 />
               </label>
-              {loadingUsers ? <div className="empty-state">{t("loading", lang)}</div> : null}
+              {loadingUsers ? (
+                <div className="empty-state">{t("loading", lang)}</div>
+              ) : null}
               <div className="user-picker-list">
                 {filteredUsers.map((user) => (
                   <label className="user-picker-row" key={user.id}>
@@ -335,41 +552,72 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                       onChange={() => toggleUser(user.id)}
                     />
                     <span>
-                      <strong>{user.full_name || user.primary_email || user.mobile}</strong>
-                      <small>{user.role_ar || user.role} | {user.mobile || user.primary_email || "-"}</small>
+                      <strong>
+                        {user.full_name || user.primary_email || user.mobile}
+                      </strong>
+                      <small>
+                        {user.role_ar || user.role} |{" "}
+                        {user.mobile || user.primary_email || "-"}
+                      </small>
                     </span>
                   </label>
                 ))}
               </div>
-              <p className="muted">{lang === "ar" ? `مختار: ${selectedUsers.length}` : `Selected: ${selectedUsers.length}`}</p>
+              <p className="muted">
+                {lang === "ar"
+                  ? `مختار: ${selectedUsers.length}`
+                  : `Selected: ${selectedUsers.length}`}
+              </p>
             </div>
           ) : null}
 
           <div className="form-split">
             <label>
               {lang === "ar" ? "عنوان الإشعار بالعربي" : "Arabic title"}
-              <input value={titleAr} onChange={(event) => setTitleAr(event.target.value)} required maxLength={90} />
+              <input
+                value={titleAr}
+                onChange={(event) => setTitleAr(event.target.value)}
+                required
+                maxLength={90}
+              />
             </label>
             <label>
               {lang === "ar" ? "عنوان الإشعار بالإنجليزي" : "English title"}
-              <input value={titleEn} onChange={(event) => setTitleEn(event.target.value)} maxLength={90} />
+              <input
+                value={titleEn}
+                onChange={(event) => setTitleEn(event.target.value)}
+                maxLength={90}
+              />
             </label>
           </div>
 
           <div className="form-split">
             <label>
               {lang === "ar" ? "نص الإشعار بالعربي" : "Arabic body"}
-              <textarea value={bodyAr} onChange={(event) => setBodyAr(event.target.value)} required maxLength={240} />
+              <textarea
+                value={bodyAr}
+                onChange={(event) => setBodyAr(event.target.value)}
+                required
+                maxLength={240}
+              />
             </label>
             <label>
               {lang === "ar" ? "نص الإشعار بالإنجليزي" : "English body"}
-              <textarea value={bodyEn} onChange={(event) => setBodyEn(event.target.value)} maxLength={240} />
+              <textarea
+                value={bodyEn}
+                onChange={(event) => setBodyEn(event.target.value)}
+                maxLength={240}
+              />
             </label>
           </div>
 
           <div className="notification-destination-panel">
             <div>
-              <strong>{lang === "ar" ? "يفتح فين داخل التطبيق؟" : "Open where in the app?"}</strong>
+              <strong>
+                {lang === "ar"
+                  ? "يفتح فين داخل التطبيق؟"
+                  : "Open where in the app?"}
+              </strong>
               <p className="muted">
                 {lang === "ar"
                   ? "اختار المكان اللي المستخدم يروح له لما يضغط على الإشعار. مش محتاج تكتب أي لينك بنفسك."
@@ -381,7 +629,11 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                 <button
                   key={option.id}
                   type="button"
-                  className={destinationId === option.id ? "destination-card active" : "destination-card"}
+                  className={
+                    destinationId === option.id
+                      ? "destination-card active"
+                      : "destination-card"
+                  }
                   onClick={() => chooseDestination(option)}
                 >
                   <strong>{lang === "ar" ? option.ar : option.en}</strong>
@@ -391,8 +643,15 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             </div>
             {selectedDestination.custom ? (
               <label className="destination-custom-field">
-                {lang === "ar" ? "الرابط الداخلي المخصص" : "Custom internal link"}
-                <input dir="ltr" value={deepLink} onChange={(event) => setDeepLink(event.target.value)} required />
+                {lang === "ar"
+                  ? "الرابط الداخلي المخصص"
+                  : "Custom internal link"}
+                <input
+                  dir="ltr"
+                  value={deepLink}
+                  onChange={(event) => setDeepLink(event.target.value)}
+                  required
+                />
               </label>
             ) : (
               <p className="selected-destination-note">
@@ -402,25 +661,40 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             )}
           </div>
 
-          <button className="primary-button broadcast-submit" disabled={sending}>
+          <button
+            className="primary-button broadcast-submit"
+            disabled={sending}
+          >
             <Send size={18} />
-            {sending ? t("loading", lang) : lang === "ar" ? "إرسال الإشعار" : "Send notification"}
+            {sending
+              ? t("loading", lang)
+              : lang === "ar"
+                ? "إرسال الإشعار"
+                : "Send notification"}
           </button>
         </form>
 
         <aside className="recent-notifications-card">
           <div className="recent-head">
             <BellRing size={20} />
-            <h2>{lang === "ar" ? "آخر إشعارات الأدمن" : "Recent admin notifications"}</h2>
+            <h2>
+              {lang === "ar"
+                ? "آخر إشعارات الأدمن"
+                : "Recent admin notifications"}
+            </h2>
           </div>
           <div className="mini-list">
-            {recent.length === 0 ? <p className="muted">{t("noRows", lang)}</p> : null}
+            {recent.length === 0 ? (
+              <p className="muted">{t("noRows", lang)}</p>
+            ) : null}
             {recent.map((notification) => (
               <div key={notification.id}>
                 <strong>{notification.title_ar}</strong>
                 <span>
                   {notification.push_status || "pending"}
-                  {notification.push_error ? ` | ${notification.push_error}` : ""}
+                  {notification.push_error
+                    ? ` | ${notification.push_error}`
+                    : ""}
                 </span>
               </div>
             ))}

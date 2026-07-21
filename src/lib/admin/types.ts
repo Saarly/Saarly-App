@@ -27,6 +27,7 @@ export type RowAction =
   | "block_user"
   | "unblock_user"
   | "set_user_password"
+  | "delete_user_account"
   | "toggle_active"
   | "edit_row"
   | "delete_row";

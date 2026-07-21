@@ -10,11 +10,15 @@ import { friendlyStatus } from "@/lib/admin/messages";
 type Conversation = {
   id: string;
   user_id: string;
+  user_name: string | null;
   title: string | null;
   status: string;
   assigned_support_agent_id: string | null;
+  assigned_agent_name: string | null;
   last_message_at: string | null;
   created_at: string;
+  last_message_preview: string | null;
+  unread_for_support_count: number | null;
 };
 
 type Message = {
@@ -22,22 +26,28 @@ type Message = {
   conversation_id: string;
   sender_type: string;
   sender_user_id: string | null;
+  sender_name: string | null;
   body: string;
   created_at: string;
 };
 
-function senderLabel(senderType: string, lang: Lang) {
-  if (senderType === "user") return lang === "ar" ? "العميل" : "Customer";
-  if (senderType === "bot") return lang === "ar" ? "البوت" : "Bot";
-  if (senderType === "support_agent") return lang === "ar" ? "خدمة العملاء" : "Support";
-  if (senderType === "system") return lang === "ar" ? "النظام" : "System";
-  return senderType;
+function senderLabel(message: Message, lang: Lang) {
+  if (message.sender_name) return message.sender_name;
+  if (message.sender_type === "user") return lang === "ar" ? "العميل" : "Customer";
+  if (message.sender_type === "bot") return lang === "ar" ? "البوت" : "Bot";
+  if (message.sender_type === "support_agent") return lang === "ar" ? "خدمة العملاء" : "Support";
+  if (message.sender_type === "system") return lang === "ar" ? "النظام" : "System";
+  return message.sender_type;
 }
 
 function supportStatusLabel(status: string, lang: Lang) {
   if (status === "transferred") return lang === "ar" ? "محولة لخدمة العملاء" : "Transferred to support";
   if (status === "bot") return lang === "ar" ? "مع البوت" : "With bot";
   return friendlyStatus(status, lang);
+}
+
+function assignedLabel(conversation: Conversation, lang: Lang) {
+  return conversation.assigned_agent_name || (lang === "ar" ? "لم يستلمها أحد" : "Unassigned");
 }
 
 export function SupportConsole({ lang }: { lang: Lang }) {
@@ -52,24 +62,20 @@ export function SupportConsole({ lang }: { lang: Lang }) {
   async function loadConversations() {
     setLoading(true);
     setError(null);
-    const { data, error: loadError } = await supabase
-      .from("chat_conversations")
-      .select("id, user_id, title, status, assigned_support_agent_id, last_message_at, created_at")
-      .in("status", ["transferred", "bot"])
-      .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(60);
-
-    setConversations((data ?? []) as Conversation[]);
+    const { data, error: loadError } = await supabase.rpc("admin_support_conversation_queue");
+    const nextConversations = (data ?? []) as Conversation[];
+    setConversations(nextConversations);
+    setSelected((current) =>
+      current ? nextConversations.find((conversation) => conversation.id === current.id) ?? current : current
+    );
     setError(loadError?.message ?? null);
     setLoading(false);
   }
 
   async function loadMessages(conversationId: string) {
-    const { data, error: loadError } = await supabase
-      .from("chat_messages")
-      .select("id, conversation_id, sender_type, sender_user_id, body, created_at")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
+    const { data, error: loadError } = await supabase.rpc("admin_support_conversation_messages", {
+      p_conversation_id: conversationId
+    });
 
     setMessages((data ?? []) as Message[]);
     setError(loadError?.message ?? null);
@@ -186,6 +192,11 @@ export function SupportConsole({ lang }: { lang: Lang }) {
               >
                 <strong>{conversation.title || (lang === "ar" ? "محادثة دعم" : "Support chat")}</strong>
                 <span>{supportStatusLabel(conversation.status, lang)}</span>
+                <span>
+                  {lang === "ar" ? "استلمها: " : "Handled by: "}
+                  {assignedLabel(conversation, lang)}
+                </span>
+                {conversation.last_message_preview ? <small>{conversation.last_message_preview}</small> : null}
               </button>
             ))}
           </div>
@@ -198,6 +209,10 @@ export function SupportConsole({ lang }: { lang: Lang }) {
                 <div>
                   <strong>{selected.title || (lang === "ar" ? "محادثة دعم" : "Support chat")}</strong>
                   <span>{supportStatusLabel(selected.status, lang)}</span>
+                  <span>
+                    {lang === "ar" ? "استلمها: " : "Handled by: "}
+                    {assignedLabel(selected, lang)}
+                  </span>
                 </div>
                 <div className="row-actions">
                   <button className="tiny-button" onClick={assignToMe}>
@@ -216,7 +231,7 @@ export function SupportConsole({ lang }: { lang: Lang }) {
                     key={message.id}
                     className={message.sender_type === "user" ? "message-bubble user" : "message-bubble agent"}
                   >
-                    <span>{senderLabel(message.sender_type, lang)}</span>
+                    <span>{senderLabel(message, lang)}</span>
                     <p>{message.body}</p>
                   </div>
                 ))}

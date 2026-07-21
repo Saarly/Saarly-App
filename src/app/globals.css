@@ -366,6 +366,8 @@ button:not(:disabled):active {
 
 .sidebar nav {
   display: grid;
+  align-content: start;
+  grid-auto-rows: minmax(42px, auto);
   gap: 6px;
 }
 
@@ -529,6 +531,31 @@ button:not(:disabled):active {
   background: var(--panel-soft);
 }
 
+.category-card.country-toggle {
+  width: 100%;
+  border-color: color-mix(in srgb, var(--green) 60%, var(--border));
+  background: color-mix(in srgb, var(--green) 12%, var(--panel));
+  color: var(--text);
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.category-card.country-toggle span {
+  flex: 1;
+}
+
+.category-card.country-toggle small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.country-header-actions {
+  justify-content: flex-end;
+  margin: 8px 0 12px;
+}
+
 .category-card strong,
 .category-card span {
   display: block;
@@ -637,6 +664,7 @@ button:not(:disabled):active {
 }
 
 .provider-config-grid input,
+.provider-config-grid select,
 .provider-config-grid textarea {
   width: 100%;
   border: 1px solid var(--border);
@@ -654,6 +682,77 @@ button:not(:disabled):active {
 
 .provider-wide-field {
   grid-column: 1 / -1;
+}
+
+.reward-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.reward-editor {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.reward-editor-head,
+.reward-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reward-editor-head strong,
+.reward-editor-head span {
+  display: block;
+}
+
+.reward-editor-head span {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.reward-active-select,
+.reward-option-row label:not(.checkbox-field) {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.reward-active-select select,
+.reward-option-row input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.reward-option-list {
+  display: grid;
+  gap: 10px;
+}
+
+.reward-option-row {
+  align-items: end;
+}
+
+.reward-option-row label:not(.checkbox-field) {
+  flex: 1;
+  min-width: 120px;
+}
+
+.reward-check {
+  padding-bottom: 9px;
 }
 
 .table-toolbar {
@@ -826,9 +925,16 @@ button:not(:disabled):active {
 }
 
 .queue-item span,
+.queue-item small,
 .chat-head span {
   color: var(--muted);
   font-size: 13px;
+}
+
+.queue-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-card {
@@ -1617,12 +1723,14 @@ button:not(:disabled):active {
   .destination-grid,
   .form-split,
   .access-options,
-  .provider-config-grid {
+  .provider-config-grid,
+  .reward-settings-grid {
     grid-template-columns: 1fr;
   }
 
   .provider-row-head,
-  .provider-actions-row {
+  .provider-actions-row,
+  .reward-option-row {
     align-items: stretch;
     flex-direction: column;
   }
