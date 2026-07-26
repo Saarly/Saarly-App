@@ -36,7 +36,7 @@ type StaffForm = {
 
 const permissionGroups = [
   {
-    ar: "������� ��������",
+    ar: "الإدارة الأساسية",
     en: "Core admin",
     items: [
       { key: "dashboard", ar: "لوحة التحكم", en: "Dashboard" },
@@ -46,7 +46,7 @@ const permissionGroups = [
     ]
   },
   {
-    ar: "������� ���������",
+    ar: "المتاجر والمنتجات",
     en: "Stores and catalog",
     items: [
       { key: "merchant_approvals", ar: "موافقات المتاجر", en: "Merchant approvals" },
@@ -59,7 +59,7 @@ const permissionGroups = [
     ]
   },
   {
-    ar: "������� ������",
+    ar: "الطلبات والدعم",
     en: "Orders and support",
     items: [
       { key: "orders", ar: "الطلبات", en: "Orders" },
@@ -72,7 +72,7 @@ const permissionGroups = [
     ]
   },
   {
-    ar: "������� ���������",
+    ar: "التسويق والماليات",
     en: "Marketing and finance",
     items: [
       { key: "broadcast", ar: "إرسال إشعارات", en: "Send notifications" },
@@ -254,7 +254,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
         id: row.id,
         payload: { enabled }
       });
-      setMessage(enabled ? (lang === "ar" ? "تم تفعيل الحساب." : "Account enabled.") : lang === "ar" ? "�� ����� ������." : "Account disabled.");
+      setMessage(enabled ? (lang === "ar" ? "تم تفعيل الحساب." : "Account enabled.") : lang === "ar" ? "تم تعطيل الحساب." : "Account disabled.");
       await loadStaff();
     } catch (toggleError) {
       setError(normalizeError(toggleError, lang));
@@ -301,7 +301,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
           <h1>{lang === "ar" ? "الفريق والصلاحيات" : "Team and permissions"}</h1>
           <p>
             {lang === "ar"
-              ? "��� ���� ���ϡ ���� ��� �����ɡ ���� ������� ���������� �������� �� �� ��� �� ���� Supabase."
+              ? "أضف حساب موظف، اكتب اسم الرتبة، وحدد الصلاحيات المناسبة بدون الرجوع إلى Supabase."
               : "Add a staff account, name the rank, and choose what it can access without opening Supabase."}
           </p>
         </div>
@@ -415,7 +415,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
                     {lang === "ar" ? "كلمة المرور" : "Password"}
                   </button>
                   <button className="tiny-button" type="button" onClick={() => void toggleStaffActive(row)} disabled={saving}>
-                    {row.staff_is_active && !row.is_blocked ? (lang === "ar" ? "تعطيل" : "Disable") : lang === "ar" ? "�����" : "Enable"}
+                    {row.staff_is_active && !row.is_blocked ? (lang === "ar" ? "تعطيل" : "Disable") : lang === "ar" ? "تفعيل" : "Enable"}
                   </button>
                 </div>
               </article>
@@ -556,31 +556,31 @@ function normalizeError(error: unknown, lang: Lang) {
   const message = error instanceof Error ? error.message : String(error);
   const labels: Record<string, { ar: string; en: string }> = {
     service_role_key_missing: {
-      ar: "����� ������ ��� ����� �� Vercel� ���� �� ���� ����� �� ����� ������ ������.",
+      ar: "مفتاح الخدمة غير موجود في Vercel، لذلك لا يمكن تعديل حسابات الفريق حالياً.",
       en: "The service role key is missing in Vercel, so staff accounts cannot be changed."
     },
     admin_staff_sql_not_applied: {
-      ar: "��� SQL ����� ����� ������ �� ��� ������ �� Supabase ���.",
+      ar: "ملف SQL الخاص بصلاحيات الفريق لم يتم تشغيله في Supabase بعد.",
       en: "The staff permissions SQL file has not been run in Supabase yet."
     },
     password_must_be_at_least_8_chars: {
-      ar: "���� ������ ���� ���� 8 ���� ��� �����.",
+      ar: "كلمة المرور لازم تكون 8 حروف على الأقل.",
       en: "Password must be at least 8 characters."
     },
     passwords_do_not_match: {
-      ar: "����� ������ ��� ���������.",
+      ar: "كلمتا المرور غير متطابقتين.",
       en: "Passwords do not match."
     },
     permission_denied: {
-      ar: "��� ������ �� ���� ������ ����� ��� �������.",
+      ar: "هذا الحساب لا يملك صلاحية تنفيذ هذا الإجراء.",
       en: "This account does not have permission for this action."
     },
     cannot_disable_your_own_account: {
-      ar: "�� ����� ����� ����� ������ �� ���.",
+      ar: "لا يمكنك تعطيل حسابك الحالي من هنا.",
       en: "You cannot disable your current account here."
     },
     cannot_limit_your_own_admin_account: {
-      ar: "�� ����� ����� ������� ����� ������ �� ���.",
+      ar: "لا يمكنك تقليل صلاحيات حسابك الحالي من هنا.",
       en: "You cannot limit your current admin account here."
     }
   };

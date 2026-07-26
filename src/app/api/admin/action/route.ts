@@ -3,6 +3,11 @@ import {
   createServiceClient,
   createUserScopedClient,
 } from "@/lib/supabase/server";
+import { findSection, sectionIsAllowed } from "@/lib/admin/sections";
+import {
+  dispatchBranchDecisionEvents,
+  dispatchMerchantDecisionEvents,
+} from "@/lib/admin/decision-events";
 
 type AnyRow = Record<string, unknown>;
 type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
@@ -20,6 +25,39 @@ type AuthUserForAdmin = {
   user_metadata?: Record<string, unknown>;
 };
 
+const adminReportDefinitions = [
+  {
+    key: "admin_report_orders",
+    args: { p_from: null, p_to: null, p_status: null, p_merchant_id: null, p_category_id: null },
+  },
+  {
+    key: "admin_report_active_merchants",
+    args: { p_from: null, p_to: null, p_limit: 10 },
+  },
+  {
+    key: "admin_report_active_categories",
+    args: { p_from: null, p_to: null, p_limit: 10 },
+  },
+  {
+    key: "admin_report_top_accepted_offers",
+    args: { p_from: null, p_to: null, p_limit: 10 },
+  },
+  {
+    key: "admin_report_rfq_acceptance",
+    args: { p_from: null, p_to: null },
+  },
+  {
+    key: "admin_report_payment_transactions",
+    args: { p_status: null, p_provider: null, p_purpose: null, p_from: null, p_to: null },
+  },
+  {
+    key: "admin_report_commission_dues",
+    args: { p_from: null, p_to: null, p_merchant_id: null, p_status: null },
+  },
+  { key: "admin_report_merchant_arrears", args: {} },
+  { key: "admin_report_referrals_rewards", args: {} },
+] as const;
+
 const fullAdminPermissions = {
   __full_admin: true,
   __limit_admin: false,
@@ -27,13 +65,8 @@ const fullAdminPermissions = {
 
 const editableFields: Record<string, string[]> = {
   users: ["role", "is_blocked"],
-  merchants: [
-    "approval_status",
-    "rejection_reason",
-    "last_admin_contact_at",
-    "billing_preference",
-  ],
-  branches: ["approval_status", "rejection_reason"],
+  merchants: ["last_admin_contact_at", "billing_preference"],
+  branches: [],
   products: [
     "free_name",
     "price",
@@ -96,6 +129,7 @@ const editableFields: Record<string, string[]> = {
     "is_direct_to_merchant_supported",
   ],
   ads_banners: [
+    "admin_name",
     "image_url",
     "target_url",
     "placement",
@@ -139,6 +173,48 @@ const idColumnByTable: Record<string, string> = {
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
+}
+
+async function missingApprovalDocuments(
+  service: ServiceClient,
+  table: string,
+  targetId: string,
+) {
+  const requiredKinds =
+    table === "merchants"
+      ? ["store_owner_id_front", "store_owner_id_back"]
+      : table === "branches"
+        ? ["branch_manager_id_front", "branch_manager_id_back"]
+        : [];
+
+  if (!requiredKinds.length) {
+    return null;
+  }
+
+  let query = service
+    .from("merchant_documents")
+    .select("kind, status")
+    .in("kind", requiredKinds)
+    .is("superseded_by", null);
+
+  query =
+    table === "merchants"
+      ? query.eq("merchant_id", targetId).is("branch_id", null)
+      : query.eq("branch_id", targetId);
+
+  const { data, error } = await query;
+  if (error) {
+    return "document_review_check_failed";
+  }
+
+  const approvedKinds = new Set(
+    ((data ?? []) as AnyRow[])
+      .filter((document) => document.status === "approved")
+      .map((document) => String(document.kind)),
+  );
+
+  const missing = requiredKinds.filter((kind) => !approvedKinds.has(kind));
+  return missing.length ? "required_documents_must_be_approved_first" : null;
 }
 
 function accessTokenFromRequest(req: NextRequest) {
@@ -310,6 +386,10 @@ function normalizeEditableValues(table: string, values: AnyRow) {
 
   return {
     ...values,
+    admin_name:
+      values.admin_name === undefined
+        ? values.admin_name
+        : String(values.admin_name ?? "").trim() || null,
     image_url:
       values.image_url === undefined
         ? values.image_url
@@ -1355,7 +1435,7 @@ async function sendAdminNotification(
   };
 }
 
-type ReferralRewardType = "tshirt" | "monthly_subscription" | "football" | "cap";
+type ReferralRewardType = "tshirt" | "monthly_subscription" | "football" | "cap" | "other";
 type ReferralAudience = "buyer" | "merchant";
 type ReferralRewardOption = {
   reward_type: ReferralRewardType;
@@ -1369,24 +1449,31 @@ const referralRewardCatalog: Record<ReferralAudience, ReferralRewardOption[]> = 
   buyer: [
     {
       reward_type: "tshirt",
-      label_ar: "تيشرت",
+      label_ar: "قميص",
       label_en: "T-shirt",
       is_active: true,
       display_order: 0,
     },
     {
       reward_type: "football",
-      label_ar: "كورة قدم",
+      label_ar: "كرة قدم",
       label_en: "Football",
       is_active: true,
       display_order: 1,
     },
     {
       reward_type: "cap",
-      label_ar: "كاب",
+      label_ar: "قبعة",
       label_en: "Cap",
       is_active: true,
       display_order: 2,
+    },
+    {
+      reward_type: "other",
+      label_ar: "مكافأة جديدة",
+      label_en: "New reward",
+      is_active: true,
+      display_order: 3,
     },
   ],
   merchant: [
@@ -1399,13 +1486,26 @@ const referralRewardCatalog: Record<ReferralAudience, ReferralRewardOption[]> = 
     },
     {
       reward_type: "tshirt",
-      label_ar: "تيشرت",
+      label_ar: "قميص",
       label_en: "T-shirt",
       is_active: true,
       display_order: 1,
     },
+    {
+      reward_type: "other",
+      label_ar: "مكافأة جديدة",
+      label_en: "New reward",
+      is_active: true,
+      display_order: 2,
+    },
   ],
 };
+
+function defaultReferralRewards(audience: ReferralAudience) {
+  return referralRewardCatalog[audience]
+    .filter((reward) => reward.reward_type !== "other")
+    .map((reward) => ({ ...reward }));
+}
 
 function referralRewardType(
   value: unknown,
@@ -1414,6 +1514,7 @@ function referralRewardType(
   return value === "monthly_subscription" ||
     value === "football" ||
     value === "cap" ||
+    value === "other" ||
     value === "tshirt"
     ? value
     : fallback;
@@ -1425,7 +1526,7 @@ function normalizeReferralRewards(
 ) {
   const catalog = referralRewardCatalog[audience];
   const allowed = new Set(catalog.map((reward) => reward.reward_type));
-  const source = Array.isArray(value) ? value : catalog;
+  const source = Array.isArray(value) ? value : defaultReferralRewards(audience);
   const rewards = source
     .map((item, index) => {
       const raw =
@@ -1454,7 +1555,7 @@ function normalizeReferralRewards(
   const uniqueRewards = Array.from(
     new Map(rewards.map((reward) => [reward.reward_type, reward])).values(),
   ).sort((left, right) => left.display_order - right.display_order);
-  const safeRewards = uniqueRewards.length > 0 ? uniqueRewards : catalog;
+  const safeRewards = uniqueRewards.length > 0 ? uniqueRewards : defaultReferralRewards(audience);
   return safeRewards.some((reward) => reward.is_active)
     ? safeRewards
     : safeRewards.map((reward, index) => ({
@@ -1516,6 +1617,10 @@ async function updateReferralSettings(
     active_merchant_reward_type: merchantRewardType,
     buyer_rewards: buyerRewards,
     merchant_rewards: merchantRewards,
+    buyer_banner_image_url:
+      String(payload?.buyer_banner_image_url ?? "").trim() || null,
+    merchant_banner_image_url:
+      String(payload?.merchant_banner_image_url ?? "").trim() || null,
   };
 
   const { data, error } = await db
@@ -1958,6 +2063,67 @@ export async function GET(req: NextRequest) {
 
   try {
     const profile = await getAdminProfile(service, auth);
+    const url = new URL(req.url);
+
+    const sectionId = url.searchParams.get("section");
+    if (sectionId) {
+      const section = findSection(sectionId);
+      if (section.id !== sectionId || !section.source || !sectionIsAllowed(section, profile)) {
+        return jsonError("permission_denied", 403);
+      }
+
+      let request = service
+        .from(section.source)
+        .select("*")
+        .limit(section.id === "cities" ? 1000 : 300);
+
+      if (section.orderBy) {
+        const ascending = [
+          "display_order",
+          "country_ar",
+          "governorate_ar",
+          "key",
+        ].includes(section.orderBy);
+        request = request.order(section.orderBy, { ascending });
+      }
+
+      const { data, error } = await request;
+      if (error) {
+        return jsonError(error.message, 400);
+      }
+
+      return NextResponse.json(
+        { data: data ?? [] },
+        { headers: { "Cache-Control": "no-store, max-age=0" } },
+      );
+    }
+
+    if (url.searchParams.get("reports") === "1") {
+      const reportsSection = findSection("reports");
+      if (!sectionIsAllowed(reportsSection, profile)) {
+        return jsonError("permission_denied", 403);
+      }
+
+      const results = [];
+      for (const report of adminReportDefinitions) {
+        const { data, error } = await service.rpc(report.key, report.args);
+        results.push({
+          key: report.key,
+          rows: Array.isArray(data)
+            ? (((data ?? []) as unknown) as AnyRow[])
+            : data
+              ? [((data as unknown) as AnyRow)]
+              : [],
+          error: error?.message,
+        });
+      }
+
+      return NextResponse.json(
+        { data: results },
+        { headers: { "Cache-Control": "no-store, max-age=0" } },
+      );
+    }
+
     return NextResponse.json(
       { data: profile },
       { headers: { "Cache-Control": "no-store, max-age=0" } },
@@ -2188,11 +2354,18 @@ export async function POST(req: NextRequest) {
     values = { is_active: true };
   } else if (action === "suspend_merchant") {
     if (!id) return jsonError("missing_id");
+    const suspensionReason = String(
+      body.payload?.reason ?? "مخالفة واضحة",
+    ).trim();
+    if (suspensionReason.length < 3) {
+      return jsonError("reason_required");
+    }
     table = "merchants";
     targetId = id;
     values = {
-      approval_status: "rejected",
-      rejection_reason: String(body.payload?.reason ?? "محتوى مخالف").trim(),
+      manually_suspended_at: now,
+      suspension_reason: suspensionReason,
+      suspended_by: auth.userId,
       last_admin_contact_at: now,
     };
   } else if (action === "delete_product") {
@@ -2335,6 +2508,77 @@ export async function POST(req: NextRequest) {
   }
 
   const before = await getBefore(adminDb, table, targetId);
+  if (action === "approve_merchant" || action === "approve_branch") {
+    const documentBlockReason = await missingApprovalDocuments(
+      service,
+      table,
+      targetId,
+    );
+    if (documentBlockReason) {
+      return jsonError(documentBlockReason, 400);
+    }
+  }
+
+  if (action === "suspend_merchant") {
+    const suspensionReason = String(values.suspension_reason ?? "").trim();
+    const { data, error } = await service.rpc("admin_set_merchant_suspension_as", {
+      p_actor_id: auth.userId,
+      p_merchant_id: targetId,
+      p_suspended: true,
+      p_reason: suspensionReason,
+    });
+    if (error) return jsonError(adminDbActionErrorMessage(error), 400);
+    return NextResponse.json({ data: (data ?? before ?? {}) as AnyRow });
+  }
+
+  if (action === "approve_merchant" || action === "reject_merchant") {
+    const approved = action === "approve_merchant";
+    const reason = approved ? null : String(values.rejection_reason ?? "").trim();
+    const { data, error } = await service.rpc("admin_review_merchant_registration_as", {
+      p_actor_id: auth.userId,
+      p_merchant_id: targetId,
+      p_approved: approved,
+      p_rejection_reason: reason,
+    });
+    if (error) return jsonError(adminDbActionErrorMessage(error), 400);
+
+    const updated = (data ?? before ?? {}) as AnyRow;
+    const decisionResult = await dispatchMerchantDecisionEvents(service, {
+      merchantId: targetId,
+      approved,
+      reason: String(updated.rejection_reason ?? reason ?? ""),
+      decidedAt: now,
+    });
+    if (decisionResult.warnings.length > 0) {
+      console.warn("Merchant decision event warnings:", decisionResult.warnings);
+    }
+    return NextResponse.json({ data: updated });
+  }
+
+  if (action === "approve_branch" || action === "reject_branch") {
+    const approved = action === "approve_branch";
+    const reason = approved ? null : String(values.rejection_reason ?? "").trim();
+    const { data, error } = await service.rpc("admin_review_branch_as", {
+      p_actor_id: auth.userId,
+      p_branch_id: targetId,
+      p_approved: approved,
+      p_rejection_reason: reason,
+    });
+    if (error) return jsonError(adminDbActionErrorMessage(error), 400);
+
+    const updated = (data ?? before ?? {}) as AnyRow;
+    const decisionResult = await dispatchBranchDecisionEvents(service, {
+      branchId: targetId,
+      approved,
+      reason: String(updated.rejection_reason ?? reason ?? ""),
+      decidedAt: now,
+    });
+    if (decisionResult.warnings.length > 0) {
+      console.warn("Branch decision event warnings:", decisionResult.warnings);
+    }
+    return NextResponse.json({ data: updated });
+  }
+
   const { data, error } = await adminDb
     .from(table)
     .update(values)
@@ -2360,18 +2604,6 @@ export async function POST(req: NextRequest) {
     before,
     updated,
   );
-
-  if (action === "approve_merchant" || action === "approve_branch") {
-    // Fire and forget email notification
-    service.functions.invoke("send-approval-email", {
-      body: {
-        type: "UPDATE",
-        table,
-        record: updated,
-        old_record: before,
-      },
-    }).catch(console.error);
-  }
 
   return NextResponse.json({ data: updated });
 }

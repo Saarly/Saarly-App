@@ -20,6 +20,7 @@ import { SettingsPanel } from "@/components/settings-panel";
 import { StoreCatalogModeration } from "@/components/store-catalog-moderation";
 import { NotificationBroadcast } from "@/components/notification-broadcast";
 import { StaffManagement } from "@/components/staff-management";
+import { MonetizationConsole } from "@/components/monetization-console";
 
 export function AdminConsole({ initialSection = "dashboard" }: { initialSection?: string }) {
   const [lang, setLang] = useState<Lang>("ar");
@@ -244,6 +245,8 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
           <ReportsPanel lang={lang} />
         ) : section.mode === "settings" ? (
           <SettingsPanel lang={lang} />
+        ) : section.mode === "monetization" ? (
+          <MonetizationConsole lang={lang} />
         ) : section.mode === "catalog" ? (
           <StoreCatalogModeration lang={lang} />
         ) : section.mode === "broadcast" ? (

@@ -33,44 +33,44 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("invalid_access_token") || message.includes("jwt") || message.includes("expired")) {
     return lang === "ar"
-      ? "����� ���� ������. ���� ���� ����� ����� ��� ������ ������� ���� ������ Supabase �� Vercel."
-      : "Your session expired. Sign out and sign in again. If it continues, check Supabase keys in Vercel.";
+      ? "انتهت جلسة الدخول. سجل خروج وادخل مرة تانية."
+      : "Your session expired. Sign out and sign in again.";
   }
 
   if (message.includes("service_role_key_missing")) {
     return lang === "ar"
-      ? "����� ������ ��� ����� �� Vercel� ���� ��������� ������� ������."
-      : "The service key is missing in Vercel, so sensitive actions are disabled.";
+      ? "بعض إجراءات الإدارة المهمة مش جاهزة حاليًا. راجع مسؤول النظام."
+      : "Some important admin actions are not ready yet. Ask the system owner to review setup.";
   }
 
   if (message.includes("admin_required")) {
     return lang === "ar"
-      ? "������ ������ ��� ����� �������� ���� �������. ���� ���� ������ �� ���� ������ ���������� �� ��� ��� ����� ������� ������ �� Supabase."
-      : "This account is not connected to Admin Web permissions. Check the account rank in Team and permissions, or run the admin permission repair SQL in Supabase.";
+      ? "الحساب ده مش عليه صلاحية لاستخدام لوحة الإدارة."
+      : "This account does not have permission to use the admin panel.";
   }
 
   if (message.includes("admin_profile_api_not_deployed")) {
     return lang === "ar"
-      ? "���� ������ �������� ��� Vercel ��� �� ����� ��� ����� �������. ���� ��� ���� �� Admin Web ��� GitHub ������ Deploy ����."
-      : "The Vercel deployment does not have the latest permissions API yet. Push the latest Admin Web code and wait for a new deploy.";
+      ? "نسخة لوحة الإدارة الحالية محتاجة تحديث. جرب تاني بعد نشر آخر نسخة."
+      : "The current admin panel version needs an update. Try again after the latest version is published.";
   }
 
   if (message.includes("admin_profile_check_failed_501")) {
     return lang === "ar"
-      ? "تمكين هذه الميزة يتطلب إعداد مفاتيح الاتصال بخوادم Supabase على Vercel."
-      : "The Supabase service key is missing or invalid in Vercel. Add SUPABASE_SERVICE_ROLE_KEY to Environment Variables.";
+      ? "إعدادات لوحة الإدارة مش مكتملة لهذه الميزة."
+      : "The admin panel setup is not complete for this feature.";
   }
 
   if (message.includes("service_role_key_invalid")) {
     return lang === "ar"
-      ? "الربط بين Supabase و Vercel مهم لعمل لوحة التحكم. تأكد من SUPABASE_SERVICE_ROLE_KEY وقيمة service_role، ثم اضغط Redeploy."
-      : "The Supabase service key is not working in this Vercel deployment. Make sure SUPABASE_SERVICE_ROLE_KEY is the service_role key, then redeploy the site.";
+      ? "ربط لوحة الإدارة محتاج مراجعة من مسؤول النظام."
+      : "The admin panel connection needs to be reviewed by the system owner.";
   }
 
   if (message.includes("service_role_access_denied")) {
     return lang === "ar"
-      ? "التعليمات في هذا القسم تتطلب صلاحيات المشرفين. استخدم SQL لإعطاء صلاحيات للمستخدم service_role وحدث SUPABASE_SERVICE_ROLE_KEY في Vercel."
-      : "The server cannot run this action with service permissions. Run the service_role grants SQL, confirm SUPABASE_SERVICE_ROLE_KEY is the service_role key in Vercel, then redeploy.";
+      ? "الحساب الحالي لا يملك صلاحية تنفيذ الإجراء ده."
+      : "The current account is not allowed to run this action.";
   }
 
   if (message.includes("cannot_delete_current_admin")) {
@@ -87,8 +87,8 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("admin_rls_access_denied")) {
     return lang === "ar"
-      ? "يرجى الحذر عند تعديل هذه القيم حيث تؤثر على الجداول. استخدم أكواد SQL بحذر لضمان عدم توقف النظام."
-      : "The admin account is signed in, but the database is still blocking this action. Run the admin permission bridge SQL, then sign out and sign in again.";
+      ? "الحساب الحالي لا يملك صلاحية تعديل البيانات دي."
+      : "The current account is not allowed to change this data.";
   }
 
   if (message.includes("row_not_returned") || message.includes("pgrst116")) {
@@ -99,20 +99,96 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("permission denied")) {
     return lang === "ar"
-      ? "الوصول السريع إلى أوامر التحكم يسهل من أداء عملك. قد تحتاج لتنفيذ بعض أكواد SQL لتسريع العمليات الإدارية."
-      : "This account cannot access this area. If you are an admin, run the latest SQL file or check account permissions.";
+      ? "الحساب الحالي مش مسموح له يفتح القسم ده."
+      : "The current account is not allowed to open this section.";
   }
 
   if (message.includes("admin_staff_sql_not_applied")) {
     return lang === "ar"
-      ? "كود SQL لتنظيف البيانات وإصلاح الجداول في قاعدة Supabase."
-      : "The team permissions SQL file has not been run in Supabase yet.";
+      ? "إعدادات صلاحيات الفريق مش جاهزة بالكامل."
+      : "Team permission setup is not ready yet.";
   }
 
   if (message.includes("permission_denied")) {
     return lang === "ar"
-      ? "الزر للتوجيه إلى شاشات تحكم قاعدة البيانات."
+      ? "الحساب الحالي لا يملك صلاحية تنفيذ الإجراء ده."
       : "This account does not have permission for this action.";
+  }
+
+  if (message.includes("payment_proof_required")) {
+    return lang === "ar"
+      ? "لا يمكن قبول طلب الدفع قبل وجود إثبات دفع مرفوع."
+      : "A payment proof must be uploaded before this request can be approved.";
+  }
+
+  if (message.includes("manual_payment_request_required")) {
+    return lang === "ar" ? "اختار طلب دفع صحيح الأول." : "Choose a valid payment request first.";
+  }
+
+  if (message.includes("manual_payment_plan_not_editable")) {
+    return lang === "ar"
+      ? "يمكن تعديل الباقة قبل قبول الطلب أو رفضه فقط."
+      : "The plan can only be changed before the request is approved or rejected.";
+  }
+
+  if (message.includes("subscription_plan_required")) {
+    return lang === "ar" ? "اختار باقة صحيحة أولاً." : "Choose a valid plan first.";
+  }
+
+  if (message.includes("subscription_plan_not_available") || message.includes("subscription_plan_not_found")) {
+    return lang === "ar"
+      ? "الباقة المختارة غير متاحة حالياً."
+      : "The selected plan is not available right now.";
+  }
+
+  if (message.includes("manual_method_required_fields")) {
+    return lang === "ar"
+      ? "اكتب اسم طريقة التحويل ورقم الحساب قبل الحفظ."
+      : "Enter the transfer method name and account number before saving.";
+  }
+
+  if (message.includes("payment_provider_not_supported")) {
+    return lang === "ar" ? "اختار بوابة دفع صحيحة." : "Choose a valid payment gateway.";
+  }
+
+  if (message.includes("gateway_secret_reference_required")) {
+    return lang === "ar"
+      ? "اكتب اسم بيانات الربط المحفوظة قبل تجربة البوابة."
+      : "Enter the saved connection name before checking this gateway.";
+  }
+
+  if (message.includes("payment_adapter_required_before_connection")) {
+    return lang === "ar"
+      ? "تم حفظ بيانات البوابة، لكن التفعيل النهائي محتاج استكمال الربط مع شركة الدفع."
+      : "The gateway details were saved, but final activation still needs the payment company connection.";
+  }
+
+  if (message.includes("payment_adapter_required_before_retry")) {
+    return lang === "ar"
+      ? "إعادة المحاولة تحتاج استكمال ربط شركة الدفع أولًا."
+      : "Retry needs the payment company connection to be completed first.";
+  }
+
+  if (message.includes("payment_adapter_required_before_refund")) {
+    return lang === "ar"
+      ? "الاسترداد يحتاج استكمال ربط شركة الدفع أولًا."
+      : "Refund needs the payment company connection to be completed first.";
+  }
+
+  if (message.includes("file_not_available") || message.includes("file_record_not_found")) {
+    return lang === "ar" ? "الملف غير متاح حاليًا." : "The file is not available right now.";
+  }
+
+  if (message.includes("legacy_file_placeholder")) {
+    return lang === "ar"
+      ? "هذا السجل قديم أو تجريبي ولا يحتوي على ملف مرفوع فعلياً."
+      : "This old or test record does not have a real uploaded file.";
+  }
+
+  if (message.includes("signed_link_failed")) {
+    return lang === "ar"
+      ? "تعذر فتح الملف. قد يكون الملف غير مرفوع أو تم نقله."
+      : "Could not open the file. It may be missing or moved.";
   }
 
   if (message.includes("foreign key") || message.includes("violates") || message.includes("23503")) {
@@ -123,13 +199,13 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("duplicate") || message.includes("already registered") || message.includes("already been registered")) {
     return lang === "ar"
-      ? "بعض البيانات مخزنة محلياً. يرجى مسحها في حال حدوث خطأ."
+      ? "هذا السجل موجود بالفعل."
       : "This record already exists. Try a different email or mobile.";
   }
 
   if (message.includes("password")) {
     return lang === "ar"
-      ? "سيتم رفض الطلب، وإعادة إرسال إشعار للمتجر."
+      ? "راجع شروط كلمة المرور وجرب مرة تانية."
       : "Please check the password requirements.";
   }
 

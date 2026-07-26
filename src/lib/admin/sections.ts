@@ -475,6 +475,7 @@ export const sections: SectionConfig[] = [
     sourceKind: "table",
     editableTable: "ads_banners",
     editableFields: [
+      "admin_name",
       "image_url",
       "target_url",
       "placement",
@@ -492,10 +493,11 @@ export const sections: SectionConfig[] = [
       en: "Ads",
     },
     description: {
-      ar: "\u0625\u062f\u0627\u0631\u0629 \u0625\u0639\u0644\u0627\u0646\u0627\u062a \u0627\u0644\u062a\u0637\u0628\u064a\u0642: \u0635\u0648\u0631\u0629 \u0627\u0644\u0625\u0639\u0644\u0627\u0646\u060c \u0644\u064a\u0646\u0643 \u0627\u0644\u0645\u0639\u0644\u0646\u060c \u0648\u0645\u064a\u0639\u0627\u062f \u0627\u0644\u0638\u0647\u0648\u0631.",
-      en: "Manage in-app ad images, advertiser links, and schedules.",
+      ar: "إدارة الإعلانات في كروت منفصلة حسب مكان الظهور: واجهة العميل، دعوة صديق، وأعلى إعدادات المتجر.",
+      en: "Manage ads in separate cards by placement: buyer home, invites, and store settings.",
     },
     searchKeys: [
+      "admin_name",
       "image_url",
       "target_url",
       "placement",
@@ -507,6 +509,14 @@ export const sections: SectionConfig[] = [
     allowedRoles: ["admin"],
     columns: [
       {
+        key: "admin_name",
+        label: {
+          ar: "اسم الإعلان",
+          en: "Ad name",
+        },
+        tone: "long",
+      },
+      {
         key: "image_url",
         label: {
           ar: "\u0635\u0648\u0631\u0629 \u0627\u0644\u0625\u0639\u0644\u0627\u0646",
@@ -517,8 +527,8 @@ export const sections: SectionConfig[] = [
       {
         key: "target_url",
         label: {
-          ar: "\u0644\u064a\u0646\u0643 \u0627\u0644\u0645\u0639\u0644\u0646",
-          en: "Advertiser link",
+          ar: "رابط الضغط (اختياري)",
+          en: "Tap link (optional)",
         },
         tone: "long",
       },
@@ -718,7 +728,7 @@ export const sections: SectionConfig[] = [
     id: "monetization",
     href: "/admin/monetization",
     icon: "BadgeDollarSign",
-    mode: "settings",
+    mode: "monetization",
     source: "feature_flags",
     sourceKind: "table",
     editableTable: "feature_flags",
@@ -731,8 +741,8 @@ export const sections: SectionConfig[] = [
     orderBy: "key",
     title: { ar: "تحقيق الدخل", en: "Monetization" },
     description: {
-      ar: "تحكم بالاشتراكات وتفعيل الميزات الإضافية للمتاجر والمستخدمين.",
-      en: "Feature flags, plans, and payment providers.",
+      ar: "إدارة الاشتراكات والدفع والعمولات وفترات السماح من مكان واحد.",
+      en: "Manage subscriptions, payments, commissions, and grace periods in one place.",
     },
     searchKeys: ["key", "description_ar", "description_en"],
     actions: ["edit_row", "toggle_active"],

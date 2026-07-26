@@ -103,7 +103,7 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
       ? alerts
       : [
           lang === "ar"
-            ? "�� ���� ������� ������� ���� �����."
+            ? "لا توجد تنبيهات تشغيلية حرجة حالياً."
             : "No critical operational alerts right now."
         ];
   }, [lang, row]);
@@ -190,7 +190,7 @@ function MiniList({
   return (
     <article className="ops-card">
       <h2>{title}</h2>
-      {rows.length === 0 ? <p className="muted">�� ���� ����� ����� �����</p> : null}
+      {rows.length === 0 ? <p className="muted">لا توجد عناصر تحتاج مراجعة</p> : null}
       <div className="mini-list">
         {rows.map((row) => (
           <div key={String(row.id)}>

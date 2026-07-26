@@ -55,37 +55,37 @@ const audiences: Array<{
 }> = [
   {
     id: "all",
-    ar: "�� ����������",
+    ar: "كل المستخدمين",
     en: "All users",
-    hintAr: "����� ������ ����",
+    hintAr: "عملاء ومتاجر وفريق",
     hintEn: "Buyers, stores, and staff",
   },
   {
     id: "buyers",
-    ar: "������� ���",
+    ar: "العملاء فقط",
     en: "Buyers only",
-    hintAr: "������ �������",
+    hintAr: "حسابات العملاء",
     hintEn: "Buyer accounts",
   },
   {
     id: "merchants",
-    ar: "������� ���",
+    ar: "المتاجر فقط",
     en: "Stores only",
-    hintAr: "����� �������",
+    hintAr: "حسابات المتاجر",
     hintEn: "Merchant accounts",
   },
   {
     id: "staff",
-    ar: "������ ���",
+    ar: "الفريق فقط",
     en: "Staff only",
-    hintAr: "���� ����",
+    hintAr: "أدمن ودعم",
     hintEn: "Admins and support",
   },
   {
     id: "specific",
-    ar: "������ ����",
+    ar: "مستخدمون محددون",
     en: "Specific users",
-    hintAr: "������ ����",
+    hintAr: "اختيار يدوي",
     hintEn: "Manual selection",
   },
 ];
@@ -94,97 +94,97 @@ const destinationOptions: DestinationOption[] = [
   {
     id: "buyer_orders",
     deepLink: "saarly://buyer/orders",
-    ar: "����� ������",
+    ar: "طلبات العميل",
     en: "Buyer orders",
-    hintAr: "���� ���� ����� ������ ������� ���� �������.",
+    hintAr: "يفتح شاشة طلبات العميل وحالة كل طلب.",
     hintEn: "Opens the buyer orders and request status screen.",
   },
   {
     id: "buyer_support",
     deepLink: "saarly://buyer/support",
-    ar: "��� ������",
+    ar: "دعم العميل",
     en: "Buyer support",
-    hintAr: "���� ������ ����� ������ �������.",
+    hintAr: "يفتح محادثة دعم العميل.",
     hintEn: "Opens the buyer support chat.",
   },
   {
     id: "buyer_favorites",
     deepLink: "saarly://buyer/favorites",
-    ar: "����� ������",
+    ar: "مفضلة العميل",
     en: "Buyer favorites",
-    hintAr: "���� ������ �������� ������� ������.",
+    hintAr: "يفتح المفضلة وتنبيهات الأسعار.",
     hintEn: "Opens buyer favorites and price alerts.",
   },
   {
     id: "buyer_referrals",
     deepLink: "saarly://buyer/referrals",
-    ar: "���� ��������",
+    ar: "دعوة الأصدقاء",
     en: "Invite friends",
-    hintAr: "���� ���� �������� ��������� ������.",
+    hintAr: "يفتح الدعوات والمكافآت للعملاء.",
     hintEn: "Opens referrals and rewards for buyers.",
   },
   {
     id: "merchant_requests",
     deepLink: "saarly://merchant/requests",
-    ar: "����� ������",
+    ar: "طلبات المتجر",
     en: "Store requests",
-    hintAr: "���� ����� ������� ������� ������.",
+    hintAr: "يفتح طلبات العملاء الواردة للمتجر.",
     hintEn: "Opens incoming customer requests for the store.",
   },
   {
     id: "merchant_rfqs",
     deepLink: "saarly://merchant/rfqs",
-    ar: "����� �������",
+    ar: "طلبات التسعير",
     en: "RFQs",
-    hintAr: "���� ����� ������� ������� ��� ������.",
+    hintAr: "يفتح طلبات التسعير اليدوية للمتجر.",
     hintEn: "Opens manual RFQs for the store.",
   },
   {
     id: "merchant_products",
     deepLink: "saarly://merchant/products",
-    ar: "������ ������",
+    ar: "منتجات المتجر",
     en: "Store products",
-    hintAr: "���� ����� �������� �������� ������.",
+    hintAr: "يفتح إدارة المنتجات والأسعار والصور.",
     hintEn: "Opens product, price, and image management.",
   },
   {
     id: "merchant_reports",
     deepLink: "saarly://merchant/reports",
-    ar: "������ ������",
+    ar: "تقارير المتجر",
     en: "Store reports",
-    hintAr: "���� �������� ���������� ����� ������.",
+    hintAr: "يفتح تقارير المبيعات والتقييمات والأداء.",
     hintEn: "Opens sales, ratings, and performance reports.",
   },
   {
     id: "merchant_billing",
     deepLink: "saarly://merchant/billing",
-    ar: "�������� �������� ������",
+    ar: "اشتراكات ومدفوعات المتجر",
     en: "Store billing",
-    hintAr: "���� ���� �������� ���������� ����������.",
+    hintAr: "يفتح الاشتراكات والمستحقات والمدفوعات.",
     hintEn: "Opens subscriptions, dues, and payments.",
   },
   {
     id: "merchant_support",
     deepLink: "saarly://merchant/support",
-    ar: "��� ������",
+    ar: "دعم المتجر",
     en: "Store support",
-    hintAr: "���� ������ ����� ������ �������.",
+    hintAr: "يفتح محادثة دعم المتجر.",
     hintEn: "Opens the store support chat.",
   },
   {
     id: "merchant_settings",
     deepLink: "saarly://merchant/settings",
-    ar: "������� ������",
+    ar: "إعدادات المتجر",
     en: "Store settings",
-    hintAr: "���� ������� ������ ���������.",
+    hintAr: "يفتح إعدادات الحساب والسياسات.",
     hintEn: "Opens account settings and policies.",
   },
   {
     id: "custom",
     deepLink: "",
-    ar: "���� �����",
+    ar: "وجهة مخصصة",
     en: "Custom destination",
-    hintAr: "������ ��� �� ����� ���� ����� ��� ����� �� ����������.",
+    hintAr: "لوجهة داخلية غير موجودة في القائمة.",
     hintEn: "For a developer-only internal destination not listed above.",
     custom: true,
   },
@@ -411,13 +411,13 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
         <div>
           <span className="eyebrow">
             {lang === "ar"
-              ? "Firebase + ��� �������"
+              ? "Firebase + جرس التطبيق"
               : "Firebase + in-app bell"}
           </span>
           <h1>{lang === "ar" ? "إرسال إشعار" : "Send notification"}</h1>
           <p>
             {lang === "ar"
-              ? "������� ���� ���� ������ޡ ��� ���� �������� ���� ������ ��� ��������� ����� �� Push."
+              ? "الإشعار يظهر داخل التطبيق، ويصل كتنبيه Push عندما يكون جهاز المستخدم مسجلاً والصلاحيات مفعلة."
               : "The notification appears in-app, and reaches Push when the user's device is registered and permissions are enabled."}
           </p>
         </div>
@@ -463,7 +463,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               </strong>
               <p className="muted">
                 {lang === "ar"
-                  ? "��� ������� ����� �� ������� ��� ������� �� ����� ��� �� ������ �� �����."
+                  ? "اترك الحقول فارغة لكل المناطق، أو اختر دولة ومحافظة ومدينة محددة."
                   : "Leave fields empty for all locations, or pick a country, governorate, and city."}
               </p>
             </div>
@@ -535,7 +535,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                   onChange={(event) => setUserQuery(event.target.value)}
                   placeholder={
                     lang === "ar"
-                      ? "���� ������ �� �������� �� �������"
+                      ? "ابحث بالاسم أو رقم الهاتف أو البريد"
                       : "Search name, mobile, or email"
                   }
                 />
@@ -614,12 +614,12 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             <div>
               <strong>
                 {lang === "ar"
-                  ? "���� ��� ���� ������޿"
+                  ? "يفتح أي صفحة في التطبيق؟"
                   : "Open where in the app?"}
               </strong>
               <p className="muted">
                 {lang === "ar"
-                  ? "����� ������ ���� �������� ���� �� ��� ���� ��� �������. �� ����� ���� �� ���� �����."
+                  ? "اختر الصفحة التي يفتحها المستخدم بعد الضغط على الإشعار. لا تحتاج لكتابة رابط يدوي."
                   : "Choose where the user goes after tapping the notification. No manual link is needed."}
               </p>
             </div>
@@ -643,7 +643,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             {selectedDestination.custom ? (
               <label className="destination-custom-field">
                 {lang === "ar"
-                  ? "������ ������� ������"
+                  ? "الرابط الداخلي المخصص"
                   : "Custom internal link"}
                 <input
                   dir="ltr"
@@ -668,7 +668,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             {sending
               ? t("loading", lang)
               : lang === "ar"
-                ? "����� �������"
+                ? "إرسال الإشعار"
                 : "Send notification"}
           </button>
         </form>
@@ -678,7 +678,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             <BellRing size={20} />
             <h2>
               {lang === "ar"
-                ? "��� ������� ������"
+                ? "آخر إشعارات الأدمن"
                 : "Recent admin notifications"}
             </h2>
           </div>

@@ -6,7 +6,7 @@ export const copy = {
   appName: { ar: "إدارة سعرلي", en: "Saarly Admin" },
   loginTitle: { ar: "تسجيل دخول الإدارة", en: "Admin sign in" },
   loginSubtitle: {
-    ar: "����� ��� ������ ������ ����� ��������.",
+    ar: "الدخول متاح للمشرفين وموظفي الدعم المسجلين فقط.",
     en: "Only registered admins and support agents can access."
   },
   email: { ar: "البريد الإلكتروني", en: "Email" },
@@ -26,11 +26,11 @@ export const copy = {
   loading: { ar: "جاري التحميل...", en: "Loading..." },
   noRows: { ar: "لا توجد بيانات", en: "No data yet" },
   unauthorized: {
-    ar: "��� ������ ��� ���� �� ���� ��� �����.",
+    ar: "هذا الحساب ليس مشرفاً أو موظف دعم نشطاً.",
     en: "This account is not an active admin or support agent."
   },
   serviceKeyMissing: {
-    ar: "��� ����� ������ �� Vercel ������ ��� �������.",
+    ar: "أضف مفتاح الخدمة في Vercel لتفعيل هذا الإجراء.",
     en: "Add the service role key in Vercel to enable this action."
   },
   supportQueue: { ar: "طابور الدعم", en: "Support queue" },
@@ -40,7 +40,7 @@ export const copy = {
   openApp: { ar: "فتح القسم", en: "Open section" },
   connected: { ar: "متصل ببيانات قاعدة البيانات", en: "Connected to Supabase data" },
   readOnly: {
-    ar: "����� �����ɡ �������� ������ ��� API ����.",
+    ar: "عرض مباشر للبيانات، والتعديلات الحساسة تتم عبر API محمي.",
     en: "Live read access; sensitive writes go through a protected API."
   },
   theme: { ar: "المظهر", en: "Theme" },
@@ -57,4 +57,3 @@ export function t(key: keyof typeof copy, lang: Lang) {
 export function tr(value: { ar: string; en: string }, lang: Lang) {
   return value[lang];
 }
-

@@ -46,6 +46,16 @@ const reportDefinitions = [
     args: { p_from: null, p_to: null }
   },
   {
+    key: "admin_report_payment_transactions",
+    title: { ar: "مدفوعات الاشتراكات", en: "Subscription payments" },
+    args: { p_status: null, p_provider: null, p_purpose: null, p_from: null, p_to: null }
+  },
+  {
+    key: "admin_report_commission_dues",
+    title: { ar: "عمولات الطلبات", en: "Order commissions" },
+    args: { p_from: null, p_to: null, p_merchant_id: null, p_status: null }
+  },
+  {
     key: "admin_report_merchant_arrears",
     title: { ar: "مستحقات المتاجر", en: "Store dues" },
     args: {}
@@ -63,17 +73,42 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
 
   async function loadReports() {
     setLoading(true);
-    const nextReports: ReportResult[] = [];
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setReports(
+        reportDefinitions.map((report) => ({
+          key: report.key,
+          title: report.title,
+          rows: [],
+          error: humanizeAdminError("auth_required", lang),
+        })),
+      );
+      setLoading(false);
+      return;
+    }
 
-    for (const report of reportDefinitions) {
-      const { data, error } = await supabase.rpc(report.key, report.args);
-      nextReports.push({
+    const response = await fetch("/api/admin/action?reports=1", {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      data?: { key: string; rows: Record<string, unknown>[]; error?: string }[];
+      error?: string;
+    };
+
+    const nextReports: ReportResult[] = reportDefinitions.map((report) => {
+      const result = payload.data?.find((item) => item.key === report.key);
+      const rawError = response.ok ? result?.error : payload.error;
+      return {
         key: report.key,
         title: report.title,
-        rows: Array.isArray(data) ? (data as Record<string, unknown>[]) : data ? [data as Record<string, unknown>] : [],
-        error: error ? humanizeAdminError(error.message, lang) : undefined
-      });
-    }
+        rows: result?.rows ?? [],
+        error: rawError ? humanizeAdminError(rawError, lang) : undefined
+      };
+    });
 
     setReports(nextReports);
     setLoading(false);
@@ -109,7 +144,7 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
           <h1>{lang === "ar" ? "التقارير" : "Reports"}</h1>
           <p>
             {lang === "ar"
-              ? "����� ����� �� ������ʡ ������ѡ �������ʡ ��������ʡ ��������."
+              ? "ملخصات بسيطة للطلبات والمتاجر والمبيعات والمستحقات والدعوات."
               : "Simple summaries for orders, stores, sales, dues, and invites."}
           </p>
         </div>
@@ -136,29 +171,35 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
             </div>
             {report.error ? <div className="alert">{report.error}</div> : null}
             <div className="report-list">
-              {report.rows.slice(0, 5).map((row, index) => {
-                const summary = reportRowSummary(report.key, row, lang);
-                const details = splitReportDetails(summary.details, lang);
-                return (
-                  <section className="report-row" key={`${report.key}-${index}`}>
-                    <strong className="report-row-title">{summary.title}</strong>
-                    {details.length === 0 ? (
-                      <span className="muted">
-                        {lang === "ar" ? "لا توجد تفاصيل إضافية" : "No extra details"}
-                      </span>
-                    ) : (
-                      <div className="report-details">
-                        {details.map((detail) => (
-                          <span className="report-detail" key={`${detail.label}-${detail.value}`}>
-                            <b>{detail.label}</b>
-                            <span>{detail.value}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                );
-              })}
+              {report.rows.length === 0 ? (
+                <div className="empty-state compact">
+                  {lang === "ar" ? "لا توجد بيانات لهذا التقرير حالياً." : "No data for this report right now."}
+                </div>
+              ) : (
+                report.rows.slice(0, 5).map((row, index) => {
+                  const summary = reportRowSummary(report.key, row, lang);
+                  const details = splitReportDetails(summary.details, lang);
+                  return (
+                    <section className="report-row" key={`${report.key}-${index}`}>
+                      <strong className="report-row-title">{summary.title}</strong>
+                      {details.length === 0 ? (
+                        <span className="muted">
+                          {lang === "ar" ? "لا توجد تفاصيل إضافية" : "No extra details"}
+                        </span>
+                      ) : (
+                        <div className="report-details">
+                          {details.map((detail) => (
+                            <span className="report-detail" key={`${detail.label}-${detail.value}`}>
+                              <b>{detail.label}</b>
+                              <span>{detail.value}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })
+              )}
             </div>
           </article>
         ))}
@@ -191,6 +232,8 @@ function reportRowSummary(key: string, row: Record<string, unknown>, lang: Lang)
     admin_report_active_categories: ["category_name_ar", "category_name_en"],
     admin_report_top_accepted_offers: ["store_name"],
     admin_report_rfq_acceptance: ["store_name", "status_ar", "status"],
+    admin_report_payment_transactions: ["store_name", "purpose", "status"],
+    admin_report_commission_dues: ["store_name", "status"],
     admin_report_merchant_arrears: ["store_name", "merchant_name"],
     admin_report_referrals_rewards: ["referrer_email", "referrer_name", "referral_code"]
   };
@@ -234,7 +277,7 @@ function reportRowSummary(key: string, row: Record<string, unknown>, lang: Lang)
     details:
       detailEntries.length === 0
         ? lang === "ar"
-          ? "�� ���� ������ ������"
+          ? "لا توجد تفاصيل إضافية"
           : "No extra details"
         : detailEntries.map(([field, value]) => `${reportFieldLabel(field, lang)}: ${formatReportValue(field, value, lang)}`).join(" | ")
   };
@@ -255,6 +298,11 @@ function reportFieldLabel(field: string, lang: Lang) {
     gross_sales: { ar: "إجمالي المبيعات", en: "Gross sales" },
     commissions_due: { ar: "العمولات المستحقة", en: "Commissions due" },
     commission_amount: { ar: "العمولة", en: "Commission" },
+    amount: { ar: "المبلغ", en: "Amount" },
+    currency: { ar: "العملة", en: "Currency" },
+    purpose: { ar: "سبب الدفع", en: "Payment purpose" },
+    provider: { ar: "طريقة الدفع", en: "Payment method" },
+    direct_to_merchant: { ar: "الدفع للمتجر مباشرة", en: "Paid directly to store" },
     confirmed_orders_count: { ar: "طلبات مؤكدة", en: "Confirmed orders" },
     coverage_percentage: { ar: "نسبة تغطية الطلب", en: "Order coverage" },
     total_price_snapshot: { ar: "سعر العرض", en: "Offer price" },
@@ -279,12 +327,25 @@ function reportFieldLabel(field: string, lang: Lang) {
     priced_responses_count: { ar: "ردود مسعرة", en: "Priced responses" },
     accepted_total: { ar: "إجمالي المقبول", en: "Accepted total" }
   };
-  return labels[field]?.[lang] ?? (lang === "ar" ? "������" : field.split("_").join(" "));
+  return labels[field]?.[lang] ?? (lang === "ar" ? "معلومة" : field.split("_").join(" "));
 }
 
 function formatReportValue(field: string, value: unknown, lang: Lang) {
   if (value === null || value === undefined || value === "") return "-";
   if (field.includes("status")) return friendlyStatus(value, lang);
+  if (field === "purpose") {
+    const raw = String(value);
+    if (raw === "subscription") return lang === "ar" ? "اشتراك متجر" : "Store subscription";
+    if (raw === "commission") return lang === "ar" ? "عمولة متجر" : "Store commission";
+    if (raw === "order") return lang === "ar" ? "طلب عميل" : "Buyer order";
+  }
+  if (field === "provider") {
+    const raw = String(value);
+    if (raw === "visa") return lang === "ar" ? "بطاقة بنكية" : "Card";
+    if (raw === "wallet") return lang === "ar" ? "محفظة إلكترونية" : "Wallet";
+    if (raw === "vodafone_cash") return lang === "ar" ? "فودافون كاش" : "Vodafone Cash";
+    if (raw === "meeza") return lang === "ar" ? "ميزة" : "Meeza";
+  }
   if (field.endsWith("_at") || field === "created_at") {
     const date = new Date(String(value));
     if (!Number.isNaN(date.getTime())) {
@@ -314,7 +375,7 @@ function formatReportValue(field: string, value: unknown, lang: Lang) {
     if (Number.isFinite(number)) return `${number.toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}%`;
   }
   if (typeof value === "boolean") {
-    return value ? (lang === "ar" ? "نعم" : "Yes") : lang === "ar" ? "��" : "No";
+    return value ? (lang === "ar" ? "نعم" : "Yes") : lang === "ar" ? "لا" : "No";
   }
   if (lang === "ar" && String(value).trim().toLowerCase() === "deleted user") return "مستخدم محذوف";
   return String(value);

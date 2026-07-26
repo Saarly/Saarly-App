@@ -253,6 +253,7 @@ select:focus {
 .soft-button,
 .ghost-button,
 .tiny-button,
+.tiny-select,
 .icon-only {
   background: var(--panel-soft);
   color: var(--text);
@@ -270,6 +271,14 @@ select:focus {
   min-height: 32px;
   padding: 0 10px;
   font-size: 13px;
+}
+
+.tiny-select {
+  min-height: 32px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  max-width: 220px;
 }
 
 .tiny-button.danger {
@@ -327,9 +336,9 @@ button:not(:disabled):active {
   position: sticky;
   top: 0;
   height: 100vh;
-  background: var(--dark);
-  color: #f7f6f3;
-  border-inline-end: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel);
+  color: var(--text);
+  border-inline-end: 1px solid var(--border);
   padding: 18px;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -375,14 +384,14 @@ button:not(:disabled):active {
   gap: 10px;
   min-height: 42px;
   border-radius: 8px;
-  color: rgba(247, 246, 243, 0.82);
+  color: var(--text);
   padding: 0 12px;
 }
 
 .sidebar a.active,
 .sidebar a:hover {
-  background: rgba(178, 247, 137, 0.16);
-  color: #ffffff;
+  background: rgba(133, 187, 100, 0.18);
+  color: var(--text);
 }
 
 .main-area {
@@ -426,6 +435,14 @@ button:not(:disabled):active {
   padding: 24px;
   display: grid;
   gap: 18px;
+}
+
+.content-panel.inner-panel {
+  width: 100%;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
 }
 
 .section-head {
@@ -474,6 +491,258 @@ button:not(:disabled):active {
   margin-top: 12px;
   font-size: 30px;
   line-height: 1;
+}
+
+.monetization-console .section-head h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 44px);
+}
+
+.monetization-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.monetization-tabs button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--text);
+  min-height: 44px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.monetization-tabs button.active {
+  background: var(--green);
+  color: #15200f;
+  border-color: color-mix(in srgb, var(--green) 70%, var(--border));
+}
+
+.monetization-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.monetization-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.monetization-grid.two > .tab-guide {
+  grid-column: 1 / -1;
+}
+
+.tab-guide {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  border: 1px solid rgba(133, 187, 100, 0.42);
+  border-radius: 12px;
+  background: rgba(133, 187, 100, 0.12);
+  padding: 14px;
+}
+
+.tab-guide > span {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--green) 24%, var(--panel));
+  color: var(--green);
+}
+
+.tab-guide strong {
+  display: block;
+  font-size: 18px;
+}
+
+.tab-guide p {
+  margin: 6px 0 0;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-title-row h2 {
+  margin: 0;
+}
+
+.panel-title-row p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.compact-field {
+  display: grid;
+  gap: 5px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.compact-field input {
+  min-width: 150px;
+}
+
+.feature-list,
+.cards-list,
+.mini-table,
+.report-export-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.feature-row,
+.compact-card,
+.mini-table > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  padding: 12px;
+}
+
+.feature-row span,
+.compact-card span,
+.mini-table span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.primary-button.compact,
+.soft-button.compact {
+  width: auto;
+  min-width: 112px;
+}
+
+.payment-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.form-grid.dense {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.form-grid.dense textarea,
+.form-grid.dense .checkbox-field,
+.form-grid.dense .primary-button,
+.form-grid.dense .form-actions-row {
+  grid-column: 1 / -1;
+}
+
+.form-actions-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.gateway-card {
+  align-items: flex-start;
+}
+
+.proof-preview-modal {
+  width: min(900px, 100%);
+}
+
+.proof-preview-frame {
+  min-height: 280px;
+  max-height: min(620px, calc(100vh - 220px));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  display: grid;
+  place-items: center;
+}
+
+.proof-preview-frame img,
+.proof-preview-frame iframe {
+  width: 100%;
+  min-height: 420px;
+  border: 0;
+  display: block;
+}
+
+.proof-preview-frame img {
+  height: auto;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.store-documents-modal {
+  width: min(980px, 100%);
+}
+
+.document-branch-list,
+.document-file-list,
+.document-group {
+  display: grid;
+  gap: 10px;
+}
+
+.document-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 14px;
+}
+
+.document-group h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.document-file-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 12px;
+}
+
+.document-file-row strong,
+.document-file-row span {
+  display: block;
+}
+
+.document-file-row span {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.report-export-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .dashboard-grid,
@@ -680,6 +949,156 @@ button:not(:disabled):active {
 
 .provider-wide-field {
   grid-column: 1 / -1;
+}
+
+.price-alert-admin-card,
+.price-alert-log-list {
+  display: grid;
+  gap: 14px;
+}
+
+.price-alert-metrics {
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+}
+
+.referral-banner-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.referral-banner-upload .tiny-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.referral-banner-upload input[type="file"] {
+  cursor: pointer;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+.referral-banner-preview {
+  aspect-ratio: 16 / 7;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: block;
+  margin-top: 8px;
+  max-width: 360px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.ad-banner-preview {
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: block;
+  margin-top: 8px;
+  max-width: 420px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.ads-placement-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ads-placement-card {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.ads-placement-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.ads-placement-head strong,
+.ad-admin-info strong {
+  display: block;
+}
+
+.ads-placement-head span:not(.status-pill),
+.ad-admin-info span {
+  color: var(--muted);
+  display: block;
+  font-size: 13px;
+  line-height: 1.55;
+  margin-top: 3px;
+}
+
+.ads-placement-add {
+  justify-self: start;
+}
+
+.ads-placement-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ad-admin-item {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  padding: 10px;
+}
+
+.ad-admin-thumb {
+  aspect-ratio: 16 / 9;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  height: auto;
+  object-fit: cover;
+  width: 100%;
+}
+
+.ad-admin-thumb.empty {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  justify-content: center;
+}
+
+.ad-admin-actions {
+  align-items: flex-end;
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.empty-state.compact {
+  padding: 14px;
+}
+
+@media (max-width: 980px) {
+  .ads-placement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ad-admin-item {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .ad-admin-actions {
+    grid-column: 1 / -1;
+    justify-items: start;
+  }
 }
 
 .reward-settings-grid {
@@ -1276,6 +1695,11 @@ button:not(:disabled):active {
   color: var(--muted);
 }
 
+.status-pill.expired {
+  background: rgba(245, 184, 46, 0.18);
+  color: var(--warning);
+}
+
 .moderation-actions {
   border-top: 1px solid var(--border);
   padding: 10px;
@@ -1676,9 +2100,9 @@ button:not(:disabled):active {
   .sidebar-close {
     display: inline-flex;
     margin-inline-start: auto;
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.18);
+    color: var(--text);
+    background: var(--panel-soft);
+    border-color: var(--border);
   }
 
   .mobile-menu {
@@ -1687,6 +2111,10 @@ button:not(:disabled):active {
 
   .metric-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .monetization-grid.two {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1713,8 +2141,22 @@ button:not(:disabled):active {
   .broadcast-grid,
   .staff-layout,
   .catalog-layout,
-  .edit-grid {
+    .edit-grid {
     grid-template-columns: 1fr;
+  }
+
+  .form-grid.dense,
+  .payment-mode-grid,
+  .report-export-grid,
+  .form-actions-row {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-row,
+  .compact-card,
+  .mini-table > div {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .audience-grid,
@@ -1792,6 +2234,16 @@ button:not(:disabled):active {
 
   .report-detail {
     min-width: min(100%, 150px);
+  }
+
+  .document-file-row {
+    flex-direction: column;
+  }
+
+  .document-file-row .row-actions,
+  .tiny-select {
+    width: 100%;
+    max-width: none;
   }
 }
 

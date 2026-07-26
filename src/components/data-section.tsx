@@ -10,6 +10,7 @@ import {
 import {
   ChevronDown,
   ChevronLeft,
+  ImageUp,
   Plus,
   RefreshCw,
   Search,
@@ -32,6 +33,36 @@ type Row = Record<string, unknown>;
 const DEFAULT_COUNTRY_AR = "مصر";
 const DEFAULT_COUNTRY_EN = "Egypt";
 const COUNTRY_MARKER = "__country__";
+const AD_PLACEMENTS = [
+  {
+    value: "buyer_home_top",
+    ar: "إعلانات واجهة العميل",
+    en: "Buyer home ads",
+    descriptionAr: "الإعلانات العادية التي تظهر في واجهة العميل ويمكن ربطها بموقع أو صفحة خارجية.",
+    descriptionEn: "Regular ads shown on the buyer home screen and can open an external link.",
+  },
+  {
+    value: "buyer_referrals_top",
+    ar: "دعوة صديق - العملاء",
+    en: "Buyer invite ads",
+    descriptionAr: "إعلان منفصل يظهر في صفحة دعوة الأصدقاء عند العملاء ولا يفتح أي رابط عند الضغط.",
+    descriptionEn: "Separate ad shown on the buyer invite screen and does not open a link.",
+  },
+  {
+    value: "merchant_referrals_top",
+    ar: "دعوة صديق - المتاجر",
+    en: "Store invite ads",
+    descriptionAr: "إعلان منفصل مخصص لدعوات المتاجر، جاهز للإدارة عند إضافة مكانه في التطبيق.",
+    descriptionEn: "Separate ad for store invites, ready for the app screen when it is added.",
+  },
+  {
+    value: "merchant_settings_top",
+    ar: "أعلى إعدادات المتجر",
+    en: "Store settings top ad",
+    descriptionAr: "الكارت الذي يظهر أول صفحة إعدادات المتجر للتعريف بإمكانية الإعلان في واجهة العملاء، ولا يفتح أي رابط.",
+    descriptionEn: "The ad shown at the top of store settings to promote buyer-facing ads, without opening a link.",
+  },
+];
 
 export function DataSection({
   section,
@@ -53,6 +84,7 @@ export function DataSection({
     new Set(),
   );
   const [locationRows, setLocationRows] = useState<Row[]>([]);
+  const [uploadingAdImage, setUploadingAdImage] = useState(false);
 
   const filteredRows = useMemo(() => {
     let result = rows.filter((row) =>
@@ -142,28 +174,57 @@ export function DataSection({
     locationRows,
   ]);
 
+  const adGroups = useMemo(() => {
+    const knownPlacements = new Set(AD_PLACEMENTS.map((item) => item.value));
+    const grouped = AD_PLACEMENTS.map((placement) => ({
+      ...placement,
+      rows: filteredRows.filter(
+        (row) => String(row.placement ?? "buyer_home_top") === placement.value,
+      ),
+    }));
+    const otherRows = filteredRows.filter(
+      (row) => !knownPlacements.has(String(row.placement ?? "")),
+    );
+    if (otherRows.length > 0) {
+      grouped.push({
+        value: "__other__",
+        ar: "إعلانات غير مصنفة",
+        en: "Other ads",
+        descriptionAr: "إعلانات قديمة أو بمكان ظهور غير معروف. راجع مكان الظهور قبل استخدامها.",
+        descriptionEn: "Old ads or ads with unknown placement. Review placement before using them.",
+        rows: otherRows,
+      });
+    }
+    return grouped;
+  }, [filteredRows]);
+
   async function loadRows() {
     if (!section.source) return;
     setLoading(true);
     setError(null);
 
-    let request = supabase
-      .from(section.source)
-      .select("*")
-      .limit(section.id === "cities" ? 1000 : 100);
-    if (section.orderBy) {
-      const ascending = [
-        "display_order",
-        "country_ar",
-        "governorate_ar",
-        "key",
-      ].includes(section.orderBy);
-      request = request.order(section.orderBy, { ascending });
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setRows([]);
+      setError(humanizeAdminError("auth_required", lang));
+      setLoading(false);
+      return;
     }
 
-    const { data, error: loadError } = await request;
-    setRows((data ?? []) as Row[]);
-    setError(loadError ? humanizeAdminError(loadError.message, lang) : null);
+    const response = await fetch(`/api/admin/action?section=${encodeURIComponent(section.id)}`, {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      data?: Row[];
+      error?: string;
+    };
+
+    setRows((payload.data ?? []) as Row[]);
+    setError(response.ok ? null : humanizeAdminError(payload.error ?? "load_failed", lang));
     setLoading(false);
   }
 
@@ -186,7 +247,10 @@ export function DataSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section.id]);
 
-  function startEdit(row: Row | "new") {
+  function startEdit(
+    row: Row | "new",
+    defaults: Record<string, string | boolean> = {},
+  ) {
     const nextValues: Record<string, string | boolean> = {};
     for (const field of section.editableFields ?? []) {
       const value = row === "new" ? null : row[field];
@@ -222,6 +286,7 @@ export function DataSection({
     }
     if (section.id === "ads") {
       nextValues.placement = nextValues.placement || "buyer_home_top";
+      nextValues.admin_name = nextValues.admin_name || "";
       nextValues.sort_order = nextValues.sort_order || "0";
       nextValues.target_country_ar = nextValues.target_country_ar || "";
       nextValues.target_governorate_ar = nextValues.target_governorate_ar || "";
@@ -232,6 +297,9 @@ export function DataSection({
       nextValues.match_type = nextValues.match_type || "contains";
       nextValues.category = nextValues.category || "general";
       nextValues.severity = nextValues.severity || "block";
+    }
+    if (row === "new") {
+      Object.assign(nextValues, defaults);
     }
     setFormValues(nextValues);
     setEditing(row);
@@ -256,6 +324,32 @@ export function DataSection({
     };
     if (!response.ok) {
       throw new Error(payload.error ?? "action_failed");
+    }
+  }
+
+  async function uploadAdBannerImage(file: File | null) {
+    if (!file) return;
+    setUploadingAdImage(true);
+    setError(null);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+      const path = `ads/${Date.now()}-${safeName || "banner.jpg"}`;
+      const { error: uploadError } = await supabase.storage
+        .from("banners")
+        .upload(path, file, {
+          upsert: false,
+          contentType: file.type || undefined,
+        });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("banners").getPublicUrl(path);
+      setFormValues((current) => ({
+        ...current,
+        image_url: data.publicUrl,
+      }));
+    } catch (uploadError) {
+      setError(humanizeAdminError(uploadError, lang));
+    } finally {
+      setUploadingAdImage(false);
     }
   }
 
@@ -293,7 +387,12 @@ export function DataSection({
         const table = section.editableTable;
         if (!table) return;
         const title = String(
-          row.name_ar ?? row.title_ar ?? row.store_name ?? row.id ?? "",
+          row.admin_name ??
+            row.name_ar ??
+            row.title_ar ??
+            row.store_name ??
+            row.id ??
+            "",
         );
         const ok = window.confirm(
           lang === "ar"
@@ -448,6 +547,10 @@ export function DataSection({
                 ? lang === "ar"
                   ? "إضافة بلد أو محافظة أو مدينة"
                   : "Add country, governorate, or city"
+                : section.id === "ads"
+                  ? lang === "ar"
+                    ? "إضافة إعلان"
+                    : "Add ad"
                 : lang === "ar"
                   ? "إضافة"
                   : "Add"}
@@ -480,7 +583,7 @@ export function DataSection({
       ) : null}
       {loading ? <div className="empty-state">{t("loading", lang)}</div> : null}
 
-      {!loading && filteredRows.length === 0 ? (
+      {!loading && section.id !== "ads" && filteredRows.length === 0 ? (
         <div className="empty-state">{t("noRows", lang)}</div>
       ) : null}
 
@@ -733,8 +836,98 @@ export function DataSection({
         </div>
       ) : null}
 
+      {!loading && section.id === "ads" ? (
+        <div className="ads-placement-grid">
+          {adGroups.map((group) => (
+            <article className="ads-placement-card" key={group.value}>
+              <div className="ads-placement-head">
+                <div>
+                  <strong>{lang === "ar" ? group.ar : group.en}</strong>
+                  <span>
+                    {lang === "ar" ? group.descriptionAr : group.descriptionEn}
+                  </span>
+                </div>
+                <span className="status-pill active">
+                  {lang === "ar"
+                    ? `${group.rows.length} إعلان`
+                    : `${group.rows.length} ads`}
+                </span>
+              </div>
+
+              {group.value !== "__other__" ? (
+                <button
+                  className="soft-button ads-placement-add"
+                  onClick={() =>
+                    startEdit("new", {
+                      placement: group.value,
+                    })
+                  }
+                >
+                  <Plus size={16} />
+                  {lang === "ar" ? "إضافة إعلان هنا" : "Add ad here"}
+                </button>
+              ) : null}
+
+              <div className="ads-placement-list">
+                {group.rows.length === 0 ? (
+                  <div className="empty-state compact">
+                    {lang === "ar"
+                      ? "لا توجد إعلانات في هذا المكان حاليًا"
+                      : "No ads in this placement yet"}
+                  </div>
+                ) : (
+                  group.rows.map((row) => (
+                    <div
+                      className="ad-admin-item"
+                      key={rowIdFor(section, row) || JSON.stringify(row)}
+                    >
+                      {String(row.image_url ?? "").trim() ? (
+                        <img
+                          className="ad-admin-thumb"
+                          src={String(row.image_url ?? "").trim()}
+                          alt={adAdminName(row, lang)}
+                        />
+                      ) : (
+                        <div className="ad-admin-thumb empty">
+                          <ImageUp size={18} />
+                        </div>
+                      )}
+                      <div className="ad-admin-info">
+                        <strong>{adAdminName(row, lang)}</strong>
+                        <span>{adTargetSummary(row, lang)}</span>
+                        <span>{adScheduleSummary(row, lang)}</span>
+                        <span>
+                          {lang === "ar" ? "الترتيب" : "Order"}:{" "}
+                          {String(row.sort_order ?? 0)}
+                        </span>
+                      </div>
+                      <div className="ad-admin-actions">
+                        <span className={`status-pill ${adStatus(row).tone}`}>
+                          {adStatus(row)[lang]}
+                        </span>
+                        <div className="row-actions">
+                          {section.actions?.map((action) => (
+                            <button
+                              key={action}
+                              className="tiny-button"
+                              onClick={() => void runRowAction(action, row)}
+                            >
+                              {actionLabel(action, lang)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
+
       {!loading &&
-      !["categories", "cities"].includes(section.id) &&
+      !["categories", "cities", "ads"].includes(section.id) &&
       filteredRows.length > 0 ? (
         <div className="data-table-wrap">
           <table className="data-table">
@@ -758,7 +951,13 @@ export function DataSection({
                         column.tone ? `cell-${column.tone}` : undefined
                       }
                     >
-                      {formatCell(row[column.key], column.tone, lang)}
+                      {formatSectionCell(
+                        section,
+                        column.key,
+                        row[column.key],
+                        column.tone,
+                        lang,
+                      )}
                     </td>
                   ))}
                   {section.actions?.length ? (
@@ -814,7 +1013,7 @@ export function DataSection({
               ) : (
                 (section.editableFields ?? []).map((field) => (
                   <label key={field}>
-                    {fieldLabel(field, lang)}
+                    {fieldLabel(field, lang, section)}
                     {fieldIsBoolean(field) ? (
                       <input
                         type="checkbox"
@@ -826,6 +1025,51 @@ export function DataSection({
                           }))
                         }
                       />
+                    ) : section.id === "ads" && field === "image_url" ? (
+                      <>
+                        <div className="referral-banner-upload">
+                          <input
+                            dir="ltr"
+                            value={String(formValues[field] ?? "")}
+                            onChange={(event) =>
+                              setFormValues((current) => ({
+                                ...current,
+                                [field]: event.target.value,
+                              }))
+                            }
+                            placeholder="https://..."
+                          />
+                          <span className="tiny-button">
+                            <ImageUp size={14} />
+                            {uploadingAdImage
+                              ? lang === "ar"
+                                ? "جاري الرفع"
+                                : "Uploading"
+                              : lang === "ar"
+                                ? "رفع صورة"
+                                : "Upload"}
+                            <input
+                              aria-label={fieldLabel(field, lang, section)}
+                              disabled={uploadingAdImage}
+                              type="file"
+                              accept="image/*"
+                              onChange={(event) => {
+                                void uploadAdBannerImage(
+                                  event.target.files?.[0] ?? null,
+                                );
+                                event.currentTarget.value = "";
+                              }}
+                            />
+                          </span>
+                        </div>
+                        {String(formValues[field] ?? "").trim() ? (
+                          <img
+                            className="ad-banner-preview"
+                            src={String(formValues[field] ?? "").trim()}
+                            alt={fieldLabel(field, lang, section)}
+                          />
+                        ) : null}
+                      </>
                     ) : section.id === "ads" && field === "placement" ? (
                       <select
                         value={String(formValues[field] ?? "buyer_home_top")}
@@ -836,11 +1080,11 @@ export function DataSection({
                           }))
                         }
                       >
-                        <option value="buyer_home_top">
-                          {lang === "ar"
-                            ? "\u0648\u0627\u062c\u0647\u0629 \u0627\u0644\u0639\u0645\u064a\u0644 - \u0623\u0633\u0641\u0644 \u0643\u0627\u0631\u062a \u0633\u0639\u0631\u0644\u064a"
-                            : "Buyer home - below Saarly card"}
-                        </option>
+                        {AD_PLACEMENTS.map((placement) => (
+                          <option value={placement.value} key={placement.value}>
+                            {lang === "ar" ? placement.ar : placement.en}
+                          </option>
+                        ))}
                       </select>
                     ) : section.id === "ads" &&
                       field === "target_country_ar" ? (
@@ -987,6 +1231,75 @@ export function DataSection({
 
 function rowIdFor(section: SectionConfig, row: Row) {
   return String(row[section.rowIdKey ?? "id"] ?? "");
+}
+
+function adPlacementLabel(value: string, lang: Lang) {
+  const placement = AD_PLACEMENTS.find((item) => item.value === value);
+  return placement ? (lang === "ar" ? placement.ar : placement.en) : value;
+}
+
+function adAdminName(row: Row, lang: Lang) {
+  const name = String(row.admin_name ?? "").trim();
+  if (name) return name;
+  const placement = adPlacementLabel(
+    String(row.placement ?? "buyer_home_top"),
+    lang,
+  );
+  return lang === "ar" ? `${placement} بدون اسم` : `Unnamed ${placement}`;
+}
+
+function adTargetSummary(row: Row, lang: Lang) {
+  const city = String(row.target_city_ar ?? "").trim();
+  const governorate = String(row.target_governorate_ar ?? "").trim();
+  const country = String(row.target_country_ar ?? "").trim();
+  const parts = [city, governorate, country].filter(Boolean);
+  if (parts.length === 0) {
+    return lang === "ar" ? "يظهر في كل الأماكن" : "Shown everywhere";
+  }
+  return lang === "ar"
+    ? `يظهر في ${parts.join(" - ")}`
+    : `Shown in ${parts.join(" - ")}`;
+}
+
+function adScheduleSummary(row: Row, lang: Lang) {
+  const startsAt = row.starts_at ? formatCell(row.starts_at, "date", lang) : "";
+  const endsAt = row.ends_at ? formatCell(row.ends_at, "date", lang) : "";
+  if (startsAt && endsAt) {
+    return lang === "ar"
+      ? `من ${startsAt} إلى ${endsAt}`
+      : `From ${startsAt} to ${endsAt}`;
+  }
+  if (startsAt) {
+    return lang === "ar" ? `يبدأ من ${startsAt}` : `Starts ${startsAt}`;
+  }
+  if (endsAt) {
+    return lang === "ar" ? `ينتهي في ${endsAt}` : `Ends ${endsAt}`;
+  }
+  return lang === "ar" ? "بدون موعد محدد" : "No schedule set";
+}
+
+function adStatus(row: Row) {
+  const endsAt = row.ends_at ? new Date(String(row.ends_at)) : null;
+  if (endsAt && !Number.isNaN(endsAt.getTime()) && endsAt.getTime() <= Date.now()) {
+    return { ar: "منتهي", en: "Expired", tone: "expired" };
+  }
+  if (row.is_active) {
+    return { ar: "مفعل", en: "Active", tone: "active" };
+  }
+  return { ar: "متوقف", en: "Inactive", tone: "muted" };
+}
+
+function formatSectionCell(
+  section: SectionConfig,
+  key: string,
+  value: unknown,
+  tone: Parameters<typeof formatCell>[1],
+  lang: Lang,
+) {
+  if (section.id === "ads" && key === "placement") {
+    return adPlacementLabel(String(value ?? ""), lang);
+  }
+  return formatCell(value, tone, lang);
 }
 
 function fieldIsDateTime(field: string) {
@@ -1859,8 +2172,67 @@ function CityEditor({
   );
 }
 
-function fieldLabel(field: string, lang: Lang) {
+function fieldLabel(field: string, lang: Lang, section?: SectionConfig) {
+  const sectionLabel = section?.columns?.find((column) => column.key === field)?.label;
+  if (sectionLabel) return sectionLabel[lang];
+
   const labels: Record<string, { ar: string; en: string }> = {
+    store_name: { ar: "اسم المتجر", en: "Store name" },
+    branch_name: { ar: "اسم الفرع", en: "Branch name" },
+    owner_name: { ar: "اسم المالك", en: "Owner name" },
+    owner_mobile: { ar: "رقم هاتف المالك", en: "Owner mobile" },
+    account_email: { ar: "بريد الحساب", en: "Account email" },
+    contact_mobile: { ar: "رقم التواصل", en: "Contact mobile" },
+    category_name_ar: { ar: "القسم", en: "Category" },
+    category_name_en: { ar: "القسم بالإنجليزي", en: "English category" },
+    approval_status_ar: { ar: "حالة الموافقة", en: "Approval status" },
+    billing_preference_ar: { ar: "طريقة المحاسبة", en: "Billing preference" },
+    status_ar: { ar: "الحالة", en: "Status" },
+    city_name: { ar: "المدينة", en: "City" },
+    governorate_name: { ar: "المحافظة", en: "Governorate" },
+    manager_mobile: { ar: "رقم الفرع", en: "Branch contact" },
+    address: { ar: "العنوان", en: "Address" },
+    branch_address: { ar: "عنوان الفرع", en: "Branch address" },
+    street_address: { ar: "عنوان الشارع", en: "Street address" },
+    area_name: { ar: "المنطقة", en: "Area" },
+    latitude: { ar: "خط العرض", en: "Latitude" },
+    longitude: { ar: "خط الطول", en: "Longitude" },
+    is_delivery_available: { ar: "التوصيل متاح", en: "Delivery available" },
+    delivery_available: { ar: "التوصيل متاح", en: "Delivery available" },
+    supports_delivery: { ar: "يدعم التوصيل", en: "Supports delivery" },
+    delivery_fee: { ar: "رسوم التوصيل", en: "Delivery fee" },
+    delivery_radius_km: { ar: "نطاق التوصيل بالكيلومتر", en: "Delivery radius" },
+    delivery_notes: { ar: "ملاحظات التوصيل", en: "Delivery notes" },
+    working_hours: { ar: "مواعيد العمل", en: "Working hours" },
+    opening_hours: { ar: "مواعيد العمل", en: "Opening hours" },
+    commercial_register_number: { ar: "رقم السجل التجاري", en: "Commercial register number" },
+    tax_number: { ar: "الرقم الضريبي", en: "Tax number" },
+    full_name: { ar: "اسم المستخدم", en: "User name" },
+    mobile: { ar: "رقم الهاتف", en: "Mobile" },
+    primary_email: { ar: "البريد الإلكتروني", en: "Email" },
+    role_ar: { ar: "الصلاحية", en: "Role" },
+    account_status_ar: { ar: "حالة الحساب", en: "Account status" },
+    company_name: { ar: "اسم الشركة", en: "Company name" },
+    batches_count: { ar: "عدد الدفعات", en: "Batches count" },
+    buyer_name: { ar: "اسم العميل", en: "Buyer name" },
+    buyer_mobile: { ar: "رقم العميل", en: "Buyer mobile" },
+    payment_status: { ar: "حالة الدفع", en: "Payment status" },
+    selected_subtotal_snapshot: { ar: "المجموع الفرعي", en: "Subtotal" },
+    user_name: { ar: "اسم المستخدم", en: "User name" },
+    amount: { ar: "المبلغ", en: "Amount" },
+    reporter_name: { ar: "مقدم الشكوى", en: "Reporter" },
+    reporter_mobile: { ar: "هاتف مقدم الشكوى", en: "Reporter mobile" },
+    target_type: { ar: "نوع الشكوى", en: "Complaint type" },
+    priority: { ar: "الأولوية", en: "Priority" },
+    body: { ar: "التفاصيل", en: "Details" },
+    error_code: { ar: "رمز الخطأ", en: "Error code" },
+    reading_type_ar: { ar: "نوع القراءة", en: "Reading type" },
+    source_ar: { ar: "المصدر", en: "Source" },
+    confidence: { ar: "نسبة التأكد", en: "Confidence" },
+    store_front_image_url: { ar: "صورة واجهة المتجر", en: "Storefront photo" },
+    front_image_url: { ar: "صورة الواجهة", en: "Front photo" },
+    owner_id_image_url: { ar: "صورة هوية المالك", en: "Owner ID photo" },
+    commercial_register_url: { ar: "السجل التجاري", en: "Commercial register" },
     name_ar: {
       ar: "\u0627\u0644\u0627\u0633\u0645 \u0628\u0627\u0644\u0639\u0631\u0628\u064a",
       en: "Arabic name",
@@ -2019,8 +2391,10 @@ function fieldLabel(field: string, lang: Lang) {
       ar: "\u0637\u0631\u064a\u0642\u0629 \u0627\u0644\u0645\u062d\u0627\u0633\u0628\u0629",
       en: "Billing preference",
     },
+    created_at: { ar: "تاريخ الإنشاء", en: "Created at" },
+    updated_at: { ar: "آخر تحديث", en: "Updated at" },
   };
-  return labels[field]?.[lang] ?? field;
+  return labels[field]?.[lang] ?? (lang === "ar" ? "معلومة إضافية" : field.split("_").join(" "));
 }
 
 function actionLabel(action: string, lang: Lang) {
@@ -2102,22 +2476,36 @@ function ReviewDetailsModal({
     void loadImages();
   }, [row]);
 
+  const detailItems = Object.entries(row)
+    .map(([key, value]) => {
+      if (!shouldShowDetailValue(key, value, row)) return null;
+      const column = section.columns?.find((item) => item.key === key);
+      const text = String(formatCell(value, column?.tone, lang)).trim();
+      if (!text || textLooksBroken(text)) return null;
+      return {
+        key,
+        label: fieldLabel(key, lang, section),
+        value: text,
+      };
+    })
+    .filter((item): item is { key: string; label: string; value: string } => item !== null);
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
         <h2>{lang === "ar" ? "تفاصيل إضافية" : "Additional details"}</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
-          {Object.entries(row).map(([key, value]) => {
-            if (!value || typeof value === "object" || key.endsWith("_url") || key === "id") return null;
-            return (
-              <div key={key}>
-                <strong style={{ display: "block", fontSize: "0.85rem", opacity: 0.7, marginBottom: "4px" }}>
-                  {fieldLabel(key, lang)}
-                </strong>
-                <div>{String(value)}</div>
-              </div>
-            );
-          })}
+          {detailItems.length === 0 ? (
+            <p className="muted">{lang === "ar" ? "لا توجد تفاصيل إضافية واضحة." : "No clear extra details."}</p>
+          ) : null}
+          {detailItems.map((item) => (
+            <div key={item.key}>
+              <strong style={{ display: "block", fontSize: "0.85rem", opacity: 0.7, marginBottom: "4px" }}>
+                {item.label}
+              </strong>
+              <div>{item.value}</div>
+            </div>
+          ))}
         </div>
         
         {loadingImages ? (
@@ -2129,9 +2517,9 @@ function ReviewDetailsModal({
               if (!url) return null;
               return (
                 <div key={field} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <strong style={{ fontSize: "0.85rem", opacity: 0.7 }}>{fieldLabel(field, lang)}</strong>
+                  <strong style={{ fontSize: "0.85rem", opacity: 0.7 }}>{fieldLabel(field, lang, section)}</strong>
                   <a href={url} target="_blank" rel="noreferrer">
-                    <img src={url} alt={field} style={{ width: "100%", height: "200px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--border-color)" }} />
+                    <img src={url} alt={fieldLabel(field, lang, section)} style={{ width: "100%", height: "200px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--border-color)" }} />
                   </a>
                 </div>
               );
@@ -2145,3 +2533,34 @@ function ReviewDetailsModal({
     </div>
   );
 }
+
+function shouldShowDetailValue(key: string, value: unknown, row: Row) {
+  if (detailHiddenFields.has(key) || key === "id" || key.endsWith("_id") || key.endsWith("_url")) {
+    return false;
+  }
+  if (key.endsWith("_en") && row[key.replace(/_en$/, "_ar")] !== null && row[key.replace(/_en$/, "_ar")] !== undefined) {
+    return false;
+  }
+  if ((key === "approval_status" && row.approval_status_ar) || (key === "status" && row.status_ar)) {
+    return false;
+  }
+  if (value === null || value === undefined || value === "") {
+    return false;
+  }
+  return typeof value !== "object";
+}
+
+function textLooksBroken(text: string) {
+  return text.includes("\uFFFD");
+}
+
+const detailHiddenFields = new Set([
+  "auth_user_id",
+  "owner_user_id",
+  "created_by",
+  "updated_by",
+  "deleted_at",
+  "metadata",
+  "raw_user_meta_data",
+  "raw_app_meta_data",
+]);

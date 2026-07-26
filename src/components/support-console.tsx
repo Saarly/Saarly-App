@@ -166,7 +166,7 @@ export function SupportConsole({ lang }: { lang: Lang }) {
           <h1>{lang === "ar" ? "الدعم" : "Support"}</h1>
           <p>
             {lang === "ar"
-              ? "������ ��������� ������� �� ����� ����� ����� ������ ���� �������."
+              ? "استلم المحادثات المحولة من البوت ورد مباشرة داخل التطبيق."
               : "Pick up bot transfers and reply directly into the app."}
           </p>
         </div>

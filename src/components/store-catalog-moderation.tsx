@@ -190,7 +190,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   async function deleteProduct(product: ProductRow) {
     const ok = window.confirm(
       lang === "ar"
-        ? `��� ������ "${product.free_name}" ������ǿ`
+        ? `هل تريد حذف "${product.free_name}" نهائياً؟`
         : `Permanently delete "${product.free_name}"?`
     );
     if (!ok) return;
@@ -198,7 +198,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   }
 
   async function suspendStore(store: StoreRow) {
-    const reason = window.prompt(lang === "ar" ? "اكتب سبب إيقاف المتجر" : "Write store suspension reason", "����� �����");
+    const reason = window.prompt(lang === "ar" ? "اكتب سبب إيقاف المتجر" : "Write store suspension reason", "مخالفة واضحة");
     if (!reason) return;
     await runAction({ action: "suspend_merchant", id: store.id, payload: { reason } });
   }
@@ -206,7 +206,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   async function deleteStore(store: StoreRow) {
     const typed = window.prompt(
       lang === "ar"
-        ? `�� ��� ����� ������ ��� ���� �� ���� �����. ���� ��� ������ �������: ${store.store_name}`
+        ? `سيتم حذف هذا المتجر نهائياً وقد يفشل الحذف لو عليه طلبات مرتبطة. اكتب اسم المتجر للتأكيد: ${store.store_name}`
         : `This permanently deletes the store and may fail if it has restricted orders. Type the store name: ${store.store_name}`
     );
     if (typed !== store.store_name) return;
@@ -253,7 +253,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
           <h1>{lang === "ar" ? "مراقبة المتاجر والمنتجات" : "Store and product moderation"}</h1>
           <p>
             {lang === "ar"
-              ? "���� �� ���� ����� ����� �������� ��������. �� ����� ����� ���� ����� �� ����� �����."
+              ? "افتح أي متجر وراجع الصور والأسماء والأسعار. احذف المخالفات فوراً عند الحاجة."
               : "Open any store and review images, names, and prices. Remove violations immediately."}
           </p>
         </div>
@@ -292,7 +292,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                   <span>{store.category_name_ar || store.approval_status_ar || "-"}</span>
                   <small>
                     {lang === "ar"
-                      ? `${counts.active} ��� / ${counts.total} ����`
+                      ? `${counts.active} ظاهر / ${counts.total} منتج`
                       : `${counts.active} active / ${counts.total} products`}
                   </small>
                 </button>
@@ -366,7 +366,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                           <span>{product.quantity} {product.unit}</span>
                         </div>
                         <span className={product.is_active ? "status-pill active" : "status-pill muted"}>
-                          {product.is_active ? (lang === "ar" ? "ظاهر" : "Visible") : lang === "ar" ? "�����" : "Hidden"}
+                          {product.is_active ? (lang === "ar" ? "ظاهر" : "Visible") : lang === "ar" ? "مخفي" : "Hidden"}
                         </span>
                       </div>
                       <div className="moderation-actions">
