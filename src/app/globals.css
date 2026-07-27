@@ -2324,3 +2324,34 @@ button:not(:disabled):active {
 .branded-image-placeholder{min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;background:linear-gradient(145deg,#e9ecef,#dfe3e7);color:var(--green);font-weight:800;text-align:center;padding:14px}.branded-image-placeholder svg{opacity:.75}.store-badge-row{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}.brand-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-weight:800;font-size:.7rem;border:1px solid color-mix(in srgb,var(--green) 35%,transparent);color:var(--green);background:color-mix(in srgb,var(--green) 10%,white)}.brand-badge.founder:before{content:"✦";margin-inline-end:4px}.brand-badge.trusted:before{content:"✓";margin-inline-end:4px}
 
 .support-complaint-modal{width:min(780px,100%)}
+
+/* Operational hotfix V2 */
+.ongoing-ad-option{
+  grid-column:1/-1;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  padding:14px 16px;
+  border:1px solid color-mix(in srgb,var(--green) 30%,var(--border));
+  border-radius:15px;
+  background:color-mix(in srgb,var(--green) 8%,var(--panel));
+}
+.ongoing-ad-option>span{display:flex;flex-direction:column;gap:4px}.ongoing-ad-option small{color:var(--muted);line-height:1.6}.ongoing-ad-option input{width:20px;height:20px;accent-color:var(--green)}
+
+.support-labels{gap:7px;margin-top:7px}.support-labels i{padding:4px 9px;border-radius:999px;font-weight:700;line-height:1.25;box-shadow:0 2px 7px rgba(0,0,0,.1)}
+.conversation-label-editor{gap:10px;padding:14px;border:1px solid var(--border);border-radius:15px;background:var(--panel-soft);margin:12px 0}
+.conversation-label-editor>svg{color:var(--green);flex:0 0 auto}.conversation-label-editor label{position:relative;cursor:pointer}.conversation-label-editor label input{position:absolute;opacity:0;pointer-events:none}.conversation-label-editor label span{padding:7px 11px;background:var(--panel);border-width:1px;transition:.18s ease;font-weight:650}.conversation-label-editor label input:checked+span{background:color-mix(in srgb,var(--green) 13%,var(--panel));box-shadow:0 0 0 2px color-mix(in srgb,var(--green) 15%,transparent);color:var(--text)}
+.queue-item>span,.chat-head span{line-height:1.6}
+
+.complaints-toolbar{grid-template-columns:minmax(260px,1fr) repeat(3,minmax(150px,auto))}
+.complaint-thread{border:1px solid var(--border);background:var(--panel);border-radius:20px;padding:20px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.complaint-thread-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;border-bottom:1px solid var(--border);padding-bottom:16px}.complaint-thread-head h2{margin:0 0 7px}.complaint-thread-head p,.complaint-thread-head small{display:block;color:var(--muted);margin:4px 0;line-height:1.6}.complaint-thread-head .row-actions{justify-content:flex-end}
+.complaint-label-editor{margin:0}
+.complaint-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.complaint-summary-grid>div{padding:12px;border:1px solid var(--border);border-radius:13px;background:var(--panel-soft);display:flex;flex-direction:column;gap:5px}.complaint-summary-grid strong{font-size:.78rem;color:var(--muted)}.complaint-summary-grid span{font-weight:700;overflow-wrap:anywhere}
+.complaint-origin{padding:15px;border-radius:15px;background:color-mix(in srgb,var(--green) 7%,var(--panel));border:1px solid color-mix(in srgb,var(--green) 22%,var(--border))}.complaint-origin p{white-space:pre-wrap;line-height:1.8;margin:8px 0 0;color:var(--muted)}
+.complaint-messages{display:flex;flex-direction:column;gap:10px;max-height:390px;overflow:auto;padding:4px}.complaint-message.user{margin-inline-end:auto;background:var(--panel-soft)}
+.status-pill.danger{background:color-mix(in srgb,#ef4444 13%,var(--panel));color:#dc2626;border-color:color-mix(in srgb,#ef4444 28%,var(--border))}.tiny-button.success{color:var(--green);border-color:color-mix(in srgb,var(--green) 35%,var(--border))}
+@media(max-width:1150px){.complaints-toolbar{grid-template-columns:1fr 1fr}.complaint-summary-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.complaints-toolbar{grid-template-columns:1fr}.complaint-thread-head{flex-direction:column}.complaint-thread-head .row-actions{justify-content:flex-start}.complaint-summary-grid{grid-template-columns:1fr}.ongoing-ad-option{align-items:flex-start}}

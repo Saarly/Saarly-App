@@ -182,6 +182,62 @@ function accessTokenFromRequest(req: NextRequest) {
     : null;
 }
 
+
+const allowedAdminFileBuckets = new Set([
+  "storefront-photos",
+  "merchant-ids",
+  "commercial-registers",
+  "product-images",
+  "banners",
+]);
+
+function normalizeAdminStorageReference(
+  bucketValue: unknown,
+  pathValue: unknown,
+  fallbackBucketValue: unknown,
+) {
+  let bucket = String(bucketValue ?? "").trim();
+  let path = String(pathValue ?? "").trim();
+  const fallbackBucket = String(fallbackBucketValue ?? "").trim();
+  if (!path) throw new Error("file_not_available");
+
+  if (/^https?:\/\//i.test(path)) {
+    const url = new URL(path);
+    if (url.hostname === "example.com" || url.hostname.endsWith(".example.com")) {
+      throw new Error("legacy_file_placeholder");
+    }
+    const match = url.pathname.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/i);
+    if (!match) return { externalUrl: path, bucket: "", path: "" };
+    bucket = decodeURIComponent(match[1]);
+    path = decodeURIComponent(match[2]);
+  } else {
+    path = path.replace(/^storage:\/\//i, "").replace(/^\/+/, "");
+    const first = path.split("/")[0];
+    if (allowedAdminFileBuckets.has(first)) {
+      bucket = first;
+      path = path.slice(first.length + 1);
+    }
+  }
+
+  if (!bucket || bucket === "legacy-url") bucket = fallbackBucket;
+  if (path.startsWith(`${bucket}/`)) path = path.slice(bucket.length + 1);
+  if (!allowedAdminFileBuckets.has(bucket) || !path) throw new Error("file_not_available");
+  return { externalUrl: "", bucket, path };
+}
+
+async function createAdminFileLink(
+  service: ServiceClient,
+  bucketValue: unknown,
+  pathValue: unknown,
+  fallbackBucketValue: unknown,
+) {
+  const normalized = normalizeAdminStorageReference(bucketValue, pathValue, fallbackBucketValue);
+  if (normalized.externalUrl) return normalized.externalUrl;
+  const { data, error } = await service.storage.from(normalized.bucket).createSignedUrl(normalized.path, 60 * 10);
+  if (error || !data?.signedUrl) throw new Error(error?.message ?? "signed_link_failed");
+  return data.signedUrl;
+}
+
 function errorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -307,6 +363,8 @@ function actionRequiresServiceRole(action: string) {
     "assign_complaint_admin",
     "send_complaint_message_admin",
     "resolve_complaint_admin",
+    "set_support_complaint_labels",
+    "signed_admin_file",
   ].includes(action);
 }
 
@@ -539,7 +597,8 @@ function permissionKeyFor(action: string, table?: string) {
   if (action === "send_admin_notification") return "broadcast";
   if (["upsert_support_label", "set_support_labels", "convert_support_to_complaint", "assign_support_conversation_admin"].includes(action)) return "support_chats";
   if (["set_merchant_badges", "set_merchant_trial"].includes(action)) return "monetization";
-  if (["assign_complaint_admin", "send_complaint_message_admin", "resolve_complaint_admin"].includes(action)) return "complaints";
+  if (["assign_complaint_admin", "send_complaint_message_admin", "resolve_complaint_admin", "set_support_complaint_labels"].includes(action)) return "complaints";
+  if (action === "signed_admin_file") return "merchant_approvals";
   if (action === "update_referral_settings") return "referrals";
   if (action === "set_user_password" || action === "delete_user_account")
     return "users";
@@ -581,6 +640,15 @@ function permissionKeyFor(action: string, table?: string) {
 
 function assertActionAllowed(auth: AdminAuth, action: string, table?: string) {
   if (auth.role === "admin" && auth.permissions.__limit_admin !== true) {
+    return;
+  }
+
+  if (
+    action === "signed_admin_file" &&
+    ["merchant_approvals", "branch_approvals", "store_catalog", "monetization"].some(
+      (key) => auth.permissions[key] === true,
+    )
+  ) {
     return;
   }
 
@@ -2063,17 +2131,51 @@ export async function GET(req: NextRequest) {
     const profile = await getAdminProfile(service, auth);
     const url = new URL(req.url);
 
+    if (url.searchParams.get("dashboard") === "1") {
+      const dashboardSection = findSection("dashboard");
+      if (!sectionIsAllowed(dashboardSection, profile)) return jsonError("permission_denied", 403);
+      const [overviewResult, merchantsResult, branchesResult] = await Promise.all([
+        service.from("admin_dashboard_overview").select("*").maybeSingle(),
+        service.from("admin_merchants_readable").select("id,store_name,owner_name,approval_status,approval_status_ar,approval_status_en,created_at").eq("approval_status", "pending").order("created_at", { ascending: false }).limit(6),
+        service.from("admin_branches_readable").select("id,branch_name,store_name,city_name,city_name_ar,city_name_en,approval_status,approval_status_ar,approval_status_en,created_at").eq("approval_status", "pending").order("created_at", { ascending: false }).limit(6),
+      ]);
+      const loadError = overviewResult.error ?? merchantsResult.error ?? branchesResult.error;
+      if (loadError) return jsonError(loadError.message, 400);
+      return NextResponse.json({ data: { overview: overviewResult.data ?? null, pendingMerchants: merchantsResult.data ?? [], pendingBranches: branchesResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    }
+
+    if (url.searchParams.get("catalog") === "1") {
+      const catalogSection = findSection("store-catalog");
+      if (!sectionIsAllowed(catalogSection, profile)) return jsonError("permission_denied", 403);
+      const merchantId = url.searchParams.get("merchant_id");
+      if (merchantId) {
+        const productsResult = await service.from("products")
+          .select("id,merchant_id,free_name,price,unit,quantity,brand,size,color,image_url,image_urls,is_active,created_at,updated_at")
+          .eq("merchant_id", merchantId).order("created_at", { ascending: false }).limit(400);
+        if (productsResult.error) return jsonError(productsResult.error.message, 400);
+        return NextResponse.json({ data: { products: productsResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+      }
+      const [storesResult, productRowsResult] = await Promise.all([
+        service.from("admin_merchants_readable").select("id,store_name,owner_name,contact_mobile,category_name_ar,category_name_en,approval_status,approval_status_ar,approval_status_en,store_front_image_url,store_front_bucket,founder_badge_enabled,trusted_badge_enabled,created_at").order("created_at", { ascending: false }).limit(300),
+        service.from("products").select("merchant_id,is_active").limit(10000),
+      ]);
+      const loadError = storesResult.error ?? productRowsResult.error;
+      if (loadError) return jsonError(loadError.message, 400);
+      return NextResponse.json({ data: { stores: storesResult.data ?? [], productRows: productRowsResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    }
+
     if (url.searchParams.get("complaints") === "1") {
       const complaintsSection = findSection("complaints");
       if (!sectionIsAllowed(complaintsSection, profile)) return jsonError("permission_denied", 403);
-      const [complaintsResult, messagesResult, agentsResult] = await Promise.all([
+      const [complaintsResult, messagesResult, agentsResult, labelsResult] = await Promise.all([
         service.from("admin_support_complaints_readable").select("*").order("updated_at", { ascending: false }).limit(300),
         service.from("admin_support_complaint_messages_readable").select("*").order("created_at", { ascending: true }).limit(1500),
         service.from("admin_staff_readable").select("id,full_name,primary_email,internal_role,staff_is_active,is_blocked,is_deleted").eq("internal_role", "support_agent").eq("staff_is_active", true).eq("is_blocked", false),
+        service.from("admin_support_labels_readable").select("*").eq("is_active", true).order("name_ar"),
       ]);
-      const loadError = complaintsResult.error ?? messagesResult.error ?? agentsResult.error;
+      const loadError = complaintsResult.error ?? messagesResult.error ?? agentsResult.error ?? labelsResult.error;
       if (loadError) return jsonError(loadError.message, 400);
-      return NextResponse.json({ data: { complaints: complaintsResult.data ?? [], messages: messagesResult.data ?? [], agents: agentsResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+      return NextResponse.json({ data: { complaints: complaintsResult.data ?? [], messages: messagesResult.data ?? [], agents: agentsResult.data ?? [], labels: labelsResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
     }
 
     if (url.searchParams.get("support") === "1") {
@@ -2214,6 +2316,15 @@ export async function POST(req: NextRequest) {
         : String(permissionError),
       403,
     );
+  }
+
+  if (action === "signed_admin_file") {
+    try {
+      const url = await createAdminFileLink(service, body.payload?.bucket, body.payload?.path, body.payload?.fallback_bucket);
+      return NextResponse.json({ data: { url } });
+    } catch (fileError) {
+      return jsonError(serviceActionErrorMessage(fileError), 400);
+    }
   }
 
   if (action === "create_admin_staff") {
@@ -2357,6 +2468,24 @@ export async function POST(req: NextRequest) {
     } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
   }
 
+  if (action === "set_support_complaint_labels") {
+    try {
+      const complaintId = requiredText(id, "complaint_id");
+      const labelIds = Array.isArray(body.payload?.label_ids)
+        ? body.payload.label_ids.map((value) => String(value)).filter(Boolean)
+        : [];
+      const { error } = await service.rpc("admin_set_support_complaint_labels_as", {
+        p_actor_id: auth.userId,
+        p_complaint_id: complaintId,
+        p_label_ids: labelIds,
+      });
+      if (error) throw error;
+      return NextResponse.json({ data: { id: complaintId, label_ids: labelIds } });
+    } catch (labelError) {
+      return jsonError(serviceActionErrorMessage(labelError), 400);
+    }
+  }
+
   if (action === "assign_complaint_admin") {
     try {
       const complaintId = requiredText(id, "complaint_id");
@@ -2392,13 +2521,17 @@ export async function POST(req: NextRequest) {
       const complaintId = requiredText(id, "complaint_id");
       const resolution = requiredText(body.payload?.resolution, "resolution");
       if (resolution.length < 3) throw new Error("resolution_required");
-      const before = await getBefore(service, "support_complaints", complaintId);
-      const { data, error } = await service.from("support_complaints").update({ status: "resolved", resolution_summary: resolution.trim(), admin_action: body.payload?.admin_action ?? {}, closed_at: now, updated_at: now }).eq("id", complaintId).select("*").single();
+      const { data, error } = await service.rpc("admin_resolve_support_complaint_as", {
+        p_actor_id: auth.userId,
+        p_complaint_id: complaintId,
+        p_resolution: resolution.trim(),
+        p_admin_action: body.payload?.admin_action ?? { source: "admin_web" },
+      });
       if (error) throw error;
-      await service.from("support_complaint_messages").insert({ complaint_id: complaintId, sender_type: "admin", sender_user_id: auth.userId, body: resolution.trim(), metadata: { event: "resolved", source: "admin_web" } });
-      await writeAudit(service, auth.userId, "resolve_support_complaint", "support_complaints", complaintId, before, data as AnyRow);
       return NextResponse.json({ data });
-    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+    } catch (specialError) {
+      return jsonError(serviceActionErrorMessage(specialError), 400);
+    }
   }
 
   if (action === "delete_user_account") {

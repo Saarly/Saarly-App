@@ -87,8 +87,8 @@ export const sections: SectionConfig[] = [
     columns: [
       { key: "branch_name", label: { ar: "الفرع", en: "Branch" } },
       { key: "store_name", label: { ar: "المتجر", en: "Store" } },
-      { key: "city_name", label: { ar: "المدينة", en: "City" } },
-      { key: "governorate_name", label: { ar: "المحافظة", en: "Governorate" } },
+      { key: "city_name_ar", label: { ar: "المدينة", en: "City" } },
+      { key: "governorate_ar", label: { ar: "المحافظة", en: "Governorate" } },
       {
         key: "manager_mobile",
         label: { ar: "رقم الفرع", en: "Branch contact" },

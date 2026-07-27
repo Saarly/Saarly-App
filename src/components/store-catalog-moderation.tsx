@@ -20,6 +20,7 @@ type StoreRow = {
   founder_badge_enabled: boolean | null;
   trusted_badge_enabled: boolean | null;
   store_front_image_url: string | null;
+  store_front_bucket: string | null;
   owner_id_image_url: string | null;
   commercial_register_url: string | null;
   created_at: string;
@@ -81,21 +82,36 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     );
   }, [productQuery, products]);
 
-  async function resolveImageUrl(value: string | null | undefined, bucket: string) {
+  async function accessToken() {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) throw new Error("auth_required");
+    return token;
+  }
+
+  async function resolveImageUrl(
+    value: string | null | undefined,
+    bucket: string,
+    fallbackBucket = bucket,
+  ) {
     const trimmed = value?.trim();
     if (!trimmed) return null;
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-
-    let path = trimmed.startsWith("storage://")
-      ? trimmed.replace("storage://", "").split("/").slice(1).join("/")
-      : trimmed.replace(/^\/+/, "");
-
-    if (path.startsWith(`${bucket}/`)) {
-      path = path.slice(bucket.length + 1);
-    }
-
-    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
-    return data?.signedUrl ?? supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl ?? null;
+    const token = await accessToken();
+    const response = await fetch("/api/admin/action", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action: "signed_admin_file",
+        payload: { bucket, path: trimmed, fallback_bucket: fallbackBucket },
+      }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      data?: { url?: string };
+    };
+    return response.ok ? payload.data?.url ?? null : null;
   }
 
   function productImageValues(product: ProductRow) {
@@ -105,64 +121,82 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   async function loadStores() {
     setLoading(true);
     setError(null);
-    const { data, error: storesError } = await supabase
-      .from("admin_merchants_readable")
-      .select(
-        "id, store_name, owner_name, contact_mobile, category_name_ar, category_name_en, approval_status, approval_status_ar, approval_status_en, store_front_image_url, owner_id_image_url, commercial_register_url, founder_badge_enabled, trusted_badge_enabled, created_at"
-      )
-      .order("created_at", { ascending: false })
-      .limit(160);
+    try {
+      const token = await accessToken();
+      const response = await fetch("/api/admin/action?catalog=1", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        data?: { stores?: StoreRow[]; productRows?: Array<{ merchant_id: string; is_active: boolean }> };
+        error?: string;
+      };
+      if (!response.ok || !payload.data) throw new Error(payload.error ?? "catalog_load_failed");
 
-    const { data: productRows } = await supabase
-      .from("products")
-      .select("merchant_id, is_active")
-      .limit(5000);
+      const nextStores = payload.data.stores ?? [];
+      const counts: Record<string, ProductCount> = {};
+      for (const row of payload.data.productRows ?? []) {
+        counts[row.merchant_id] ??= { total: 0, active: 0 };
+        counts[row.merchant_id].total += 1;
+        if (row.is_active) counts[row.merchant_id].active += 1;
+      }
 
-    const counts: Record<string, ProductCount> = {};
-    for (const row of (productRows ?? []) as Array<{ merchant_id: string; is_active: boolean }>) {
-      counts[row.merchant_id] ??= { total: 0, active: 0 };
-      counts[row.merchant_id].total += 1;
-      if (row.is_active) counts[row.merchant_id].active += 1;
-    }
+      setStores(nextStores);
+      setProductCounts(counts);
+      setSelectedStore((current) => {
+        if (current) return nextStores.find((store) => store.id === current.id) ?? nextStores[0] ?? null;
+        return nextStores[0] ?? null;
+      });
 
-    const nextStores = (data ?? []) as StoreRow[];
-    setStores(nextStores);
-    setProductCounts(counts);
-    setError(storesError ? humanizeAdminError(storesError.message, lang) : null);
-    setLoading(false);
-
-    const imageEntries = await Promise.all(
-      nextStores.map(async (store) => [store.id, await resolveImageUrl(store.store_front_image_url, "storefront-photos")] as const)
-    );
-    setStoreImages(Object.fromEntries(imageEntries));
-
-    if (!selectedStore && nextStores.length > 0) {
-      setSelectedStore(nextStores[0]);
+      const imageEntries = await Promise.all(
+        nextStores.map(async (store) => [
+          store.id,
+          await resolveImageUrl(
+            store.store_front_image_url,
+            store.store_front_bucket ?? "storefront-photos",
+            "storefront-photos",
+          ),
+        ] as const),
+      );
+      setStoreImages(Object.fromEntries(imageEntries));
+    } catch (loadError) {
+      setError(humanizeAdminError(loadError, lang));
+    } finally {
+      setLoading(false);
     }
   }
 
   async function loadProducts(storeId: string) {
     setLoadingProducts(true);
     setError(null);
-    const { data, error: productsError } = await supabase
-      .from("products")
-      .select("id, merchant_id, free_name, price, unit, quantity, brand, size, color, image_url, image_urls, is_active, created_at, updated_at")
-      .eq("merchant_id", storeId)
-      .order("created_at", { ascending: false })
-      .limit(400);
+    try {
+      const token = await accessToken();
+      const response = await fetch(`/api/admin/action?catalog=1&merchant_id=${encodeURIComponent(storeId)}`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        data?: { products?: ProductRow[] };
+        error?: string;
+      };
+      if (!response.ok || !payload.data) throw new Error(payload.error ?? "products_load_failed");
+      const nextProducts = payload.data.products ?? [];
+      setProducts(nextProducts);
 
-    const nextProducts = (data ?? []) as ProductRow[];
-    setProducts(nextProducts);
-    setError(productsError ? humanizeAdminError(productsError.message, lang) : null);
-    setLoadingProducts(false);
-
-    const entries = await Promise.all(
-      nextProducts.map(async (product) => {
-        const urls = await Promise.all(productImageValues(product).map((image) => resolveImageUrl(image, "product-images")));
-        return [product.id, urls.filter(Boolean) as string[]] as const;
-      })
-    );
-    setProductImages(Object.fromEntries(entries));
+      const entries = await Promise.all(
+        nextProducts.map(async (product) => {
+          const urls = await Promise.all(
+            productImageValues(product).map((image) => resolveImageUrl(image, "product-images")),
+          );
+          return [product.id, urls.filter(Boolean) as string[]] as const;
+        }),
+      );
+      setProductImages(Object.fromEntries(entries));
+    } catch (loadError) {
+      setError(humanizeAdminError(loadError, lang));
+    } finally {
+      setLoadingProducts(false);
+    }
   }
 
   async function postAdminAction(body: Record<string, unknown>) {

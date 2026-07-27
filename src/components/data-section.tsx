@@ -293,6 +293,11 @@ export function DataSection({
       nextValues.target_country_ar = nextValues.target_country_ar || "";
       nextValues.target_governorate_ar = nextValues.target_governorate_ar || "";
       nextValues.target_city_ar = nextValues.target_city_ar || "";
+      nextValues.ad_ongoing = row === "new" ? true : !Boolean(row.starts_at || row.ends_at);
+      if (nextValues.ad_ongoing) {
+        nextValues.starts_at = "";
+        nextValues.ends_at = "";
+      }
     }
     if (section.id === "content-moderation") {
       nextValues.language = nextValues.language || "mixed";
@@ -468,6 +473,11 @@ export function DataSection({
       if (section.id === "categories") {
         values.name_en = values.name_en || values.name_ar;
         values.parent_id = values.parent_id || null;
+      }
+
+      if (section.id === "ads" && Boolean(formValues.ad_ongoing)) {
+        values.starts_at = null;
+        values.ends_at = null;
       }
 
       if (section.id === "cities") {
@@ -684,7 +694,7 @@ export function DataSection({
 
       {!loading && section.id === "cities" && filteredRows.length > 0 ? (
         <div className="category-tree">
-          {groupLocationRows(filteredRows).map((country) => {
+          {groupLocationRows(filteredRows, lang).map((country) => {
             const isCollapsed = collapsedCountries.has(country.country);
             const cityCount = country.governorates.reduce(
               (total, group) => total + group.cities.length,
@@ -1026,7 +1036,32 @@ export function DataSection({
                   setFormValues={setFormValues}
                 />
               ) : (
-                (section.editableFields ?? []).map((field) => (
+                <>
+                  {section.id === "ads" ? (
+                    <label className="ongoing-ad-option">
+                      <span>
+                        <strong>{lang === "ar" ? "إعلان مستمر" : "Ongoing ad"}</strong>
+                        <small>
+                          {lang === "ar"
+                            ? "يظل الإعلان شغالًا بدون تاريخ بداية أو نهاية حتى توقفه أو تحذفه."
+                            : "Keep the ad running without start or end dates until you disable or delete it."}
+                        </small>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(formValues.ad_ongoing)}
+                        onChange={(event) =>
+                          setFormValues((current) => ({
+                            ...current,
+                            ad_ongoing: event.target.checked,
+                            starts_at: event.target.checked ? "" : current.starts_at,
+                            ends_at: event.target.checked ? "" : current.ends_at,
+                          }))
+                        }
+                      />
+                    </label>
+                  ) : null}
+                  {(section.editableFields ?? []).map((field) => (
                   <label key={field}>
                     {fieldLabel(field, lang, section)}
                     {fieldIsBoolean(field) ? (
@@ -1205,6 +1240,7 @@ export function DataSection({
                           fieldIsDateTime(field) ? "datetime-local" : undefined
                         }
                         value={String(formValues[field] ?? "")}
+                        disabled={section.id === "ads" && Boolean(formValues.ad_ongoing) && ["starts_at", "ends_at"].includes(field)}
                         onChange={(event) =>
                           setFormValues((current) => ({
                             ...current,
@@ -1214,7 +1250,8 @@ export function DataSection({
                       />
                     )}
                   </label>
-                ))
+                ))}
+                </>
               )}
             </div>
             <div className="modal-actions">
@@ -1445,7 +1482,7 @@ function categoryDepth(row: Row, rows: Row[]) {
   return depth;
 }
 
-function groupLocationRows(rows: Row[]) {
+function groupLocationRows(rows: Row[], lang: Lang) {
   const countries = new Map<
     string,
     {
@@ -1455,8 +1492,12 @@ function groupLocationRows(rows: Row[]) {
   >();
   for (const row of rows) {
     const country =
-      String(row.country_ar ?? row.country_en ?? DEFAULT_COUNTRY_AR).trim() ||
-      DEFAULT_COUNTRY_AR;
+      String(
+        (lang === "en" ? row.country_en : row.country_ar) ??
+          row.country_ar ??
+          row.country_en ??
+          (lang === "en" ? DEFAULT_COUNTRY_EN : DEFAULT_COUNTRY_AR),
+      ).trim() || (lang === "en" ? DEFAULT_COUNTRY_EN : DEFAULT_COUNTRY_AR);
     const countryGroup = countries.get(country) ?? {
       countryRow: null,
       governorates: new Map<
@@ -1469,7 +1510,12 @@ function groupLocationRows(rows: Row[]) {
       countries.set(country, countryGroup);
       continue;
     }
-    const governorate = String(row.governorate_ar ?? row.governorate_en ?? "-");
+    const governorate = String(
+      (lang === "en" ? row.governorate_en : row.governorate_ar) ??
+        row.governorate_ar ??
+        row.governorate_en ??
+        "-",
+    );
     const group = countryGroup.governorates.get(governorate) ?? {
       governorateRow: null,
       cities: [],
@@ -1496,7 +1542,9 @@ function groupLocationRows(rows: Row[]) {
           cities: governorateGroup.cities.sort(
             (a, b) =>
               Number(a.display_order ?? 0) - Number(b.display_order ?? 0) ||
-              String(a.name_ar ?? "").localeCompare(String(b.name_ar ?? "")),
+              String((lang === "en" ? a.name_en : a.name_ar) ?? a.name_ar ?? "").localeCompare(
+                String((lang === "en" ? b.name_en : b.name_ar) ?? b.name_ar ?? ""),
+              ),
           ),
         }))
         .sort(
@@ -2497,52 +2545,70 @@ function ReviewDetailsModal({
       { key: "front_image_url", fallbackBucket: "storefront-photos", ar: "واجهة الفرع", en: "Branch storefront" },
       { key: "manager_id_front_image_url", bucketKey: "manager_id_front_bucket", fallbackBucket: "merchant-ids", ar: "هوية مدير الفرع - الوجه الأمامي", en: "Branch manager ID - front" },
       { key: "manager_id_back_image_url", bucketKey: "manager_id_back_bucket", fallbackBucket: "merchant-ids", ar: "هوية مدير الفرع - الوجه الخلفي", en: "Branch manager ID - back" },
-      { key: "commercial_register_url", bucketKey: "commercial_register_bucket", fallbackBucket: "commercial-registers", ar: row.uses_parent_commercial_register === false ? "السجل التجاري المستقل للفرع" : "السجل التجاري للمتجر الرئيسي", en: row.uses_parent_commercial_register === false ? "Branch commercial register" : "Main store commercial register", optional: true },
+      {
+        key: "commercial_register_url",
+        bucketKey: "commercial_register_bucket",
+        fallbackBucket: "commercial-registers",
+        ar: row.uses_parent_commercial_register === false ? "السجل التجاري المستقل للفرع" : "السجل التجاري للمتجر الرئيسي",
+        en: row.uses_parent_commercial_register === false ? "Branch commercial register" : "Main store commercial register",
+        optional: true,
+      },
     ];
   }, [row, section.id]);
 
   useEffect(() => {
-    async function resolveUrl(value: unknown, bucket: string) {
-      if (typeof value !== "string" || !value.trim()) return "";
-      const trimmed = value.trim();
-      if (/^https?:\/\//i.test(trimmed)) return trimmed;
-      const storageValue = trimmed.startsWith("storage://") ? trimmed.slice("storage://".length) : trimmed.replace(/^\/+/, "");
-      const parts = storageValue.split("/");
-      const path = parts[0] === bucket ? parts.slice(1).join("/") : storageValue;
-      const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
-      if (signed.data?.signedUrl) return signed.data.signedUrl;
-      return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl ?? "";
+    async function resolveUrl(path: unknown, bucket: unknown, fallbackBucket: string) {
+      if (typeof path !== "string" || !path.trim()) return "";
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return "";
+      const response = await fetch("/api/admin/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: "signed_admin_file",
+          payload: {
+            bucket: String(bucket ?? ""),
+            path,
+            fallback_bucket: fallbackBucket,
+          },
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        data?: { url?: string };
+      };
+      return response.ok ? String(payload.data?.url ?? "") : "";
     }
 
     async function loadImages() {
       setLoadingImages(true);
-      const entries = await Promise.all(documentSpecs.map(async (spec) => {
-        const bucket = String((spec.bucketKey ? row[spec.bucketKey] : null) ?? spec.fallbackBucket);
-        const url = await resolveUrl(row[spec.key], bucket);
-        return [spec.key, url] as const;
-      }));
+      const entries = await Promise.all(
+        documentSpecs.map(async (spec) => {
+          const bucket = spec.bucketKey ? row[spec.bucketKey] : null;
+          const url = await resolveUrl(row[spec.key], bucket, spec.fallbackBucket);
+          return [spec.key, url] as const;
+        }),
+      );
       setImageUrls(Object.fromEntries(entries));
       setLoadingImages(false);
     }
     void loadImages();
   }, [documentSpecs, row]);
 
-  const detailItems = Object.entries(row)
-    .map(([key, value]) => {
-      if (!shouldShowDetailValue(key, value, row)) return null;
-      const column = section.columns?.find((item) => item.key === key);
-      const resolved = localizedValue(row, key, lang);
-      const text = String(formatCell(resolved, column?.tone, lang)).trim();
-      if (!text || textLooksBroken(text)) return null;
-      return { key, label: fieldLabel(key, lang, section), value: text };
-    })
-    .filter((item): item is { key: string; label: string; value: string } => item !== null);
+  const detailItems = reviewDetailItems(section.id, row, lang);
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-card review-modal" onClick={(event) => event.stopPropagation()}>
         <h2>{lang === "ar" ? "مراجعة بيانات ومستندات الطلب" : "Review application details and documents"}</h2>
-        <p className="muted">{lang === "ar" ? "المستندات للعرض أثناء اتخاذ القرار، ولا تحتاج موافقة منفصلة." : "Documents are shown for review and do not require a separate approval step."}</p>
+        <p className="muted">
+          {lang === "ar"
+            ? "الصور والمستندات معروضة للمراجعة داخل صفحة الموافقة، ولا توجد خطوة اعتماد منفصلة لها."
+            : "Images and documents are reviewed here and do not require a separate approval step."}
+        </p>
         <div className="review-details-grid">
           {detailItems.map((item) => (
             <div key={item.key} className="review-detail-item">
@@ -2553,7 +2619,9 @@ function ReviewDetailsModal({
         </div>
 
         <h3 className="review-documents-title">{lang === "ar" ? "الصور والمستندات" : "Images and documents"}</h3>
-        {loadingImages ? <div className="empty-state">{t("loading", lang)}</div> : (
+        {loadingImages ? (
+          <div className="empty-state">{t("loading", lang)}</div>
+        ) : (
           <div className="review-documents-grid">
             {documentSpecs.map((spec) => {
               const url = imageUrls[spec.key];
@@ -2569,7 +2637,11 @@ function ReviewDetailsModal({
                   ) : (
                     <div className="missing-document">
                       <ImageUp size={28} />
-                      <span>{spec.optional ? (lang === "ar" ? "غير مرفوع أو غير مطلوب" : "Not uploaded or not required") : (lang === "ar" ? "لم يتم رفع هذه الصورة" : "This image was not uploaded")}</span>
+                      <span>
+                        {spec.optional
+                          ? lang === "ar" ? "غير مرفوع أو غير مطلوب" : "Not uploaded or not required"
+                          : lang === "ar" ? "لم يتم رفع هذه الصورة" : "This image was not uploaded"}
+                      </span>
                     </div>
                   )}
                 </article>
@@ -2583,6 +2655,54 @@ function ReviewDetailsModal({
       </div>
     </div>
   );
+}
+
+function reviewDetailItems(sectionId: string, row: Row, lang: Lang) {
+  const date = (value: unknown) => formatCell(value, "date", lang);
+  const yesNo = (value: unknown) =>
+    Boolean(value) ? (lang === "ar" ? "نعم" : "Yes") : (lang === "ar" ? "لا" : "No");
+  const pick = (arKey: string, enKey: string, fallback?: string) =>
+    String((lang === "ar" ? row[arKey] : row[enKey]) ?? row[arKey] ?? row[enKey] ?? fallback ?? "-");
+
+  if (sectionId === "merchant-approvals") {
+    return [
+      { key: "store_name", label: lang === "ar" ? "اسم المتجر" : "Store name", value: String(row.store_name ?? "-") },
+      { key: "owner_name", label: lang === "ar" ? "اسم المالك" : "Owner name", value: String(row.owner_name ?? "-") },
+      { key: "owner_mobile", label: lang === "ar" ? "رقم المالك" : "Owner mobile", value: String(row.owner_mobile ?? "-") },
+      { key: "manager_name", label: lang === "ar" ? "اسم المدير" : "Manager name", value: String(row.manager_name ?? "-") },
+      { key: "manager_mobile", label: lang === "ar" ? "رقم المدير" : "Manager mobile", value: String(row.manager_mobile ?? "-") },
+      { key: "contact_mobile", label: lang === "ar" ? "رقم التواصل" : "Contact mobile", value: String(row.contact_mobile ?? "-") },
+      { key: "account_email", label: lang === "ar" ? "البريد الإلكتروني" : "Email", value: String(row.account_email ?? "-") },
+      { key: "category", label: lang === "ar" ? "القسم" : "Category", value: pick("category_name_ar", "category_name_en") },
+      { key: "approval", label: lang === "ar" ? "حالة الطلب" : "Application status", value: pick("approval_status_ar", "approval_status_en", String(row.approval_status ?? "-")) },
+      { key: "billing", label: lang === "ar" ? "طريقة المحاسبة" : "Billing method", value: pick("billing_preference_ar", "billing_preference_en", lang === "ar" ? "لم تحدد" : "Not selected") },
+      { key: "test", label: lang === "ar" ? "حساب اختبار" : "Test account", value: yesNo(row.is_test_account) },
+      ...(row.rejection_reason ? [{ key: "reason", label: lang === "ar" ? "سبب الرفض" : "Rejection reason", value: String(row.rejection_reason) }] : []),
+      { key: "created", label: lang === "ar" ? "تاريخ التقديم" : "Submitted", value: String(date(row.created_at)) },
+      { key: "updated", label: lang === "ar" ? "آخر تحديث" : "Last updated", value: String(date(row.updated_at)) },
+    ];
+  }
+
+  return [
+    { key: "branch_name", label: lang === "ar" ? "اسم الفرع" : "Branch name", value: String(row.branch_name ?? "-") },
+    { key: "store_name", label: lang === "ar" ? "المتجر الرئيسي" : "Main store", value: String(row.store_name ?? "-") },
+    { key: "manager_name", label: lang === "ar" ? "مدير الفرع" : "Branch manager", value: String(row.manager_name ?? "-") },
+    { key: "manager_mobile", label: lang === "ar" ? "رقم مدير الفرع" : "Manager mobile", value: String(row.manager_mobile ?? "-") },
+    { key: "country", label: lang === "ar" ? "البلد" : "Country", value: pick("country_ar", "country_en") },
+    { key: "governorate", label: lang === "ar" ? "المحافظة" : "Governorate", value: pick("governorate_ar", "governorate_en", String(row.governorate_name ?? "-")) },
+    { key: "city", label: lang === "ar" ? "المدينة" : "City", value: pick("city_name_ar", "city_name_en", String(row.city_name ?? "-")) },
+    { key: "approval", label: lang === "ar" ? "حالة الطلب" : "Application status", value: pick("approval_status_ar", "approval_status_en", String(row.approval_status ?? "-")) },
+    {
+      key: "register_source",
+      label: lang === "ar" ? "السجل التجاري" : "Commercial registration",
+      value: row.uses_parent_commercial_register === false
+        ? lang === "ar" ? "سجل مستقل لهذا الفرع" : "Separate register for this branch"
+        : lang === "ar" ? "يستخدم سجل المتجر الرئيسي" : "Uses the main store register",
+    },
+    ...(row.rejection_reason ? [{ key: "reason", label: lang === "ar" ? "سبب الرفض" : "Rejection reason", value: String(row.rejection_reason) }] : []),
+    { key: "created", label: lang === "ar" ? "تاريخ التقديم" : "Submitted", value: String(date(row.created_at)) },
+    { key: "updated", label: lang === "ar" ? "آخر تحديث" : "Last updated", value: String(date(row.updated_at)) },
+  ];
 }
 
 function shouldShowDetailValue(key: string, value: unknown, row: Row) {

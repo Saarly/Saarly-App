@@ -452,7 +452,10 @@ async function loadMonetizationData(service: SupabaseClient, from: string | null
     manualRequests,
     transactions,
     webhookEvents: webhookEventsResult.data,
-    merchants: decorateMerchant(merchantsResult.data, merchants, users),
+    merchants: merchantsResult.data.map((merchant): Row => ({
+      ...merchant,
+      merchant_email: users.get(String(merchant.user_id ?? ""))?.primary_email ?? null,
+    })),
     subscriptions,
     commissions,
     settlements,

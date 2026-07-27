@@ -1316,6 +1316,9 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
               <button className="tiny-button" onClick={() => void post("set_merchant_badges", { merchant_id: row.id, is_test_account: !Boolean(row.is_test_account) })}>
                 {Boolean(row.is_test_account) ? (lang === "ar" ? "إلغاء الاختبار" : "Unset test") : (lang === "ar" ? "حساب اختبار" : "Set test")}
               </button>
+              <button className="tiny-button" onClick={() => adjustBillingPreference(row)}>
+                {lang === "ar" ? "تعديل المحاسبة" : "Change billing"}
+              </button>
               <button className="tiny-button" onClick={() => toggleFounderBadge(row)}>
                 <Sparkles size={15} />
                 {Boolean(row.founder_badge_enabled) ? (lang === "ar" ? "سحب شارة المؤسس" : "Remove founder badge") : (lang === "ar" ? "منح شارة المؤسس" : "Grant founder badge")}
@@ -1636,6 +1639,37 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
         </div>
       </div>
     );
+  }
+
+
+  function adjustBillingPreference(row: Row) {
+    const current = asString(row.billing_preference) || "commission";
+    const value = window.prompt(
+      lang === "ar"
+        ? "اكتب commission للعمولة أو monthly_subscription للاشتراك الشهري"
+        : "Enter commission or monthly_subscription",
+      current,
+    );
+    if (!value) return;
+    const normalized = value.trim();
+    if (!["commission", "monthly_subscription"].includes(normalized)) {
+      setError(
+        lang === "ar"
+          ? "طريقة المحاسبة لازم تكون عمولة أو اشتراك شهري."
+          : "Billing must be commission or monthly subscription.",
+      );
+      return;
+    }
+    const reason = window.prompt(
+      lang === "ar" ? "اكتب سبب تغيير طريقة المحاسبة" : "Write the reason for changing billing",
+    );
+    if (!reason || reason.trim().length < 3) return;
+    void post("update_merchant", {
+      merchant_id: row.id,
+      field: "billing_preference",
+      value: normalized,
+      reason: reason.trim(),
+    });
   }
 
   function toggleFounderBadge(row: Row) {

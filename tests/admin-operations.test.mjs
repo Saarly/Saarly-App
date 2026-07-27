@@ -52,3 +52,32 @@ test("bilingual value formatter covers operational technical values", () => {
     assert.match(formatSource, new RegExp(value));
   }
 });
+
+test("private review images are signed by the server instead of public bucket URLs", () => {
+  assert.match(actionRoute, /signed_admin_file/);
+  assert.match(dataSection, /fallback_bucket/);
+  assert.doesNotMatch(dataSection, /createSignedUrl\(path/);
+});
+
+test("catalog data is loaded through the protected admin API", async () => {
+  const catalog = await read("../src/components/store-catalog-moderation.tsx");
+  assert.match(catalog, /\/api\/admin\/action\?catalog=1/);
+  assert.doesNotMatch(catalog, /\.from\(["']admin_merchants_readable["']\)/);
+});
+
+test("complaints support labels and atomic resolution", () => {
+  assert.match(actionRoute, /admin_set_support_complaint_labels_as/);
+  assert.match(actionRoute, /admin_resolve_support_complaint_as/);
+  assert.match(complaintsConsole, /set_support_complaint_labels/);
+});
+
+test("ads include a real ongoing option", () => {
+  assert.match(dataSection, /ad_ongoing/);
+  assert.match(dataSection, /values\.starts_at = null/);
+  assert.match(dataSection, /values\.ends_at = null/);
+});
+
+test("merchant billing method can be changed from the founders tab", () => {
+  assert.match(monetizationConsole, /adjustBillingPreference/);
+  assert.match(monetizationConsole, /field:\s*["']billing_preference["']/);
+});

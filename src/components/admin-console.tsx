@@ -241,7 +241,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
         ) : section.mode === "dashboard" ? (
           <DashboardPanel lang={lang} />
         ) : section.mode === "support" ? (
-          <SupportConsole lang={lang} />
+          <SupportConsole lang={lang} profile={profile} />
         ) : section.mode === "reports" ? (
           <ReportsPanel lang={lang} />
         ) : section.mode === "settings" ? (
@@ -249,7 +249,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
         ) : section.mode === "monetization" ? (
           <MonetizationConsole lang={lang} />
         ) : section.mode === "complaints" ? (
-          <ComplaintsConsole lang={lang} />
+          <ComplaintsConsole lang={lang} profile={profile} />
         ) : section.mode === "catalog" ? (
           <StoreCatalogModeration lang={lang} />
         ) : section.mode === "broadcast" ? (

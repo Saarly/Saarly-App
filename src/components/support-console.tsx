@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
+import type { AdminProfile } from "@/lib/admin/types";
 import { t } from "@/lib/admin/i18n";
 import { friendlyStatus, humanizeAdminError } from "@/lib/admin/messages";
 
@@ -110,8 +111,9 @@ function statusLabel(status: string, lang: Lang) {
 }
 
 function assignedLabel(conversation: Conversation, lang: Lang) {
-  const explicit = lang === "ar" ? conversation.handled_by_ar : conversation.handled_by_en;
-  return safeName(explicit || conversation.assigned_agent_name || (lang === "ar" ? "غير معين" : "Unassigned"), lang);
+  const assigned = cleanText(conversation.assigned_agent_name);
+  if (assigned) return safeName(assigned, lang);
+  return lang === "ar" ? "لم يتم تعيين موظف دعم" : "No support agent assigned";
 }
 
 const emptyComplaint: ComplaintDraft = {
@@ -121,7 +123,7 @@ const emptyComplaint: ComplaintDraft = {
   orderId: "",
 };
 
-export function SupportConsole({ lang }: { lang: Lang }) {
+export function SupportConsole({ lang, profile }: { lang: Lang; profile: AdminProfile }) {
   const [payload, setPayload] = useState<SupportPayload>({
     conversations: [],
     labels: [],
@@ -408,7 +410,7 @@ export function SupportConsole({ lang }: { lang: Lang }) {
                 <strong>{safeName(conversation.customer_name, lang)}</strong>
                 {meaningfulTitle(conversation.title) ? <small>{meaningfulTitle(conversation.title)}</small> : null}
                 <span>
-                  {statusLabel(conversation.status, lang)} · {lang === "ar" ? "بواسطة: " : "Handled by: "}
+                  {statusLabel(conversation.status, lang)} · {lang === "ar" ? "مسؤول المحادثة: " : "Conversation owner: "}
                   {assignedLabel(conversation, lang)}
                 </span>
                 <div className="support-labels">
@@ -430,7 +432,7 @@ export function SupportConsole({ lang }: { lang: Lang }) {
                 <div>
                   <strong>{safeName(selected.customer_name, lang)}</strong>
                   <span>
-                    {statusLabel(selected.status, lang)} · {lang === "ar" ? "بواسطة: " : "Handled by: "}
+                    {statusLabel(selected.status, lang)} · {lang === "ar" ? "مسؤول المحادثة: " : "Conversation owner: "}
                     {assignedLabel(selected, lang)}
                   </span>
                   <small>{selected.customer_mobile || selected.customer_email || "-"}</small>
@@ -440,19 +442,23 @@ export function SupportConsole({ lang }: { lang: Lang }) {
                     <UserRoundCheck size={15} />
                     {t("assignToMe", lang)}
                   </button>
-                  <select
-                    className="tiny-select"
-                    value={selected.assigned_support_agent_id ?? ""}
-                    onChange={(event) => void assign(event.target.value)}
-                    disabled={busy === "assign"}
-                  >
-                    <option value="">{lang === "ar" ? "تعيين موظف" : "Assign agent"}</option>
-                    {payload.agents.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {safeName(agent.full_name || agent.primary_email, lang)}
-                      </option>
-                    ))}
-                  </select>
+                  {profile.role === "admin" && payload.agents.length > 0 ? (
+                    <select
+                      className="tiny-select"
+                      value={selected.assigned_support_agent_id ?? ""}
+                      onChange={(event) => {
+                        if (event.target.value) void assign(event.target.value);
+                      }}
+                      disabled={busy === "assign"}
+                    >
+                      <option value="">{lang === "ar" ? "تعيين موظف دعم" : "Assign support agent"}</option>
+                      {payload.agents.map((agent) => (
+                        <option key={agent.id} value={agent.id}>
+                          {safeName(agent.full_name || agent.primary_email, lang)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
                   <button className="tiny-button" onClick={openComplaintDialog}>
                     {lang === "ar" ? "تحويل إلى شكوى" : "Convert to complaint"}
                   </button>
