@@ -13,6 +13,8 @@ const [
   formatter,
   adminConsole,
   pageGuide,
+  globalCss,
+  support,
   migration,
 ] = await Promise.all([
   read("../src/app/api/admin/action/route.ts"),
@@ -24,6 +26,8 @@ const [
   read("../src/lib/admin/format.ts"),
   read("../src/components/admin-console.tsx"),
   read("../src/components/page-guide.tsx"),
+  read("../src/app/globals.css"),
+  read("../src/components/support-console.tsx"),
   read("../supabase/migrations/20260727182000_admin_v6_locations_and_store_archive_fix.sql"),
 ]);
 
@@ -49,7 +53,7 @@ test("store deletion removes active access while preserving required history", (
 
 test("complaints never expose not_provided as visible copy", () => {
   assert.match(complaints, /isMissingValue/);
-  assert.match(complaints, /"not_provided"/);
+  assert.match(complaints, /not\[_\\s-\]\?provided/);
   assert.match(complaints, /غير متوفر/);
   assert.doesNotMatch(complaints, />\s*not_provided\s*</i);
 });
@@ -79,4 +83,27 @@ test("every admin page starts with bilingual plain-language guidance", () => {
   }
   assert.match(pageGuide, /الصفحة دي بتعمل إيه/);
   assert.match(pageGuide, /What is this page for/);
+});
+
+
+test("page help cards fit their text and remain responsive", () => {
+  assert.match(globalCss, /\.page-guide[\s\S]*?width:\s*fit-content/);
+  assert.match(globalCss, /max-width:\s*min\(920px, calc\(100% - 40px\)\)/);
+  assert.match(globalCss, /@media \(max-width: 720px\)[\s\S]*?max-width:\s*calc\(100% - 24px\)/);
+});
+
+test("desktop sidebar is viewport-fixed with its own scrolling", () => {
+  assert.match(globalCss, /\.sidebar\s*\{[\s\S]*?position:\s*fixed/);
+  assert.match(globalCss, /height:\s*100dvh/);
+  assert.match(globalCss, /overscroll-behavior:\s*contain/);
+  assert.match(globalCss, /\.main-area\s*\{[\s\S]*?margin-inline-start:\s*280px/);
+  assert.match(globalCss, /@media \(max-width: 1180px\)[\s\S]*?margin-inline-start:\s*0/);
+});
+
+test("support metadata removes technical missing values and isolates mixed-direction text", () => {
+  assert.match(support, /technicalMissingValues/);
+  assert.match(support, /safeContact\(selected\.customer_mobile, selected\.customer_email\)/);
+  assert.match(support, /not\[_\\s-\]\?provided/);
+  assert.match(support, /<bdi>\{assignedLabel/);
+  assert.match(support, /className="chat-meta"/);
 });

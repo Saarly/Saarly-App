@@ -77,8 +77,26 @@ const genericTitles = new Set([
   "محادثة الدعم",
 ]);
 
+const technicalMissingValues = new Set(["not_provided", "not provided", "null", "undefined", "n/a", "-"]);
+
 function cleanText(value: unknown) {
-  return String(value ?? "").trim();
+  const raw = String(value ?? "").trim();
+  if (!raw || technicalMissingValues.has(raw.toLowerCase())) return "";
+  return raw
+    .replace(/not[_\s-]?provided/gi, " ")
+    .replace(/\b(?:undefined|null|n\/a)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function safeContact(...values: unknown[]) {
+  for (const value of values) {
+    const raw = String(value ?? "").trim();
+    if (!raw || technicalMissingValues.has(raw.toLowerCase()) || /^deleted_/i.test(raw)) continue;
+    const cleaned = cleanText(raw);
+    if (cleaned) return cleaned;
+  }
+  return "";
 }
 
 function meaningfulTitle(title: string | null) {
@@ -111,8 +129,8 @@ function statusLabel(status: string, lang: Lang) {
 }
 
 function assignedLabel(conversation: Conversation, lang: Lang) {
-  const assigned = cleanText(conversation.assigned_agent_name);
-  if (assigned) return safeName(assigned, lang);
+  const assigned = cleanText(conversation.assigned_agent_name ?? (lang === "ar" ? conversation.handled_by_ar : conversation.handled_by_en));
+  if (assigned && !["غير معين", "unassigned"].includes(assigned.toLowerCase())) return safeName(assigned, lang);
   return lang === "ar" ? "لم يتم تعيين موظف دعم" : "No support agent assigned";
 }
 
@@ -407,12 +425,15 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
                 className={selected?.id === conversation.id ? "queue-item active" : "queue-item"}
                 onClick={() => setSelected(conversation)}
               >
-                <strong>{safeName(conversation.customer_name, lang)}</strong>
+                <strong><bdi>{safeName(conversation.customer_name, lang)}</bdi></strong>
                 {meaningfulTitle(conversation.title) ? <small>{meaningfulTitle(conversation.title)}</small> : null}
-                <span>
-                  {statusLabel(conversation.status, lang)} · {lang === "ar" ? "مسؤول المحادثة: " : "Conversation owner: "}
-                  {assignedLabel(conversation, lang)}
-                </span>
+                <div className="queue-item-meta">
+                  <span>{statusLabel(conversation.status, lang)}</span>
+                  <span>
+                    {lang === "ar" ? "مسؤول المحادثة:" : "Conversation owner:"}
+                    <bdi>{assignedLabel(conversation, lang)}</bdi>
+                  </span>
+                </div>
                 <div className="support-labels">
                   {(conversation.labels ?? []).map((label) => (
                     <i key={label.id} style={{ backgroundColor: label.color_hex }}>
@@ -429,13 +450,18 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
           {selected ? (
             <>
               <div className="chat-head">
-                <div>
-                  <strong>{safeName(selected.customer_name, lang)}</strong>
-                  <span>
-                    {statusLabel(selected.status, lang)} · {lang === "ar" ? "مسؤول المحادثة: " : "Conversation owner: "}
-                    {assignedLabel(selected, lang)}
-                  </span>
-                  <small>{selected.customer_mobile || selected.customer_email || "-"}</small>
+                <div className="chat-identity">
+                  <strong><bdi>{safeName(selected.customer_name, lang)}</bdi></strong>
+                  <div className="chat-meta">
+                    <span>{statusLabel(selected.status, lang)}</span>
+                    <span>
+                      {lang === "ar" ? "مسؤول المحادثة:" : "Conversation owner:"}
+                      <bdi>{assignedLabel(selected, lang)}</bdi>
+                    </span>
+                  </div>
+                  {safeContact(selected.customer_mobile, selected.customer_email) ? (
+                    <small className="chat-contact"><bdi>{safeContact(selected.customer_mobile, selected.customer_email)}</bdi></small>
+                  ) : null}
                 </div>
                 <div className="row-actions">
                   <button className="tiny-button" onClick={() => void assign()} disabled={busy === "assign"}>

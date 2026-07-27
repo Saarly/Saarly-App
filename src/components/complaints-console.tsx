@@ -53,18 +53,26 @@ function text(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function sanitizeDisplayText(value: unknown) {
+  return text(value)
+    .replace(/not[_\s-]?provided/gi, " ")
+    .replace(/\b(?:undefined|null|n\/a)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function isMissingValue(value: unknown) {
-  const normalized = text(value).toLowerCase();
-  return !normalized || ["not_provided", "not provided", "null", "undefined", "n/a"].includes(normalized);
+  return !sanitizeDisplayText(value);
 }
 
 function displayText(value: unknown, lang: Lang, fallback?: string) {
-  if (isMissingValue(value)) return fallback ?? (lang === "ar" ? "غير متوفر" : "Not provided");
-  return adminValueLabel(value, lang);
+  const sanitized = sanitizeDisplayText(value);
+  if (!sanitized) return fallback ?? (lang === "ar" ? "غير متوفر" : "Not provided");
+  return adminValueLabel(sanitized, lang);
 }
 
 function friendlyName(value: unknown, lang: Lang) {
-  const name = text(value);
+  const name = sanitizeDisplayText(value);
   if (isMissingValue(value)) {
     return lang === "ar" ? "الاسم غير متوفر" : "Name not provided";
   }
@@ -439,11 +447,11 @@ export function ComplaintsConsole({
               <div className="complaint-thread-head">
                 <div>
                   <h2>{lang === "ar" ? "تفاصيل الشكوى" : "Complaint details"}</h2>
-                  <p>{friendlyName(selected.reporter_name, lang)} · {displayText(selected.reporter_mobile, lang)}</p>
+                  <p><bdi>{friendlyName(selected.reporter_name, lang)}</bdi> · <bdi>{displayText(selected.reporter_mobile, lang)}</bdi></p>
                   <small>
                     {lang === "ar" ? "مسؤول الشكوى: " : "Complaint owner: "}
                     {!isMissingValue(selected.assigned_agent_name)
-                      ? friendlyName(selected.assigned_agent_name, lang)
+                      ? <bdi>{friendlyName(selected.assigned_agent_name, lang)}</bdi>
                       : lang === "ar"
                         ? "لم يتم تعيين موظف دعم"
                         : "No support agent assigned"}
