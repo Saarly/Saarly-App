@@ -23,6 +23,7 @@ type AuthUserForAdmin = {
   phone?: string | null;
   app_metadata?: Record<string, unknown>;
   user_metadata?: Record<string, unknown>;
+  deleted_at?: string | null;
 };
 
 const adminReportDefinitions = [
@@ -1864,18 +1865,50 @@ async function findAuthUserByEmail(
   service: ServiceClient,
   email: string,
 ): Promise<AuthUserForAdmin | null> {
-  const perPage = 1000;
-  for (let page = 1; page <= 20; page += 1) {
-    const { data, error } = await service.auth.admin.listUsers({ page, perPage });
-    if (error) throw new Error(error.message);
+  const normalizedEmail = email.trim().toLowerCase();
 
-    const match = data.users.find(
-      (user: AuthUserForAdmin) => String(user.email ?? "").trim().toLowerCase() === email,
-    );
-    if (match) return match as AuthUserForAdmin;
-    if (data.users.length < perPage) return null;
+  // Never use GoTrue listUsers here. Legacy/test Auth rows can make that
+  // endpoint fail while an exact database lookup remains safe and reliable.
+  const { data: directLookup, error: directLookupError } = await service.rpc(
+    "admin_auth_user_lookup_by_email_as",
+    { p_email: normalizedEmail },
+  );
+
+  if (directLookupError) {
+    const message = String(directLookupError.message ?? "").toLowerCase();
+    const functionMissing =
+      message.includes("admin_auth_user_lookup_by_email_as") ||
+      message.includes("pgrst202") ||
+      message.includes("schema cache");
+
+    if (functionMissing) {
+      throw new Error("staff_auth_lookup_not_ready");
+    }
+    throw new Error(directLookupError.message);
   }
-  throw new Error("auth_user_lookup_limit_reached");
+
+  if (!directLookup || typeof directLookup !== "object") {
+    return null;
+  }
+
+  const row = directLookup as Record<string, unknown>;
+  const id = String(row.id ?? "").trim();
+  if (!id) return null;
+
+  return {
+    id,
+    email: typeof row.email === "string" ? row.email : null,
+    phone: typeof row.phone === "string" ? row.phone : null,
+    app_metadata:
+      row.app_metadata && typeof row.app_metadata === "object"
+        ? (row.app_metadata as Record<string, unknown>)
+        : {},
+    user_metadata:
+      row.user_metadata && typeof row.user_metadata === "object"
+        ? (row.user_metadata as Record<string, unknown>)
+        : {},
+    deleted_at: typeof row.deleted_at === "string" ? row.deleted_at : null,
+  };
 }
 
 function staffCreationConflict(message: string) {
@@ -1977,7 +2010,6 @@ async function createAdminStaff(
       {
         password,
         email_confirm: true,
-        ban_duration: "none",
         user_metadata: { ...(authUser.user_metadata ?? {}), full_name: fullName },
         app_metadata: { ...(authUser.app_metadata ?? {}), role: internalRole },
       },
@@ -1998,10 +2030,67 @@ async function createAdminStaff(
         app_metadata: { role: internalRole },
       });
     if (authError || !authData.user) {
-      throw new Error(staffCreationConflict(authError?.message ?? "auth_user_not_created"));
+      const conflict = staffCreationConflict(
+        authError?.message ?? "auth_user_not_created",
+      );
+
+      // A hidden/orphan Auth record can make createUser return email_exists
+      // even after the previous lookup. Resolve it once more and repair it.
+      if (conflict === "staff_email_already_exists") {
+        const existingAuthUser = await findAuthUserByEmail(service, email);
+        if (existingAuthUser) {
+          const { data: publicById, error: publicByIdError } = await service
+            .from("users")
+            .select("id, role, primary_email")
+            .eq("id", existingAuthUser.id)
+            .maybeSingle();
+          if (publicByIdError) throw new Error(publicByIdError.message);
+
+          if (publicById) {
+            const { data: existingStaff, error: existingStaffError } =
+              await service
+                .from("admin_staff_profiles")
+                .select("user_id")
+                .eq("user_id", existingAuthUser.id)
+                .maybeSingle();
+            if (existingStaffError) throw new Error(existingStaffError.message);
+            if (
+              existingStaff ||
+              ["admin", "support_agent"].includes(
+                String(publicById.role ?? ""),
+              )
+            ) {
+              throw new Error("staff_email_already_exists");
+            }
+            throw new Error("email_belongs_to_existing_account");
+          }
+
+          const { error: authRepairError } =
+            await service.auth.admin.updateUserById(existingAuthUser.id, {
+              password,
+              email_confirm: true,
+              user_metadata: {
+                ...(existingAuthUser.user_metadata ?? {}),
+                full_name: fullName,
+              },
+              app_metadata: {
+                ...(existingAuthUser.app_metadata ?? {}),
+                role: internalRole,
+              },
+            });
+          if (authRepairError) throw new Error(authRepairError.message);
+          userId = existingAuthUser.id;
+          repairedOrphanAuthUser = true;
+        } else {
+          throw new Error(conflict);
+        }
+      } else {
+        throw new Error(conflict);
+      }
+    } else {
+      userId = authData.user.id;
+      createdAuthUser = true;
     }
-    userId = authData.user.id;
-    createdAuthUser = true;
   }
 
   try {
