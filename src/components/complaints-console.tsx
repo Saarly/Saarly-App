@@ -67,7 +67,7 @@ export function ComplaintsConsole({
   profile,
 }: {
   lang: Lang;
-  profile: AdminProfile;
+  profile?: AdminProfile;
 }) {
   const [data, setData] = useState<ComplaintPayload>({
     complaints: [],
@@ -86,7 +86,7 @@ export function ComplaintsConsole({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const canChooseAgent = profile.role === "admin" && data.agents.length > 0;
+  const canChooseAgent = profile?.role === "admin" && data.agents.length > 0;
 
   async function accessToken() {
     const { data: session } = await supabase.auth.getSession();

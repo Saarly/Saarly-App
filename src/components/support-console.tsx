@@ -123,7 +123,7 @@ const emptyComplaint: ComplaintDraft = {
   orderId: "",
 };
 
-export function SupportConsole({ lang, profile }: { lang: Lang; profile: AdminProfile }) {
+export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminProfile }) {
   const [payload, setPayload] = useState<SupportPayload>({
     conversations: [],
     labels: [],
@@ -442,7 +442,7 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile: AdminPr
                     <UserRoundCheck size={15} />
                     {t("assignToMe", lang)}
                   </button>
-                  {profile.role === "admin" && payload.agents.length > 0 ? (
+                  {profile?.role === "admin" && payload.agents.length > 0 ? (
                     <select
                       className="tiny-select"
                       value={selected.assigned_support_agent_id ?? ""}
