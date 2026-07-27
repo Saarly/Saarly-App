@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
-const [actionRoute, sections, dataSection, supportConsole, complaintsConsole, monetizationConsole, notificationBroadcast, formatSource] = await Promise.all([
+const [actionRoute, sections, dataSection, supportConsole, complaintsConsole, monetizationConsole, notificationBroadcast, formatSource, globalsCss, monetizationRoute] = await Promise.all([
   read("../src/app/api/admin/action/route.ts"),
   read("../src/lib/admin/sections.ts"),
   read("../src/components/data-section.tsx"),
@@ -12,6 +12,8 @@ const [actionRoute, sections, dataSection, supportConsole, complaintsConsole, mo
   read("../src/components/monetization-console.tsx"),
   read("../src/components/notification-broadcast.tsx"),
   read("../src/lib/admin/format.ts"),
+  read("../src/app/globals.css"),
+  read("../src/app/api/admin/monetization/route.ts"),
 ]);
 
 test("merchant and branch decisions do not require a duplicate document-approval workflow", () => {
@@ -80,4 +82,40 @@ test("ads include a real ongoing option", () => {
 test("merchant billing method can be changed from the founders tab", () => {
   assert.match(monetizationConsole, /adjustBillingPreference/);
   assert.match(monetizationConsole, /field:\s*["']billing_preference["']/);
+});
+
+
+test("saved approval decisions are not reported as action_failed when notification dispatch fails", () => {
+  assert.match(actionRoute, /Merchant decision event failed after the review was saved/);
+  assert.match(actionRoute, /Branch decision event failed after the review was saved/);
+  assert.match(actionRoute, /warnings:\s*eventWarnings/);
+});
+
+test("support label editor auto-sizes instead of filling the conversation card", () => {
+  assert.match(globalsCss, /\.chat-card\s*\{[\s\S]*?grid-template-rows:\s*auto auto minmax\(0,\s*1fr\) auto/);
+  assert.match(globalsCss, /\.conversation-label-editor\s*\{[\s\S]*?height:\s*auto/);
+});
+
+test("an ongoing ad can be converted back to a timed ad", () => {
+  assert.match(dataSection, /defaultAdSchedule\(\)/);
+  assert.match(dataSection, /ad_saved_starts_at/);
+  assert.match(dataSection, /ad_saved_ends_at/);
+  assert.match(dataSection, /ad_end_must_be_after_start/);
+});
+
+test("founder counting can be paused and commission settings are configurable", () => {
+  assert.doesNotMatch(monetizationRoute, /founder_counting_cannot_be_disabled_after_start/);
+  assert.match(monetizationRoute, /admin_configure_commissions_as/);
+  assert.match(monetizationRoute, /configure_commissions/);
+  assert.match(monetizationConsole, /commissionDraft/);
+  assert.match(monetizationConsole, /category_rates/);
+});
+
+test("merchant billing uses a controlled selector instead of raw enum text", () => {
+  assert.match(monetizationConsole, /billing-method-modal/);
+  assert.match(monetizationConsole, /<select/);
+  assert.match(monetizationConsole, /value="commission"/);
+  assert.match(monetizationConsole, /value="monthly_subscription"/);
+  const billingHandler = monetizationConsole.match(/function adjustBillingPreference[\s\S]*?function saveBillingPreference/)?.[0] ?? "";
+  assert.doesNotMatch(billingHandler, /window\.prompt|prompt\(/);
 });

@@ -2817,16 +2817,30 @@ export async function POST(req: NextRequest) {
     if (error) return jsonError(adminDbActionErrorMessage(error), 400);
 
     const updated = (data ?? before ?? {}) as AnyRow;
-    const decisionResult = await dispatchMerchantDecisionEvents(service, {
-      merchantId: targetId,
-      approved,
-      reason: String(updated.rejection_reason ?? reason ?? ""),
-      decidedAt: now,
-    });
-    if (decisionResult.warnings.length > 0) {
-      console.warn("Merchant decision event warnings:", decisionResult.warnings);
+    const eventWarnings: string[] = [];
+    try {
+      const decisionResult = await dispatchMerchantDecisionEvents(service, {
+        merchantId: targetId,
+        approved,
+        reason: String(updated.rejection_reason ?? reason ?? ""),
+        decidedAt: now,
+      });
+      eventWarnings.push(...decisionResult.warnings);
+    } catch (eventError) {
+      const warning =
+        eventError instanceof Error
+          ? eventError.message
+          : "merchant_decision_event_failed";
+      eventWarnings.push(warning);
+      console.error(
+        "Merchant decision event failed after the review was saved:",
+        eventError,
+      );
     }
-    return NextResponse.json({ data: updated });
+    if (eventWarnings.length > 0) {
+      console.warn("Merchant decision event warnings:", eventWarnings);
+    }
+    return NextResponse.json({ data: updated, warnings: eventWarnings });
   }
 
   if (action === "approve_branch" || action === "reject_branch") {
@@ -2841,16 +2855,30 @@ export async function POST(req: NextRequest) {
     if (error) return jsonError(adminDbActionErrorMessage(error), 400);
 
     const updated = (data ?? before ?? {}) as AnyRow;
-    const decisionResult = await dispatchBranchDecisionEvents(service, {
-      branchId: targetId,
-      approved,
-      reason: String(updated.rejection_reason ?? reason ?? ""),
-      decidedAt: now,
-    });
-    if (decisionResult.warnings.length > 0) {
-      console.warn("Branch decision event warnings:", decisionResult.warnings);
+    const eventWarnings: string[] = [];
+    try {
+      const decisionResult = await dispatchBranchDecisionEvents(service, {
+        branchId: targetId,
+        approved,
+        reason: String(updated.rejection_reason ?? reason ?? ""),
+        decidedAt: now,
+      });
+      eventWarnings.push(...decisionResult.warnings);
+    } catch (eventError) {
+      const warning =
+        eventError instanceof Error
+          ? eventError.message
+          : "branch_decision_event_failed";
+      eventWarnings.push(warning);
+      console.error(
+        "Branch decision event failed after the review was saved:",
+        eventError,
+      );
     }
-    return NextResponse.json({ data: updated });
+    if (eventWarnings.length > 0) {
+      console.warn("Branch decision event warnings:", eventWarnings);
+    }
+    return NextResponse.json({ data: updated, warnings: eventWarnings });
   }
 
   const { data, error } = await service

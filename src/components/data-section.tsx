@@ -293,7 +293,12 @@ export function DataSection({
       nextValues.target_country_ar = nextValues.target_country_ar || "";
       nextValues.target_governorate_ar = nextValues.target_governorate_ar || "";
       nextValues.target_city_ar = nextValues.target_city_ar || "";
-      nextValues.ad_ongoing = row === "new" ? true : !Boolean(row.starts_at || row.ends_at);
+      nextValues.ad_ongoing =
+        row === "new" ? true : !Boolean(row.starts_at || row.ends_at);
+      nextValues.ad_saved_starts_at =
+        row === "new" ? "" : String(nextValues.starts_at ?? "");
+      nextValues.ad_saved_ends_at =
+        row === "new" ? "" : String(nextValues.ends_at ?? "");
       if (nextValues.ad_ongoing) {
         nextValues.starts_at = "";
         nextValues.ends_at = "";
@@ -475,9 +480,26 @@ export function DataSection({
         values.parent_id = values.parent_id || null;
       }
 
-      if (section.id === "ads" && Boolean(formValues.ad_ongoing)) {
-        values.starts_at = null;
-        values.ends_at = null;
+      if (section.id === "ads") {
+        if (Boolean(formValues.ad_ongoing)) {
+          values.starts_at = null;
+          values.ends_at = null;
+        } else {
+          const suggested = defaultAdSchedule();
+          const startsAt = String(formValues.starts_at ?? "").trim() || suggested.startsAt;
+          const endsAt = String(formValues.ends_at ?? "").trim() || suggested.endsAt;
+          const startsDate = new Date(startsAt);
+          const endsDate = new Date(endsAt);
+          if (
+            Number.isNaN(startsDate.getTime()) ||
+            Number.isNaN(endsDate.getTime()) ||
+            endsDate.getTime() <= startsDate.getTime()
+          ) {
+            throw new Error("ad_end_must_be_after_start");
+          }
+          values.starts_at = startsDate.toISOString();
+          values.ends_at = endsDate.toISOString();
+        }
       }
 
       if (section.id === "cities") {
@@ -1051,12 +1073,34 @@ export function DataSection({
                         type="checkbox"
                         checked={Boolean(formValues.ad_ongoing)}
                         onChange={(event) =>
-                          setFormValues((current) => ({
-                            ...current,
-                            ad_ongoing: event.target.checked,
-                            starts_at: event.target.checked ? "" : current.starts_at,
-                            ends_at: event.target.checked ? "" : current.ends_at,
-                          }))
+                          setFormValues((current) => {
+                            const ongoing = event.target.checked;
+                            if (ongoing) {
+                              return {
+                                ...current,
+                                ad_ongoing: true,
+                                ad_saved_starts_at:
+                                  String(current.starts_at ?? "") ||
+                                  String(current.ad_saved_starts_at ?? ""),
+                                ad_saved_ends_at:
+                                  String(current.ends_at ?? "") ||
+                                  String(current.ad_saved_ends_at ?? ""),
+                                starts_at: "",
+                                ends_at: "",
+                              };
+                            }
+                            const suggested = defaultAdSchedule();
+                            return {
+                              ...current,
+                              ad_ongoing: false,
+                              starts_at:
+                                String(current.ad_saved_starts_at ?? "") ||
+                                suggested.startsAt,
+                              ends_at:
+                                String(current.ad_saved_ends_at ?? "") ||
+                                suggested.endsAt,
+                            };
+                          })
                         }
                       />
                     </label>
@@ -1388,6 +1432,17 @@ function toDateTimeLocal(value: unknown) {
   }
   const pad = (part: number) => String(part).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function defaultAdSchedule() {
+  const starts = new Date();
+  starts.setSeconds(0, 0);
+  const ends = new Date(starts);
+  ends.setDate(ends.getDate() + 30);
+  return {
+    startsAt: toDateTimeLocal(starts.toISOString()),
+    endsAt: toDateTimeLocal(ends.toISOString()),
+  };
 }
 
 function coerceEditableFormValue(field: string, value: string | boolean) {

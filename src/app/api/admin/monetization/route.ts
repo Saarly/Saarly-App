@@ -287,7 +287,9 @@ async function loadMonetizationData(service: SupabaseClient, from: string | null
     expirationEventsResult,
     emailEventsResult,
     badgesResult,
-    auditResult
+    auditResult,
+    commissionSettingsResult,
+    categoriesResult
   ] = await Promise.all([
     rows(service, "feature_flags", { orderBy: "key", ascending: true, limit: 200 }),
     rows(service, "payment_settings", { orderBy: "provider", ascending: true, limit: 50 }),
@@ -311,7 +313,9 @@ async function loadMonetizationData(service: SupabaseClient, from: string | null
     rows(service, "billing_expiration_events", { orderBy: "created_at", limit: 300 }),
     rows(service, "admin_email_events", { orderBy: "created_at", limit: 500 }),
     rows(service, "merchant_badges", { orderBy: "created_at", limit: 300 }),
-    rows(service, "audit_logs", { orderBy: "created_at", limit: 120 })
+    rows(service, "audit_logs", { orderBy: "created_at", limit: 120 }),
+    rows(service, "commission_settings", { orderBy: "updated_at", limit: 1 }),
+    rows(service, "categories", { orderBy: "display_order", ascending: true, limit: 500 })
   ]);
 
   const warnings = [
@@ -337,7 +341,9 @@ async function loadMonetizationData(service: SupabaseClient, from: string | null
     expirationEventsResult.warning,
     emailEventsResult.warning,
     badgesResult.warning,
-    auditResult.warning
+    auditResult.warning,
+    commissionSettingsResult.warning,
+    categoriesResult.warning
   ].filter(Boolean);
 
   const merchants = byId(merchantsResult.data);
@@ -465,7 +471,9 @@ async function loadMonetizationData(service: SupabaseClient, from: string | null
     reminderSettings: reminderSettingsResult.data,
     expirationEvents,
     badges: badgesResult.data,
-    audit: auditResult.data
+    audit: auditResult.data,
+    commissionSettings: commissionSettingsResult.data[0] ?? null,
+    categories: categoriesResult.data.filter((category) => category.is_active !== false)
   };
 }
 
@@ -510,16 +518,35 @@ async function setFlag(service: SupabaseClient, actor: AdminActor, key: string, 
   if (!editableFlags.has(key)) throw new Error("feature_flag_not_allowed");
   const beforeResult = await service.from("feature_flags").select("*").eq("key", key).maybeSingle();
   const before = (beforeResult.data ?? null) as Row | null;
-  if (key === "founder_counting_started" && before?.is_enabled === true && !enabled) {
-    throw new Error("founder_counting_cannot_be_disabled_after_start");
-  }
   const labels = flagLabels[key];
-  const nextConfiguration =
-    key === "founder_counting_started" && before?.is_enabled === true
-      ? isRecord(before?.configuration)
-        ? before.configuration
-        : {}
-      : configuration ?? (isRecord(before?.configuration) ? before?.configuration : {});
+  const previousConfiguration = isRecord(before?.configuration)
+    ? before.configuration
+    : {};
+  const requestedConfiguration = configuration ?? {};
+  const nextConfiguration: Row = {
+    ...previousConfiguration,
+    ...requestedConfiguration,
+  };
+  if (key === "founder_counting_started") {
+    nextConfiguration.founder_limit = Math.max(
+      1,
+      intValue(
+        requestedConfiguration.founder_limit ??
+          previousConfiguration.founder_limit,
+        100,
+      ),
+    );
+    nextConfiguration.started_at =
+      previousConfiguration.started_at ??
+      requestedConfiguration.started_at ??
+      new Date().toISOString();
+    if (enabled) {
+      nextConfiguration.resumed_at = new Date().toISOString();
+      delete nextConfiguration.paused_at;
+    } else {
+      nextConfiguration.paused_at = new Date().toISOString();
+    }
+  }
 
   const { data, error } = await service
     .from("feature_flags")
@@ -540,6 +567,45 @@ async function setFlag(service: SupabaseClient, actor: AdminActor, key: string, 
 
   if (error) throw error;
   await writeAudit(service, actor.id, "set_feature_flag", "feature_flags", key, before, data as Row);
+  return data;
+}
+
+async function configureCommissions(
+  service: SupabaseClient,
+  actor: AdminActor,
+  payload: Row,
+) {
+  const globalRate = numberValue(payload.global_rate, -1);
+  if (globalRate < 0 || globalRate > 100) {
+    throw new Error("global_rate_must_be_between_0_and_100");
+  }
+
+  const rawRates = isRecord(payload.category_rates)
+    ? payload.category_rates
+    : {};
+  const categoryRates: Row = {};
+  for (const [categoryId, rawValue] of Object.entries(rawRates)) {
+    if (!id(categoryId)) continue;
+    if (rawValue === "" || rawValue === null || rawValue === undefined) {
+      continue;
+    }
+    const rate = numberValue(rawValue, -1);
+    if (rate < 0 || rate > 100) {
+      throw new Error("category_rates_must_be_numbers_between_0_and_100");
+    }
+    categoryRates[categoryId] = rate;
+  }
+
+  const { data, error } = await service.rpc(
+    "admin_configure_commissions_as",
+    {
+      p_actor_id: actor.id,
+      p_is_enabled: boolValue(payload.is_enabled, false),
+      p_global_rate: globalRate,
+      p_category_rates: categoryRates,
+    },
+  );
+  if (error) throw error;
   return data;
 }
 
@@ -1225,6 +1291,9 @@ async function handleAction(service: SupabaseClient, actor: AdminActor, body: Ro
   if (action === "set_feature_flag") {
     const key = text(payload.key);
     return setFlag(service, actor, key, boolValue(payload.enabled, false), isRecord(payload.configuration) ? payload.configuration : null);
+  }
+  if (action === "configure_commissions") {
+    return configureCommissions(service, actor, payload);
   }
   if (action === "save_payment_modes") {
     const manual = await setFlag(service, actor, "manual_payments_enabled", boolValue(payload.manual_enabled, false), null);

@@ -2355,3 +2355,88 @@ button:not(:disabled):active {
 .status-pill.danger{background:color-mix(in srgb,#ef4444 13%,var(--panel));color:#dc2626;border-color:color-mix(in srgb,#ef4444 28%,var(--border))}.tiny-button.success{color:var(--green);border-color:color-mix(in srgb,var(--green) 35%,var(--border))}
 @media(max-width:1150px){.complaints-toolbar{grid-template-columns:1fr 1fr}.complaint-summary-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.complaints-toolbar{grid-template-columns:1fr}.complaint-thread-head{flex-direction:column}.complaint-thread-head .row-actions{justify-content:flex-start}.complaint-summary-grid{grid-template-columns:1fr}.ongoing-ad-option{align-items:flex-start}}
+
+/* V4: keep the support label editor only slightly taller than its wrapped chips. */
+.chat-card {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.conversation-label-editor {
+  align-self: start;
+  min-height: 0;
+  height: auto;
+  padding-block: 10px;
+  margin-block: 8px;
+}
+
+/* V4 monetization controls */
+.commission-settings-panel {
+  grid-column: 1 / -1;
+}
+
+.commission-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px);
+  gap: 12px;
+  margin-block: 14px;
+}
+
+.percentage-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.percentage-input > span {
+  min-width: 32px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--green-dark, var(--green));
+}
+
+.category-rate-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-block: 14px 18px;
+}
+
+.category-rate-list > strong {
+  grid-column: 1 / -1;
+}
+
+.category-rate-list > label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-soft);
+  padding: 10px 12px;
+}
+
+.compact-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.billing-method-modal {
+  width: min(560px, 100%);
+}
+
+.billing-method-modal > label {
+  display: grid;
+  gap: 7px;
+}
+
+@media (max-width: 640px) {
+  .category-rate-list {
+    grid-template-columns: 1fr;
+  }
+  .category-rate-list > label {
+    grid-template-columns: 1fr;
+  }
+}

@@ -27,6 +27,24 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (!raw) return "";
 
+  if (message.includes("ad_end_must_be_after_start")) {
+    return lang === "ar"
+      ? "تاريخ انتهاء الإعلان لازم يكون بعد تاريخ البداية."
+      : "The ad end date must be after the start date.";
+  }
+
+  if (message.includes("global_rate_must_be_between_0_and_100")) {
+    return lang === "ar"
+      ? "نسبة العمولة العامة لازم تكون بين 0 و100."
+      : "The global commission rate must be between 0 and 100.";
+  }
+
+  if (message.includes("category_rates_must_be_numbers_between_0_and_100")) {
+    return lang === "ar"
+      ? "نسب الأقسام لازم تكون أرقامًا بين 0 و100."
+      : "Category commission rates must be numbers between 0 and 100.";
+  }
+
   if (message.includes("country_required")) {
     return lang === "ar" ? "أدخل اسم الدولة أولاً." : "Enter the country name first.";
   }

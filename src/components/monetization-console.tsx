@@ -49,6 +49,8 @@ type MonetizationData = {
   expirationEvents: Row[];
   badges: Row[];
   audit: Row[];
+  commissionSettings: Row | null;
+  categories: Row[];
 };
 
 type DraftPlan = {
@@ -115,6 +117,18 @@ type DraftGateway = {
   supported_methods: string;
   is_direct_to_merchant_supported: boolean;
   is_enabled: boolean;
+};
+
+type DraftCommission = {
+  is_enabled: boolean;
+  global_rate: string;
+  category_rates: Record<string, string>;
+};
+
+type BillingEditorState = {
+  merchant: Row;
+  value: "commission" | "monthly_subscription";
+  reason: string;
 };
 
 type FilePreview = {
@@ -198,6 +212,12 @@ const emptyGateway: DraftGateway = {
   supported_methods: "",
   is_direct_to_merchant_supported: false,
   is_enabled: false
+};
+
+const emptyCommission: DraftCommission = {
+  is_enabled: false,
+  global_rate: "0",
+  category_rates: {},
 };
 
 const featureFlagLabels: Record<string, { ar: string; en: string; hintAr: string; hintEn: string }> = {
@@ -666,6 +686,10 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
   const [discountDraft, setDiscountDraft] = useState<DraftDiscount>(emptyDiscount);
   const [methodDraft, setMethodDraft] = useState<DraftMethod>(emptyMethod);
   const [gatewayDraft, setGatewayDraft] = useState<DraftGateway>(emptyGateway);
+  const [commissionDraft, setCommissionDraft] =
+    useState<DraftCommission>(emptyCommission);
+  const [billingEditor, setBillingEditor] =
+    useState<BillingEditorState | null>(null);
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
   const [documentPreviewMerchantId, setDocumentPreviewMerchantId] = useState<string | null>(null);
 
@@ -693,6 +717,23 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
       const payload = (await response.json().catch(() => ({}))) as { data?: MonetizationData; error?: string };
       if (!response.ok || !payload.data) throw new Error(payload.error ?? "load_failed");
       setData(payload.data);
+      const settings = payload.data.commissionSettings;
+      const rawCategoryRates =
+        settings?.category_rates &&
+        typeof settings.category_rates === "object" &&
+        !Array.isArray(settings.category_rates)
+          ? (settings.category_rates as Record<string, unknown>)
+          : {};
+      setCommissionDraft({
+        is_enabled: Boolean(settings?.is_enabled),
+        global_rate: String(settings?.global_rate ?? "0"),
+        category_rates: Object.fromEntries(
+          Object.entries(rawCategoryRates).map(([key, value]) => [
+            key,
+            String(value ?? ""),
+          ]),
+        ),
+      });
     } catch (loadError) {
       setError(humanizeAdminError(loadError, lang) || l.loadError);
     } finally {
@@ -700,7 +741,11 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
     }
   }
 
-  async function post(action: string, payload: Row, successMessage = l.done) {
+  async function post(
+    action: string,
+    payload: Row,
+    successMessage = l.done,
+  ): Promise<boolean> {
     setBusy(action);
     setError(null);
     setMessage(null);
@@ -718,8 +763,10 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
       if (!response.ok) throw new Error(result.error ?? "action_failed");
       setMessage(successMessage);
       await load();
+      return true;
     } catch (actionError) {
       setError(humanizeAdminError(actionError, lang));
+      return false;
     } finally {
       setBusy(null);
     }
@@ -898,6 +945,100 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           {tab === "commissions" ? renderCommissions() : null}
           {tab === "emails" ? renderEmailsAndReports() : null}
         </>
+      ) : null}
+      {billingEditor ? (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setBillingEditor(null)}
+        >
+          <div
+            className="modal-card billing-method-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="panel-title-row">
+              <div>
+                <h2>
+                  {lang === "ar"
+                    ? "تعديل طريقة المحاسبة"
+                    : "Change billing method"}
+                </h2>
+                <p>{asString(billingEditor.merchant.store_name)}</p>
+              </div>
+              <button
+                className="icon-only"
+                onClick={() => setBillingEditor(null)}
+                aria-label={lang === "ar" ? "إغلاق" : "Close"}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              {lang === "ar" ? "نظام المحاسبة" : "Billing model"}
+              <select
+                value={billingEditor.value}
+                onChange={(event) =>
+                  setBillingEditor((current) =>
+                    current
+                      ? {
+                          ...current,
+                          value: event.target.value as
+                            | "commission"
+                            | "monthly_subscription",
+                        }
+                      : current,
+                  )
+                }
+              >
+                <option value="commission">
+                  {lang === "ar"
+                    ? "عمولة على كل عملية بيع"
+                    : "Commission per sale"}
+                </option>
+                <option value="monthly_subscription">
+                  {lang === "ar"
+                    ? "اشتراك شهري"
+                    : "Monthly subscription"}
+                </option>
+              </select>
+            </label>
+            <label>
+              {lang === "ar" ? "سبب التعديل" : "Reason for change"}
+              <textarea
+                value={billingEditor.reason}
+                onChange={(event) =>
+                  setBillingEditor((current) =>
+                    current
+                      ? { ...current, reason: event.target.value }
+                      : current,
+                  )
+                }
+                placeholder={
+                  lang === "ar"
+                    ? "اكتب سببًا واضحًا يظهر في سجل الإدارة"
+                    : "Enter a clear reason for the audit log"
+                }
+              />
+            </label>
+            <div className="modal-actions">
+              <button
+                className="ghost-button"
+                onClick={() => setBillingEditor(null)}
+              >
+                {lang === "ar" ? "إلغاء" : "Cancel"}
+              </button>
+              <button
+                className="primary-button"
+                disabled={busy === "update_merchant"}
+                onClick={() => void saveBillingPreference()}
+              >
+                <Save size={17} />
+                {lang === "ar" ? "حفظ" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
       {filePreview ? <FilePreviewModal lang={lang} preview={filePreview} onClose={() => setFilePreview(null)} /> : null}
       {documentPreview ? (
@@ -1279,8 +1420,8 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
         <TabGuide
           lang={lang}
           title={lang === "ar" ? "المؤسسين والمتاجر" : "Founders and store controls"}
-          ar="هنا بتبدأ عد أول مئة متجر مرة واحدة، وبتحدد حسابات الاختبار، وتعدل فترة السماح أو طريقة المحاسبة لأي متجر بسبب واضح."
-          en="Start the first 100 store count once, mark test accounts, and adjust trial or billing settings with a clear reason."
+          ar="من هنا تشغل أو توقف عد المؤسسين، وتحدد حسابات الاختبار، وتختار طريقة المحاسبة لكل متجر، وتتابع الفترة التجريبية والشارات. تحويل متجر إلى حساب اختبار يزيل رقم المؤسس ويعيد ترتيب أرقام المؤسسين تلقائيًا."
+          en="Start or pause founder counting, mark test accounts, choose each store's billing method, and manage trials and badges. Marking a store as a test account removes its founder number and automatically closes numbering gaps."
           icon={<Sparkles size={20} />}
         />
         <div className="panel-title-row">
@@ -1289,12 +1430,28 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
             <p>{lang === "ar" ? "تعديل أي حالة حساسة يحتاج سببًا واضحًا، وكل حركة تظهر في سجل الإدارة." : "Sensitive changes require a reason and are audit logged."}</p>
           </div>
           <button
-            className="primary-button compact"
-            disabled={flagEnabled("founder_counting_started")}
-            onClick={() => void post("set_feature_flag", { key: "founder_counting_started", enabled: true, configuration: { started_at: new Date().toISOString(), founder_limit: 100 } })}
+            className={
+              flagEnabled("founder_counting_started")
+                ? "soft-button compact danger"
+                : "primary-button compact"
+            }
+            disabled={busy === "set_feature_flag"}
+            onClick={() =>
+              void post("set_feature_flag", {
+                key: "founder_counting_started",
+                enabled: !flagEnabled("founder_counting_started"),
+                configuration: {
+                  founder_limit: 100,
+                },
+              })
+            }
           >
             <Sparkles size={17} />
-            {l.startFounder}
+            {flagEnabled("founder_counting_started")
+              ? lang === "ar"
+                ? "إيقاف عد المؤسسين"
+                : "Pause founder counting"
+              : l.startFounder}
           </button>
         </div>
         <DataTable
@@ -1404,8 +1561,127 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           en="Review Saarly commission on orders and manually settle paid dues. The system prevents double settlement."
           icon={<Flag size={20} />}
         />
+        <article className="content-panel inner-panel commission-settings-panel">
+          <div className="panel-title-row">
+            <div>
+              <h2>
+                {lang === "ar"
+                  ? "إعداد نسبة العمولة"
+                  : "Commission rate settings"}
+              </h2>
+              <p>
+                {lang === "ar"
+                  ? "النسبة العامة تطبق على كل طلب مؤكد لمتجر مختار نظام العمولة فقط. تقدر تضع نسبة مختلفة لقسم محدد، والتعديل يطبق على الطلبات الجديدة فقط."
+                  : "The global rate applies to every newly confirmed order only for stores using commission billing. You can override it per category; changes affect new orders only."}
+              </p>
+            </div>
+            <label className="checkbox-field compact-check">
+              <input
+                type="checkbox"
+                checked={commissionDraft.is_enabled}
+                onChange={(event) =>
+                  setCommissionDraft((current) => ({
+                    ...current,
+                    is_enabled: event.target.checked,
+                  }))
+                }
+              />
+              <span>
+                {lang === "ar"
+                  ? "تشغيل حساب العمولة"
+                  : "Enable commission calculation"}
+              </span>
+            </label>
+          </div>
+
+          <div className="commission-settings-grid">
+            <label>
+              {lang === "ar"
+                ? "النسبة العامة لكل عملية بيع"
+                : "Global rate per sale"}
+              <div className="percentage-input">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={commissionDraft.global_rate}
+                  onChange={(event) =>
+                    setCommissionDraft((current) => ({
+                      ...current,
+                      global_rate: event.target.value,
+                    }))
+                  }
+                />
+                <span>%</span>
+              </div>
+            </label>
+          </div>
+
+          <div className="category-rate-list">
+            <strong>
+              {lang === "ar"
+                ? "نسب مختلفة حسب القسم — اختياري"
+                : "Category-specific rates — optional"}
+            </strong>
+            {(data?.categories ?? []).map((category) => {
+              const categoryId = asString(category.id);
+              const categoryName =
+                asString(
+                  lang === "ar" ? category.name_ar : category.name_en,
+                ) ||
+                asString(category.name_ar) ||
+                asString(category.name_en);
+              return (
+                <label key={categoryId}>
+                  <span>{categoryName}</span>
+                  <div className="percentage-input">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      placeholder={commissionDraft.global_rate || "0"}
+                      value={commissionDraft.category_rates[categoryId] ?? ""}
+                      onChange={(event) =>
+                        setCommissionDraft((current) => ({
+                          ...current,
+                          category_rates: {
+                            ...current.category_rates,
+                            [categoryId]: event.target.value,
+                          },
+                        }))
+                      }
+                    />
+                    <span>%</span>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
+          <button
+            className="primary-button"
+            disabled={busy === "configure_commissions"}
+            onClick={() =>
+              void post(
+                "configure_commissions",
+                commissionDraft,
+                lang === "ar"
+                  ? "تم حفظ إعدادات العمولة."
+                  : "Commission settings saved.",
+              )
+            }
+          >
+            <Save size={17} />
+            {lang === "ar"
+              ? "حفظ نسبة العمولة"
+              : "Save commission rate"}
+          </button>
+        </article>
+
         <article className="content-panel inner-panel">
-          <h2>{lang === "ar" ? "العمولات" : "Commissions"}</h2>
+          <h2>{lang === "ar" ? "العمولات المسجلة" : "Recorded commissions"}</h2>
           <DataTable
             rows={filtered?.commissions ?? []}
             lang={lang}
@@ -1643,33 +1919,34 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
 
 
   function adjustBillingPreference(row: Row) {
-    const current = asString(row.billing_preference) || "commission";
-    const value = window.prompt(
-      lang === "ar"
-        ? "اكتب commission للعمولة أو monthly_subscription للاشتراك الشهري"
-        : "Enter commission or monthly_subscription",
-      current,
-    );
-    if (!value) return;
-    const normalized = value.trim();
-    if (!["commission", "monthly_subscription"].includes(normalized)) {
+    const current =
+      asString(row.billing_preference) === "monthly_subscription"
+        ? "monthly_subscription"
+        : "commission";
+    setBillingEditor({
+      merchant: row,
+      value: current,
+      reason: "",
+    });
+  }
+
+  async function saveBillingPreference() {
+    if (!billingEditor) return;
+    if (billingEditor.reason.trim().length < 3) {
       setError(
         lang === "ar"
-          ? "طريقة المحاسبة لازم تكون عمولة أو اشتراك شهري."
-          : "Billing must be commission or monthly subscription.",
+          ? "اكتب سببًا واضحًا لتغيير طريقة المحاسبة."
+          : "Enter a clear reason for changing the billing method.",
       );
       return;
     }
-    const reason = window.prompt(
-      lang === "ar" ? "اكتب سبب تغيير طريقة المحاسبة" : "Write the reason for changing billing",
-    );
-    if (!reason || reason.trim().length < 3) return;
-    void post("update_merchant", {
-      merchant_id: row.id,
+    const saved = await post("update_merchant", {
+      merchant_id: billingEditor.merchant.id,
       field: "billing_preference",
-      value: normalized,
-      reason: reason.trim(),
+      value: billingEditor.value,
+      reason: billingEditor.reason.trim(),
     });
+    if (saved) setBillingEditor(null);
   }
 
   function toggleFounderBadge(row: Row) {
