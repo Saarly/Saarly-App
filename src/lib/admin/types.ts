@@ -45,7 +45,7 @@ export type SectionConfig = {
     ar: string;
     en: string;
   };
-  mode: "dashboard" | "table" | "support" | "reports" | "settings" | "catalog" | "broadcast" | "staff" | "monetization";
+  mode: "dashboard" | "table" | "support" | "reports" | "settings" | "catalog" | "broadcast" | "staff" | "monetization" | "complaints";
   source?: string;
   sourceKind?: "view" | "table" | "rpc";
   orderBy?: string;

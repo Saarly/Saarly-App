@@ -367,7 +367,6 @@ const tabs = [
   { id: "plans", icon: Percent, ar: "الباقات والخصومات", en: "Plans and discounts" },
   { id: "methods", icon: ToggleLeft, ar: "طرق الدفع", en: "Payment setup" },
   { id: "founders", icon: Sparkles, ar: "المؤسسون والمتاجر", en: "Founders and stores" },
-  { id: "documents", icon: FileText, ar: "المستندات", en: "Documents" },
   { id: "commissions", icon: Flag, ar: "العمولات", en: "Commissions" },
   { id: "emails", icon: Mail, ar: "البريد والتقارير", en: "Emails and reports" }
 ] as const;
@@ -803,7 +802,6 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
     ["إيراد الاشتراكات", "Subscription revenue", filtered?.summary.subscriptionRevenue, "subscriptionRevenue"],
     ["عمولات غير مسددة", "Unpaid commissions", filtered?.summary.commissionsUnpaid, "commissionsUnpaid"],
     ["متاجر في السماح", "Grace stores", filtered?.summary.graceSubscriptions, "graceSubscriptions"],
-    ["مستندات معلقة", "Pending documents", filtered?.summary.pendingDocuments, "pendingDocuments"]
   ];
 
   if (loading && !data) {
@@ -897,7 +895,6 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           {tab === "plans" ? renderPlansAndDiscounts() : null}
           {tab === "methods" ? renderMethodsAndGateway() : null}
           {tab === "founders" ? renderFoundersAndMerchants() : null}
-          {tab === "documents" ? renderDocuments() : null}
           {tab === "commissions" ? renderCommissions() : null}
           {tab === "emails" ? renderEmailsAndReports() : null}
         </>
@@ -1308,22 +1305,30 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
             ["store_name", lang === "ar" ? "المتجر" : "Store"],
             ["merchant_email", lang === "ar" ? "البريد" : "Email"],
             ["billing_preference", lang === "ar" ? "طريقة المحاسبة" : "Billing"],
-            ["pricing_mode", lang === "ar" ? "طريقة التشغيل" : "Mode"],
             ["founder_number", lang === "ar" ? "رقم المؤسس" : "Founder #"],
             ["free_trial_ends_at", lang === "ar" ? "نهاية الفترة" : "Trial ends"],
-            ["is_test_account", lang === "ar" ? "اختبار" : "Test"]
+            ["founder_badge_enabled", lang === "ar" ? "شارة مؤسس" : "Founder badge"],
+            ["trusted_badge_enabled", lang === "ar" ? "شارة موثوق" : "Trusted badge"],
+            ["is_test_account", lang === "ar" ? "حساب اختبار" : "Test account"]
           ]}
           renderActions={(row) => (
             <>
-              <button className="tiny-button" onClick={() => updateMerchantPrompt(row, "is_test_account", !Boolean(row.is_test_account))}>
-                {Boolean(row.is_test_account) ? (lang === "ar" ? "إلغاء اختبار" : "Unset test") : (lang === "ar" ? "حساب اختبار" : "Set test")}
+              <button className="tiny-button" onClick={() => void post("set_merchant_badges", { merchant_id: row.id, is_test_account: !Boolean(row.is_test_account) })}>
+                {Boolean(row.is_test_account) ? (lang === "ar" ? "إلغاء الاختبار" : "Unset test") : (lang === "ar" ? "حساب اختبار" : "Set test")}
               </button>
-              <button className="tiny-button" onClick={() => updateMerchantPrompt(row, "free_trial_ends_at", window.prompt(lang === "ar" ? "اكتب تاريخ النهاية مثل 2026-08-01" : "End date, for example 2026-08-01", asString(row.free_trial_ends_at).slice(0, 10)) ?? "")}>
+              <button className="tiny-button" onClick={() => toggleFounderBadge(row)}>
+                <Sparkles size={15} />
+                {Boolean(row.founder_badge_enabled) ? (lang === "ar" ? "سحب شارة المؤسس" : "Remove founder badge") : (lang === "ar" ? "منح شارة المؤسس" : "Grant founder badge")}
+              </button>
+              <button className="tiny-button" onClick={() => toggleTrustedBadge(row)}>
+                <BadgeCheck size={15} />
+                {Boolean(row.trusted_badge_enabled) ? (lang === "ar" ? "سحب شارة موثوق" : "Remove trusted badge") : (lang === "ar" ? "منح شارة موثوق" : "Grant trusted badge")}
+              </button>
+              <button className="tiny-button" onClick={() => adjustTrial(row)}>
                 {lang === "ar" ? "تعديل الفترة" : "Adjust trial"}
               </button>
-              <button className="tiny-button" onClick={() => badgePrompt(row, "trusted_store", true)}>
-                <BadgeCheck size={15} />
-                {lang === "ar" ? "موثوق" : "Trusted"}
+              <button className="tiny-button danger" disabled={Boolean(row.free_trial_stopped_at)} onClick={() => stopTrial(row)}>
+                {lang === "ar" ? "إيقاف الفترة" : "Stop trial"}
               </button>
             </>
           )}
@@ -1633,16 +1638,36 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
     );
   }
 
-  function updateMerchantPrompt(row: Row, field: string, value: unknown) {
-    const reason = window.prompt(l.reasonPrompt);
-    if (!reason) return;
-    void post("update_merchant", { merchant_id: row.id, field, value, reason });
+  function toggleFounderBadge(row: Row) {
+    void post("set_merchant_badges", {
+      merchant_id: row.id,
+      founder_badge: !Boolean(row.founder_badge_enabled),
+    });
   }
 
-  function badgePrompt(row: Row, badgeType: string, active: boolean) {
-    const reason = window.prompt(l.reasonPrompt);
-    if (!reason) return;
-    void post("set_badge", { merchant_id: row.id, badge_type: badgeType, active, reason });
+  function toggleTrustedBadge(row: Row) {
+    const enabling = !Boolean(row.trusted_badge_enabled);
+    const reason = enabling
+      ? window.prompt(lang === "ar" ? "اكتب سبب منح شارة موثوق" : "Reason for granting the trusted badge")
+      : null;
+    if (enabling && (!reason || reason.trim().length < 3)) return;
+    void post("set_merchant_badges", { merchant_id: row.id, trusted_badge: enabling, reason });
+  }
+
+  function adjustTrial(row: Row) {
+    const value = window.prompt(
+      lang === "ar" ? "اكتب تاريخ نهاية الفترة بصيغة 2026-08-01" : "Enter the trial end date, for example 2026-08-01",
+      asString(row.free_trial_ends_at).slice(0, 10),
+    );
+    if (!value) return;
+    const reason = window.prompt(lang === "ar" ? "سبب تعديل الفترة (اختياري)" : "Reason for changing the trial (optional)") ?? "";
+    void post("set_merchant_trial", { merchant_id: row.id, trial_ends_at: value, stop_trial: false, reason });
+  }
+
+  function stopTrial(row: Row) {
+    const reason = window.prompt(lang === "ar" ? "اكتب سبب إيقاف الفترة التجريبية" : "Reason for stopping the trial");
+    if (!reason || reason.trim().length < 3) return;
+    void post("set_merchant_trial", { merchant_id: row.id, stop_trial: true, reason });
   }
 
   function settleOneCommission(row: Row) {
@@ -1658,7 +1683,6 @@ function rowsForTab(tab: string, data: MonetizationData) {
   if (tab === "plans") return [...data.plans, ...data.discounts];
   if (tab === "methods") return [...data.manualMethods, ...data.paymentSettings];
   if (tab === "founders") return data.merchants;
-  if (tab === "documents") return data.documents;
   if (tab === "commissions") return [...data.commissions, ...data.settlements];
   if (tab === "emails") return data.expirationEvents;
   return [data.summary];

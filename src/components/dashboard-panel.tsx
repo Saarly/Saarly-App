@@ -74,28 +74,28 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
       alerts.push(
         lang === "ar"
           ? `${format(pendingMerchantsCount)} متجراً بانتظار الموافقة.`
-          : `${format(pendingMerchantsCount)} متجراً بانتظار الموافقة.`
+          : `${format(pendingMerchantsCount)} stores are awaiting approval.`
       );
     }
     if (pendingBranchesCount > 0) {
       alerts.push(
         lang === "ar"
           ? `${format(pendingBranchesCount)} فرعاً بانتظار الموافقة.`
-          : `${format(pendingBranchesCount)} فرعاً بانتظار الموافقة.`
+          : `${format(pendingBranchesCount)} branches are awaiting approval.`
       );
     }
     if (awaitingOrdersCount > 0) {
       alerts.push(
         lang === "ar"
           ? `${format(awaitingOrdersCount)} طلباً بانتظار تأكيد المتجر.`
-          : `${format(awaitingOrdersCount)} طلباً بانتظار تأكيد المتجر.`
+          : `${format(awaitingOrdersCount)} orders are awaiting store confirmation.`
       );
     }
     if (openSupportChatsCount > 0) {
       alerts.push(
         lang === "ar"
           ? `${format(openSupportChatsCount)} محادثة دعم مفتوحة.`
-          : `${format(openSupportChatsCount)} محادثة دعم مفتوحة.`
+          : `${format(openSupportChatsCount)} support conversations are open.`
       );
     }
 
@@ -129,7 +129,7 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
         {metricKeys.map(([key, label]) => (
           <article className="metric-card" key={key}>
             <span>{label[lang]}</span>
-            <strong>{Number(row?.[key] ?? 0).toLocaleString("ar-EG")}</strong>
+            <strong>{Number(row?.[key] ?? 0).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}</strong>
           </article>
         ))}
       </div>
@@ -164,12 +164,14 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
           rows={pendingMerchants}
           primaryKey="store_name"
           secondaryKey="owner_name"
+          lang={lang}
         />
         <MiniList
           title={lang === "ar" ? "فروع بانتظار الموافقة" : "Branches awaiting approval"}
           rows={pendingBranches}
           primaryKey="branch_name"
           secondaryKey="store_name"
+          lang={lang}
         />
       </div>
     </section>
@@ -180,17 +182,19 @@ function MiniList({
   title,
   rows,
   primaryKey,
-  secondaryKey
+  secondaryKey,
+  lang
 }: {
   title: string;
   rows: DashboardRow[];
   primaryKey: string;
   secondaryKey: string;
+  lang: Lang;
 }) {
   return (
     <article className="ops-card">
       <h2>{title}</h2>
-      {rows.length === 0 ? <p className="muted">لا توجد عناصر تحتاج مراجعة</p> : null}
+      {rows.length === 0 ? <p className="muted">{lang === "ar" ? "لا توجد عناصر تحتاج مراجعة" : "No items require review"}</p> : null}
       <div className="mini-list">
         {rows.map((row) => (
           <div key={String(row.id)}>

@@ -75,14 +75,48 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("cannot_delete_current_admin")) {
     return lang === "ar"
-      ? "لا يوجد أي أخطاء برمجية مسجلة في سجل النظام."
+      ? "لا يمكنك حذف الحساب المستخدم حالياً في لوحة الإدارة."
       : "You cannot delete the account currently signed in to Admin Web.";
   }
 
   if (message.includes("user_not_found")) {
     return lang === "ar"
-      ? "تم حفظ الإعدادات على قاعدة البيانات. سيتم التحديث خلال بضع دقائق."
+      ? "لم يتم العثور على هذا الحساب. حدّث الصفحة ثم جرّب مرة أخرى."
       : "This account was not found. Refresh the page and try again.";
+  }
+
+
+  if (message.includes("auth_user_missing") || message.includes("database error loading user")) {
+    return lang === "ar"
+      ? "الحساب موجود في السجل لكنه محذوف من نظام تسجيل الدخول، لذلك لا يمكن تعيين كلمة مرور له."
+      : "The profile exists, but its authentication account was deleted, so a password cannot be assigned.";
+  }
+
+  if (message.includes("label_name_required")) {
+    return lang === "ar" ? "اكتب اسم التصنيف بالعربي والإنجليزي." : "Enter the label name in Arabic and English.";
+  }
+
+  if (message.includes("invalid_label_color")) {
+    return lang === "ar" ? "اختر لوناً صحيحاً للتصنيف." : "Choose a valid label color.";
+  }
+
+  if (message.includes("reason_required")) {
+    return lang === "ar" ? "اكتب سبباً واضحاً قبل حفظ الإجراء." : "Enter a clear reason before saving this action.";
+  }
+  if (message.includes("complaint_not_found")) {
+    return lang === "ar" ? "لم يتم العثور على الشكوى. حدّث الصفحة وحاول مرة أخرى." : "The complaint was not found. Refresh and try again.";
+  }
+
+  if (message.includes("complaint_closed")) {
+    return lang === "ar" ? "هذه الشكوى مغلقة بالفعل ولا يمكن إضافة رد جديد." : "This complaint is already closed and cannot receive a new reply.";
+  }
+
+  if (message.includes("resolution_required")) {
+    return lang === "ar" ? "اكتب ملخصاً واضحاً للحل قبل إغلاق الشكوى." : "Enter a clear resolution before closing the complaint.";
+  }
+
+  if (message.includes("message_body_required")) {
+    return lang === "ar" ? "اكتب نص الرسالة أولاً." : "Write the message first.";
   }
 
   if (message.includes("admin_rls_access_denied")) {
@@ -193,8 +227,8 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("foreign key") || message.includes("violates") || message.includes("23503")) {
     return lang === "ar"
-      ? "\u0644\u0627 \u064a\u0645\u0643\u0646 \u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u0639\u0646\u0635\u0631 \u0644\u0623\u0646\u0647 \u0645\u0631\u0628\u0648\u0637 \u0628\u0628\u064a\u0627\u0646\u0627\u062a \u0623\u062e\u0631\u0649. \u0623\u0648\u0642\u0641\u0647 \u0623\u0648\u0644\u0627\u060c \u0623\u0648 \u0627\u062d\u0630\u0641 \u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u062a\u0627\u0628\u0639\u0629 \u0644\u0647."
-      : "This item is linked to other data. Disable it first, or delete the linked items before deleting it.";
+      ? "تعذر تنفيذ الإجراء لأن البيانات مرتبطة بسجلات أخرى. راجع الحقول المطلوبة أو العناصر التابعة ثم جرّب مرة أخرى."
+      : "The action could not be completed because this data is linked to other records. Review required fields or related items and try again.";
   }
 
   if (message.includes("duplicate") || message.includes("already registered") || message.includes("already been registered")) {

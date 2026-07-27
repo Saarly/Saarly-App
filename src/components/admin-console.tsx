@@ -21,6 +21,7 @@ import { StoreCatalogModeration } from "@/components/store-catalog-moderation";
 import { NotificationBroadcast } from "@/components/notification-broadcast";
 import { StaffManagement } from "@/components/staff-management";
 import { MonetizationConsole } from "@/components/monetization-console";
+import { ComplaintsConsole } from "@/components/complaints-console";
 
 export function AdminConsole({ initialSection = "dashboard" }: { initialSection?: string }) {
   const [lang, setLang] = useState<Lang>("ar");
@@ -247,6 +248,8 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
           <SettingsPanel lang={lang} />
         ) : section.mode === "monetization" ? (
           <MonetizationConsole lang={lang} />
+        ) : section.mode === "complaints" ? (
+          <ComplaintsConsole lang={lang} />
         ) : section.mode === "catalog" ? (
           <StoreCatalogModeration lang={lang} />
         ) : section.mode === "broadcast" ? (

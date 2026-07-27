@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
 import { friendlyStatus, humanizeAdminError } from "@/lib/admin/messages";
+import { formatCell, localizedValue } from "@/lib/admin/format";
 
 type ReportResult = {
   key: string;
@@ -229,11 +230,11 @@ function reportRowSummary(key: string, row: Record<string, unknown>, lang: Lang)
   const titleKeys: Record<string, string[]> = {
     admin_report_orders: ["buyer_name", "store_name"],
     admin_report_active_merchants: ["store_name"],
-    admin_report_active_categories: ["category_name_ar", "category_name_en"],
+    admin_report_active_categories: [lang === "ar" ? "category_name_ar" : "category_name_en"],
     admin_report_top_accepted_offers: ["store_name"],
-    admin_report_rfq_acceptance: ["store_name", "status_ar", "status"],
-    admin_report_payment_transactions: ["store_name", "purpose", "status"],
-    admin_report_commission_dues: ["store_name", "status"],
+    admin_report_rfq_acceptance: ["store_name", lang === "ar" ? "status_ar" : "status_en", "status"],
+    admin_report_payment_transactions: ["store_name", "purpose", lang === "ar" ? "status_ar" : "status_en", "status"],
+    admin_report_commission_dues: ["store_name", lang === "ar" ? "status_ar" : "status_en", "status"],
     admin_report_merchant_arrears: ["store_name", "merchant_name"],
     admin_report_referrals_rewards: ["referrer_email", "referrer_name", "referral_code"]
   };
@@ -261,19 +262,21 @@ function reportRowSummary(key: string, row: Record<string, unknown>, lang: Lang)
 
   const title =
     titleKeys[key]
-      ?.map((field) => row[field])
+      ?.map((field) => localizedValue(row, field, lang))
       .find((value) => value !== null && value !== undefined && String(value).trim() !== "") ??
     Object.entries(row).find(([field, value]) => !hidden.has(field) && value)?.[1] ??
     "-";
 
   const detailEntries = Object.entries(row)
     .filter(([field, value]) => !hidden.has(field) && value !== null && value !== undefined && String(value).trim() !== "")
-    .filter(([field]) => !(field === "status" && row.status_ar))
+    .filter(([field]) => !(field === "status" && (row.status_ar || row.status_en)))
+    .filter(([field]) => !(field.endsWith("_ar") && lang === "en" && row[field.replace(/_ar$/, "_en")]))
+    .filter(([field]) => !(field.endsWith("_en") && lang === "ar" && row[field.replace(/_en$/, "_ar")]))
     .filter(([field]) => !titleKeys[key]?.includes(field))
     .slice(0, 5);
 
   return {
-    title: String(title),
+    title: String(formatCell(title, undefined, lang)),
     details:
       detailEntries.length === 0
         ? lang === "ar"

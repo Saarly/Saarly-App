@@ -21,6 +21,7 @@ type StaffRow = {
   staff_is_active: boolean | null;
   is_blocked: boolean | null;
   created_at: string;
+  is_deleted?: boolean | null;
 };
 
 type StaffForm = {
@@ -42,7 +43,6 @@ const permissionGroups = [
       { key: "dashboard", ar: "لوحة التحكم", en: "Dashboard" },
       { key: "users", ar: "المستخدمون", en: "Users" },
       { key: "staff", ar: "صلاحيات الفريق", en: "Team permissions" },
-      { key: "audit", ar: "سجل الحركات", en: "Audit log" }
     ]
   },
   {
@@ -51,7 +51,6 @@ const permissionGroups = [
     items: [
       { key: "merchant_approvals", ar: "موافقات المتاجر", en: "Merchant approvals" },
       { key: "branch_approvals", ar: "موافقات الفروع", en: "Branch approvals" },
-      { key: "stores", ar: "المتاجر", en: "Stores" },
       { key: "store_catalog", ar: "مراقبة منتجات المتاجر", en: "Store catalog moderation" },
       { key: "shipping_companies", ar: "شركات الشحن", en: "Shipping companies" },
       { key: "categories", ar: "الأقسام", en: "Categories" },
@@ -152,6 +151,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
     setForm((current) => ({
       ...current,
       access_level: accessLevel,
+      role_label: current.role_label.trim() || (accessLevel === "support_agent" ? (lang === "ar" ? "موظف دعم" : "Support agent") : accessLevel === "full_admin" ? (lang === "ar" ? "مدير بصلاحيات كاملة" : "Full administrator") : (lang === "ar" ? "مدير" : "Administrator")),
       permissions: accessLevel === "full_admin" ? fullPermissions() : blankPermissions()
     }));
   }
@@ -191,7 +191,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
           email: form.email,
           mobile: form.mobile,
           password: form.password,
-          role_label: form.role_label,
+          role_label: form.role_label.trim() || (form.access_level === "support_agent" ? "موظف دعم" : form.access_level === "full_admin" ? "مدير بصلاحيات كاملة" : "مدير"),
           access_level: form.access_level,
           permissions: form.permissions
         }
@@ -226,7 +226,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
         action: "update_staff_permissions",
         id: editing.id,
         payload: {
-          role_label: editRoleLabel,
+          role_label: editRoleLabel.trim() || (editAccessLevel === "support_agent" ? "موظف دعم" : editAccessLevel === "full_admin" ? "مدير بصلاحيات كاملة" : "مدير"),
           access_level: editAccessLevel,
           permissions: editAccessLevel === "full_admin" ? fullPermissions() : editPermissions,
           is_active: editing.staff_is_active !== false && editing.is_blocked !== true
@@ -244,6 +244,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
   }
 
   async function toggleStaffActive(row: StaffRow) {
+    if (row.is_deleted) { setError(lang === "ar" ? "هذا الحساب محذوف ولا يمكن تفعيله." : "This account is deleted and cannot be enabled."); return; }
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -264,6 +265,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
   }
 
   async function setPassword(row: StaffRow) {
+    if (row.is_deleted) { setError(lang === "ar" ? "لا يوجد حساب دخول لهذا المستخدم المحذوف." : "This deleted user no longer has an authentication account."); return; }
     const password = window.prompt(lang === "ar" ? "أدخل كلمة مرور جديدة لهذا الحساب" : "Enter a new password for this account");
     if (!password) return;
     const confirmation = window.prompt(lang === "ar" ? "أكد كلمة المرور الجديدة" : "Confirm the new password");

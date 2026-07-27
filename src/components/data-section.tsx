@@ -25,6 +25,7 @@ import {
   fieldIsBoolean,
   fieldIsLongText,
   formatCell,
+  localizedValue,
   rowMatches,
 } from "@/lib/admin/format";
 import { humanizeAdminError } from "@/lib/admin/messages";
@@ -85,6 +86,7 @@ export function DataSection({
   );
   const [locationRows, setLocationRows] = useState<Row[]>([]);
   const [uploadingAdImage, setUploadingAdImage] = useState(false);
+  const [adTabs, setAdTabs] = useState<Record<string, string>>({});
 
   const filteredRows = useMemo(() => {
     let result = rows.filter((row) =>
@@ -231,7 +233,7 @@ export function DataSection({
   async function loadLocationOptions() {
     const { data } = await supabase
       .from("cities")
-      .select("country_ar,governorate_ar,name_ar")
+      .select("country_ar,country_en,governorate_ar,governorate_en,name_ar,name_en")
       .order("country_ar", { ascending: true })
       .order("governorate_ar", { ascending: true })
       .order("name_ar", { ascending: true })
@@ -634,7 +636,7 @@ export function DataSection({
                         ? "\u0645\u062a\u0648\u0642\u0641"
                         : "Inactive"}
                   </span>
-                  {section.actions?.map((action) => (
+                  {section.actions?.filter((action) => actionShouldShow(action, row)).map((action) => (
                     <button
                       key={action}
                       className="tiny-button"
@@ -848,10 +850,23 @@ export function DataSection({
                   </span>
                 </div>
                 <span className="status-pill active">
-                  {lang === "ar"
-                    ? `${group.rows.length} إعلان`
-                    : `${group.rows.length} ads`}
+                  {lang === "ar" ? `${group.rows.length} إعلان` : `${group.rows.length} ads`}
                 </span>
+              </div>
+
+              <div className="ads-status-tabs">
+                {[
+                  { key: "running", ar: "شغالة", en: "Running" },
+                  { key: "scheduled", ar: "مجدولة", en: "Scheduled" },
+                  { key: "ended", ar: "منتهية", en: "Ended" },
+                  { key: "inactive", ar: "متوقفة", en: "Inactive" },
+                  { key: "all", ar: "الكل", en: "All" },
+                ].map((tab) => (
+                  <button type="button" key={tab.key} className={(adTabs[group.value] ?? "running") === tab.key ? "active" : ""} onClick={() => setAdTabs((current) => ({ ...current, [group.value]: tab.key }))}>
+                    {tab[lang]}
+                    <small>{group.rows.filter((row) => tab.key === "all" || adLifecycleKey(row) === tab.key).length}</small>
+                  </button>
+                ))}
               </div>
 
               {group.value !== "__other__" ? (
@@ -869,14 +884,14 @@ export function DataSection({
               ) : null}
 
               <div className="ads-placement-list">
-                {group.rows.length === 0 ? (
+                {group.rows.filter((row) => (adTabs[group.value] ?? "running") === "all" || adLifecycleKey(row) === (adTabs[group.value] ?? "running")).length === 0 ? (
                   <div className="empty-state compact">
                     {lang === "ar"
                       ? "لا توجد إعلانات في هذا المكان حاليًا"
                       : "No ads in this placement yet"}
                   </div>
                 ) : (
-                  group.rows.map((row) => (
+                  group.rows.filter((row) => (adTabs[group.value] ?? "running") === "all" || adLifecycleKey(row) === (adTabs[group.value] ?? "running")).map((row) => (
                     <div
                       className="ad-admin-item"
                       key={rowIdFor(section, row) || JSON.stringify(row)}
@@ -894,7 +909,7 @@ export function DataSection({
                       )}
                       <div className="ad-admin-info">
                         <strong>{adAdminName(row, lang)}</strong>
-                        <span>{adTargetSummary(row, lang)}</span>
+                        <span>{adTargetSummary(row, lang, locationRows)}</span>
                         <span>{adScheduleSummary(row, lang)}</span>
                         <span>
                           {lang === "ar" ? "الترتيب" : "Order"}:{" "}
@@ -954,7 +969,7 @@ export function DataSection({
                       {formatSectionCell(
                         section,
                         column.key,
-                        row[column.key],
+                        localizedValue(row, column.key, lang),
                         column.tone,
                         lang,
                       )}
@@ -963,7 +978,7 @@ export function DataSection({
                   {section.actions?.length ? (
                     <td>
                       <div className="row-actions">
-                        {section.actions.map((action) => (
+                        {section.actions.filter((action) => actionShouldShow(action, row)).map((action) => (
                           <button
                             key={action}
                             className="tiny-button"
@@ -1104,7 +1119,7 @@ export function DataSection({
                         </option>
                         {adCountries.map((country) => (
                           <option value={country} key={country}>
-                            {country}
+                            {localizedLocationOption(locationRows, "country_ar", "country_en", country, lang)}
                           </option>
                         ))}
                       </select>
@@ -1125,7 +1140,7 @@ export function DataSection({
                         </option>
                         {adGovernorates.map((governorate) => (
                           <option value={governorate} key={governorate}>
-                            {governorate}
+                            {localizedLocationOption(locationRows, "governorate_ar", "governorate_en", governorate, lang)}
                           </option>
                         ))}
                       </select>
@@ -1144,7 +1159,7 @@ export function DataSection({
                         </option>
                         {adCities.map((city) => (
                           <option value={city} key={city}>
-                            {city}
+                            {localizedLocationOption(locationRows, "name_ar", "name_en", city, lang)}
                           </option>
                         ))}
                       </select>
@@ -1248,10 +1263,26 @@ function adAdminName(row: Row, lang: Lang) {
   return lang === "ar" ? `${placement} بدون اسم` : `Unnamed ${placement}`;
 }
 
-function adTargetSummary(row: Row, lang: Lang) {
-  const city = String(row.target_city_ar ?? "").trim();
-  const governorate = String(row.target_governorate_ar ?? "").trim();
-  const country = String(row.target_country_ar ?? "").trim();
+
+function localizedLocationOption(
+  locations: Row[],
+  arabicKey: string,
+  englishKey: string,
+  value: string,
+  lang: Lang,
+) {
+  if (!value || lang === "ar") return value;
+  const match = locations.find((row) => String(row[arabicKey] ?? "").trim() === value);
+  return String(match?.[englishKey] ?? value).trim() || value;
+}
+
+function adTargetSummary(row: Row, lang: Lang, locations: Row[]) {
+  const cityAr = String(row.target_city_ar ?? "").trim();
+  const governorateAr = String(row.target_governorate_ar ?? "").trim();
+  const countryAr = String(row.target_country_ar ?? "").trim();
+  const city = localizedLocationOption(locations, "name_ar", "name_en", cityAr, lang);
+  const governorate = localizedLocationOption(locations, "governorate_ar", "governorate_en", governorateAr, lang);
+  const country = localizedLocationOption(locations, "country_ar", "country_en", countryAr, lang);
   const parts = [city, governorate, country].filter(Boolean);
   if (parts.length === 0) {
     return lang === "ar" ? "يظهر في كل الأماكن" : "Shown everywhere";
@@ -1278,14 +1309,21 @@ function adScheduleSummary(row: Row, lang: Lang) {
   return lang === "ar" ? "بدون موعد محدد" : "No schedule set";
 }
 
+function adLifecycleKey(row: Row) {
+  const now = Date.now();
+  const startsAt = row.starts_at ? new Date(String(row.starts_at)).getTime() : null;
+  const endsAt = row.ends_at ? new Date(String(row.ends_at)).getTime() : null;
+  if (row.is_active !== true) return "inactive";
+  if (endsAt && Number.isFinite(endsAt) && endsAt <= now) return "ended";
+  if (startsAt && Number.isFinite(startsAt) && startsAt > now) return "scheduled";
+  return "running";
+}
+
 function adStatus(row: Row) {
-  const endsAt = row.ends_at ? new Date(String(row.ends_at)) : null;
-  if (endsAt && !Number.isNaN(endsAt.getTime()) && endsAt.getTime() <= Date.now()) {
-    return { ar: "منتهي", en: "Expired", tone: "expired" };
-  }
-  if (row.is_active) {
-    return { ar: "مفعل", en: "Active", tone: "active" };
-  }
+  const key = adLifecycleKey(row);
+  if (key === "ended") return { ar: "منتهي", en: "Ended", tone: "expired" };
+  if (key === "scheduled") return { ar: "مجدول", en: "Scheduled", tone: "pending" };
+  if (key === "running") return { ar: row.starts_at || row.ends_at ? "شغال" : "مستمر بدون نهاية", en: row.starts_at || row.ends_at ? "Running" : "Ongoing", tone: "active" };
   return { ar: "متوقف", en: "Inactive", tone: "muted" };
 }
 
@@ -2397,6 +2435,15 @@ function fieldLabel(field: string, lang: Lang, section?: SectionConfig) {
   return labels[field]?.[lang] ?? (lang === "ar" ? "معلومة إضافية" : field.split("_").join(" "));
 }
 
+function actionShouldShow(action: string, row: Row) {
+  if (row.is_deleted === true) {
+    return false;
+  }
+  if (action === "block_user") return row.is_blocked !== true;
+  if (action === "unblock_user") return row.is_blocked === true;
+  return true;
+}
+
 function actionLabel(action: string, lang: Lang) {
   if (action === "set_user_password") {
     return lang === "ar"
@@ -2437,97 +2484,101 @@ function ReviewDetailsModal({
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [loadingImages, setLoadingImages] = useState(true);
 
-  useEffect(() => {
-    async function loadImages() {
-      const urls: Record<string, string> = {};
-      const fields = [
-        "owner_id_image_url",
-        "store_front_image_url",
-        "commercial_register_url",
-        "front_image_url",
+  const documentSpecs = useMemo(() => {
+    if (section.id === "merchant-approvals") {
+      return [
+        { key: "store_front_image_url", bucketKey: "store_front_bucket", fallbackBucket: "storefront-photos", ar: "واجهة المتجر", en: "Storefront" },
+        { key: "owner_id_front_image_url", bucketKey: "owner_id_front_bucket", fallbackBucket: "merchant-ids", ar: "هوية المالك - الوجه الأمامي", en: "Owner ID - front" },
+        { key: "owner_id_back_image_url", bucketKey: "owner_id_back_bucket", fallbackBucket: "merchant-ids", ar: "هوية المالك - الوجه الخلفي", en: "Owner ID - back" },
+        { key: "commercial_register_url", bucketKey: "commercial_register_bucket", fallbackBucket: "commercial-registers", ar: "السجل التجاري", en: "Commercial register", optional: true },
       ];
-      
-      for (const field of fields) {
-        const val = row[field];
-        if (typeof val === "string" && val.trim()) {
-          const trimmed = val.trim();
-          if (/^https?:\/\//i.test(trimmed)) {
-            urls[field] = trimmed;
-            continue;
-          }
-          const bucket = field === "store_front_image_url" || field === "front_image_url" ? "storefront-photos" : "merchant-documents";
-          let path = trimmed.startsWith("storage://")
-            ? trimmed.replace("storage://", "").split("/").slice(1).join("/")
-            : trimmed.replace(/^\/+/, "");
-          if (path.startsWith(`${bucket}/`)) {
-            path = path.slice(bucket.length + 1);
-          }
-          const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
-          if (data?.signedUrl) {
-            urls[field] = data.signedUrl;
-          } else {
-            urls[field] = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl ?? "";
-          }
-        }
-      }
-      setImageUrls(urls);
+    }
+    return [
+      { key: "front_image_url", fallbackBucket: "storefront-photos", ar: "واجهة الفرع", en: "Branch storefront" },
+      { key: "manager_id_front_image_url", bucketKey: "manager_id_front_bucket", fallbackBucket: "merchant-ids", ar: "هوية مدير الفرع - الوجه الأمامي", en: "Branch manager ID - front" },
+      { key: "manager_id_back_image_url", bucketKey: "manager_id_back_bucket", fallbackBucket: "merchant-ids", ar: "هوية مدير الفرع - الوجه الخلفي", en: "Branch manager ID - back" },
+      { key: "commercial_register_url", bucketKey: "commercial_register_bucket", fallbackBucket: "commercial-registers", ar: row.uses_parent_commercial_register === false ? "السجل التجاري المستقل للفرع" : "السجل التجاري للمتجر الرئيسي", en: row.uses_parent_commercial_register === false ? "Branch commercial register" : "Main store commercial register", optional: true },
+    ];
+  }, [row, section.id]);
+
+  useEffect(() => {
+    async function resolveUrl(value: unknown, bucket: string) {
+      if (typeof value !== "string" || !value.trim()) return "";
+      const trimmed = value.trim();
+      if (/^https?:\/\//i.test(trimmed)) return trimmed;
+      const storageValue = trimmed.startsWith("storage://") ? trimmed.slice("storage://".length) : trimmed.replace(/^\/+/, "");
+      const parts = storageValue.split("/");
+      const path = parts[0] === bucket ? parts.slice(1).join("/") : storageValue;
+      const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
+      if (signed.data?.signedUrl) return signed.data.signedUrl;
+      return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl ?? "";
+    }
+
+    async function loadImages() {
+      setLoadingImages(true);
+      const entries = await Promise.all(documentSpecs.map(async (spec) => {
+        const bucket = String((spec.bucketKey ? row[spec.bucketKey] : null) ?? spec.fallbackBucket);
+        const url = await resolveUrl(row[spec.key], bucket);
+        return [spec.key, url] as const;
+      }));
+      setImageUrls(Object.fromEntries(entries));
       setLoadingImages(false);
     }
     void loadImages();
-  }, [row]);
+  }, [documentSpecs, row]);
 
   const detailItems = Object.entries(row)
     .map(([key, value]) => {
       if (!shouldShowDetailValue(key, value, row)) return null;
       const column = section.columns?.find((item) => item.key === key);
-      const text = String(formatCell(value, column?.tone, lang)).trim();
+      const resolved = localizedValue(row, key, lang);
+      const text = String(formatCell(resolved, column?.tone, lang)).trim();
       if (!text || textLooksBroken(text)) return null;
-      return {
-        key,
-        label: fieldLabel(key, lang, section),
-        value: text,
-      };
+      return { key, label: fieldLabel(key, lang, section), value: text };
     })
     .filter((item): item is { key: string; label: string; value: string } => item !== null);
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
-        <h2>{lang === "ar" ? "تفاصيل إضافية" : "Additional details"}</h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
-          {detailItems.length === 0 ? (
-            <p className="muted">{lang === "ar" ? "لا توجد تفاصيل إضافية واضحة." : "No clear extra details."}</p>
-          ) : null}
+      <div className="modal-card review-modal" onClick={(event) => event.stopPropagation()}>
+        <h2>{lang === "ar" ? "مراجعة بيانات ومستندات الطلب" : "Review application details and documents"}</h2>
+        <p className="muted">{lang === "ar" ? "المستندات للعرض أثناء اتخاذ القرار، ولا تحتاج موافقة منفصلة." : "Documents are shown for review and do not require a separate approval step."}</p>
+        <div className="review-details-grid">
           {detailItems.map((item) => (
-            <div key={item.key}>
-              <strong style={{ display: "block", fontSize: "0.85rem", opacity: 0.7, marginBottom: "4px" }}>
-                {item.label}
-              </strong>
-              <div>{item.value}</div>
+            <div key={item.key} className="review-detail-item">
+              <strong>{item.label}</strong>
+              <span>{item.value}</span>
             </div>
           ))}
         </div>
-        
-        {loadingImages ? (
-          <div style={{ marginTop: "24px" }}>{t("loading", lang)}</div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "24px" }}>
-            {["store_front_image_url", "front_image_url", "owner_id_image_url", "commercial_register_url"].map((field) => {
-              const url = imageUrls[field];
-              if (!url) return null;
+
+        <h3 className="review-documents-title">{lang === "ar" ? "الصور والمستندات" : "Images and documents"}</h3>
+        {loadingImages ? <div className="empty-state">{t("loading", lang)}</div> : (
+          <div className="review-documents-grid">
+            {documentSpecs.map((spec) => {
+              const url = imageUrls[spec.key];
+              const label = lang === "ar" ? spec.ar : spec.en;
               return (
-                <div key={field} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <strong style={{ fontSize: "0.85rem", opacity: 0.7 }}>{fieldLabel(field, lang, section)}</strong>
-                  <a href={url} target="_blank" rel="noreferrer">
-                    <img src={url} alt={fieldLabel(field, lang, section)} style={{ width: "100%", height: "200px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--border-color)" }} />
-                  </a>
-                </div>
+                <article className="review-document-card" key={spec.key}>
+                  <strong>{label}</strong>
+                  {url ? (
+                    <a href={url} target="_blank" rel="noreferrer">
+                      <img src={url} alt={label} />
+                      <span>{lang === "ar" ? "فتح بالحجم الكامل" : "Open full size"}</span>
+                    </a>
+                  ) : (
+                    <div className="missing-document">
+                      <ImageUp size={28} />
+                      <span>{spec.optional ? (lang === "ar" ? "غير مرفوع أو غير مطلوب" : "Not uploaded or not required") : (lang === "ar" ? "لم يتم رفع هذه الصورة" : "This image was not uploaded")}</span>
+                    </div>
+                  )}
+                </article>
               );
             })}
           </div>
         )}
-        <div className="modal-actions" style={{ marginTop: "32px" }}>
-          <button className="ghost-button" onClick={onClose}>{t("cancel", lang)}</button>
+        <div className="modal-actions">
+          <button className="ghost-button" onClick={onClose}>{lang === "ar" ? "إغلاق" : "Close"}</button>
         </div>
       </div>
     </div>

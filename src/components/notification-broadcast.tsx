@@ -7,7 +7,7 @@ import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
 
-type Audience = "all" | "buyers" | "merchants" | "staff" | "specific";
+type Audience = "all" | "buyers" | "merchants" | "specific";
 type DestinationOption = {
   id: string;
   deepLink: string;
@@ -25,21 +25,27 @@ type UserOption = {
   primary_email: string | null;
   role: string;
   role_ar: string | null;
+  role_en?: string | null;
 };
 
 type RecentNotification = {
   id: string;
   type: string;
   title_ar: string;
+  title_en?: string | null;
   body_ar: string;
+  body_en?: string | null;
   push_status: string | null;
   push_error: string | null;
   created_at: string;
 };
 type LocationRow = {
   country_ar: string | null;
+  country_en?: string | null;
   governorate_ar: string | null;
+  governorate_en?: string | null;
   name_ar: string | null;
+  name_en?: string | null;
   is_active?: boolean | null;
 };
 
@@ -57,8 +63,8 @@ const audiences: Array<{
     id: "all",
     ar: "كل المستخدمين",
     en: "All users",
-    hintAr: "عملاء ومتاجر وفريق",
-    hintEn: "Buyers, stores, and staff",
+    hintAr: "العملاء والمتاجر",
+    hintEn: "Buyers and merchants",
   },
   {
     id: "buyers",
@@ -73,13 +79,6 @@ const audiences: Array<{
     en: "Stores only",
     hintAr: "حسابات المتاجر",
     hintEn: "Merchant accounts",
-  },
-  {
-    id: "staff",
-    ar: "الفريق فقط",
-    en: "Staff only",
-    hintAr: "أدمن ودعم",
-    hintEn: "Admins and support",
   },
   {
     id: "specific",
@@ -190,6 +189,20 @@ const destinationOptions: DestinationOption[] = [
   },
 ];
 
+function friendlyPushResult(status: string | null, error: string | null, lang: Lang) {
+  const raw = `${status ?? "pending"} ${error ?? ""}`.toLowerCase();
+  if (raw.includes("no active fcm") || raw.includes("skipped")) {
+    return lang === "ar" ? "حُفظ داخل التطبيق، ولا يوجد جهاز نشط لاستقبال التنبيه حالياً." : "Saved in the app; no active device is currently available for push delivery.";
+  }
+  if (raw.includes("404") || raw.includes("failed") || raw.includes("error")) {
+    return lang === "ar" ? "حُفظ داخل التطبيق، وتعذر إرسال التنبيه للهاتف." : "Saved in the app, but phone push delivery was unsuccessful.";
+  }
+  if (raw.includes("sent") || raw.includes("success")) {
+    return lang === "ar" ? "تم الإرسال داخل التطبيق وإلى الهاتف." : "Delivered in the app and to the phone.";
+  }
+  return lang === "ar" ? "قيد تجهيز الإرسال." : "Delivery is being processed.";
+}
+
 export function NotificationBroadcast({ lang }: { lang: Lang }) {
   const [audience, setAudience] = useState<Audience>("all");
   const [destinationId, setDestinationId] = useState("buyer_orders");
@@ -297,7 +310,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     setLoadingUsers(true);
     const { data, error: usersError } = await supabase
       .from("admin_users_readable")
-      .select("id, full_name, mobile, primary_email, role, role_ar")
+      .select("id, full_name, mobile, primary_email, role, role_ar, role_en")
       .order("created_at", { ascending: false })
       .limit(500);
     setUsers((data ?? []) as UserOption[]);
@@ -309,7 +322,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     const { data } = await supabase
       .from("notifications")
       .select(
-        "id, type, title_ar, body_ar, push_status, push_error, created_at",
+        "id, type, title_ar, title_en, body_ar, body_en, push_status, push_error, created_at",
       )
       .eq("type", "admin_broadcast")
       .order("created_at", { ascending: false })
@@ -320,7 +333,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
   async function loadLocations() {
     const { data } = await supabase
       .from("cities")
-      .select("country_ar,governorate_ar,name_ar,is_active")
+      .select("country_ar,country_en,governorate_ar,governorate_en,name_ar,name_en,is_active")
       .order("country_ar", { ascending: true })
       .order("governorate_ar", { ascending: true })
       .order("name_ar", { ascending: true })
@@ -376,7 +389,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
       setMessage(
         lang === "ar"
           ? `تم إرسال ${result?.inserted_count ?? 0} إشعار. بانتظار استجابة فايربيس.`
-          : `تم إرسال ${result?.inserted_count ?? 0} إشعار. بانتظار استجابة فايربيس.`,
+          : `Sent ${result?.inserted_count ?? 0} notifications. Delivery is being processed.`,
       );
       setTitleAr("");
       setTitleEn("");
@@ -483,7 +496,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                   </option>
                   {countries.map((country) => (
                     <option value={country} key={country}>
-                      {country}
+                      {lang === "ar" ? country : locationRows.find((row) => String(row.country_ar ?? DEFAULT_COUNTRY_AR).trim() === country)?.country_en || country}
                     </option>
                   ))}
                 </select>
@@ -502,7 +515,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                   </option>
                   {governorates.map((governorate) => (
                     <option value={governorate} key={governorate}>
-                      {governorate}
+                      {lang === "ar" ? governorate : locationRows.find((row) => String(row.governorate_ar ?? "").trim() === governorate && (!targetCountry || String(row.country_ar ?? DEFAULT_COUNTRY_AR).trim() === targetCountry))?.governorate_en || governorate}
                     </option>
                   ))}
                 </select>
@@ -519,7 +532,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                 </option>
                 {cities.map((city) => (
                   <option value={city} key={city}>
-                    {city}
+                    {lang === "ar" ? city : locationRows.find((row) => String(row.name_ar ?? "").trim() === city && (!targetGovernorate || String(row.governorate_ar ?? "").trim() === targetGovernorate))?.name_en || city}
                   </option>
                 ))}
               </select>
@@ -556,7 +569,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
                         {user.full_name || user.primary_email || user.mobile}
                       </strong>
                       <small>
-                        {user.role_ar || user.role} |{" "}
+                        {(lang === "ar" ? user.role_ar : user.role_en) || user.role} |{" "}
                         {user.mobile || user.primary_email || "-"}
                       </small>
                     </span>
@@ -688,13 +701,8 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             ) : null}
             {recent.map((notification) => (
               <div key={notification.id}>
-                <strong>{notification.title_ar}</strong>
-                <span>
-                  {notification.push_status || "pending"}
-                  {notification.push_error
-                    ? ` | ${notification.push_error}`
-                    : ""}
-                </span>
+                <strong>{lang === "ar" ? notification.title_ar || "إشعار سابق" : notification.title_en || "Previous notification"}</strong>
+                <span>{friendlyPushResult(notification.push_status, notification.push_error, lang)}</span>
               </div>
             ))}
           </div>

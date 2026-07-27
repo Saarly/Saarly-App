@@ -13,8 +13,12 @@ type StoreRow = {
   owner_name: string | null;
   contact_mobile: string | null;
   category_name_ar: string | null;
+  category_name_en: string | null;
   approval_status: string;
   approval_status_ar: string | null;
+  approval_status_en: string | null;
+  founder_badge_enabled: boolean | null;
+  trusted_badge_enabled: boolean | null;
   store_front_image_url: string | null;
   owner_id_image_url: string | null;
   commercial_register_url: string | null;
@@ -61,7 +65,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     const needle = query.trim().toLowerCase();
     if (!needle) return stores;
     return stores.filter((store) =>
-      [store.store_name, store.owner_name, store.contact_mobile, store.category_name_ar, store.approval_status_ar]
+      [store.store_name, store.owner_name, store.contact_mobile, store.category_name_ar, store.category_name_en, store.approval_status_ar, store.approval_status_en]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle))
     );
@@ -104,7 +108,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     const { data, error: storesError } = await supabase
       .from("admin_merchants_readable")
       .select(
-        "id, store_name, owner_name, contact_mobile, category_name_ar, approval_status, approval_status_ar, store_front_image_url, owner_id_image_url, commercial_register_url, created_at"
+        "id, store_name, owner_name, contact_mobile, category_name_ar, category_name_en, approval_status, approval_status_ar, approval_status_en, store_front_image_url, owner_id_image_url, commercial_register_url, founder_badge_enabled, trusted_badge_enabled, created_at"
       )
       .order("created_at", { ascending: false })
       .limit(160);
@@ -284,12 +288,19 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                   {storeImages[store.id] ? (
                     <img src={storeImages[store.id] ?? ""} alt={store.store_name} />
                   ) : (
-                    <div className="image-placeholder">
+                    <div className="image-placeholder branded-image-placeholder">
                       <Store size={28} />
+                      <span>{lang === "ar" ? "لا تتوفر صورة" : "No image available"}</span>
                     </div>
                   )}
                   <strong>{store.store_name}</strong>
-                  <span>{store.category_name_ar || store.approval_status_ar || "-"}</span>
+                  <span>{(lang === "ar" ? store.category_name_ar : store.category_name_en) || (lang === "ar" ? store.approval_status_ar : store.approval_status_en) || "-"}</span>
+                  {store.founder_badge_enabled || store.trusted_badge_enabled ? (
+                    <div className="store-badge-row">
+                      {store.founder_badge_enabled ? <small className="brand-badge founder">{lang === "ar" ? "متجر مؤسس" : "Founding store"}</small> : null}
+                      {store.trusted_badge_enabled ? <small className="brand-badge trusted">{lang === "ar" ? "متجر موثوق" : "Trusted store"}</small> : null}
+                    </div>
+                  ) : null}
                   <small>
                     {lang === "ar"
                       ? `${counts.active} ظاهر / ${counts.total} منتج`
@@ -344,9 +355,9 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                       {images[0] ? (
                         <img src={images[0]} alt={product.free_name} />
                       ) : (
-                        <div className="image-placeholder">
+                        <div className="image-placeholder branded-image-placeholder">
                           <AlertTriangle size={28} />
-                          <span>{lang === "ar" ? "بدون صورة" : "No image"}</span>
+                          <span>{lang === "ar" ? "لا تتوفر صورة" : "No image available"}</span>
                         </div>
                       )}
                       {images.length > 1 ? (

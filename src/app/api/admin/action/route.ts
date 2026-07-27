@@ -175,48 +175,6 @@ function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
-async function missingApprovalDocuments(
-  service: ServiceClient,
-  table: string,
-  targetId: string,
-) {
-  const requiredKinds =
-    table === "merchants"
-      ? ["store_owner_id_front", "store_owner_id_back"]
-      : table === "branches"
-        ? ["branch_manager_id_front", "branch_manager_id_back"]
-        : [];
-
-  if (!requiredKinds.length) {
-    return null;
-  }
-
-  let query = service
-    .from("merchant_documents")
-    .select("kind, status")
-    .in("kind", requiredKinds)
-    .is("superseded_by", null);
-
-  query =
-    table === "merchants"
-      ? query.eq("merchant_id", targetId).is("branch_id", null)
-      : query.eq("branch_id", targetId);
-
-  const { data, error } = await query;
-  if (error) {
-    return "document_review_check_failed";
-  }
-
-  const approvedKinds = new Set(
-    ((data ?? []) as AnyRow[])
-      .filter((document) => document.status === "approved")
-      .map((document) => String(document.kind)),
-  );
-
-  const missing = requiredKinds.filter((kind) => !approvedKinds.has(kind));
-  return missing.length ? "required_documents_must_be_approved_first" : null;
-}
-
 function accessTokenFromRequest(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   return authHeader?.startsWith("Bearer ")
@@ -338,6 +296,17 @@ function actionRequiresServiceRole(action: string) {
     "set_staff_active",
     "set_user_password",
     "delete_user_account",
+    "block_user",
+    "unblock_user",
+    "upsert_support_label",
+    "set_support_labels",
+    "convert_support_to_complaint",
+    "assign_support_conversation_admin",
+    "set_merchant_badges",
+    "set_merchant_trial",
+    "assign_complaint_admin",
+    "send_complaint_message_admin",
+    "resolve_complaint_admin",
   ].includes(action);
 }
 
@@ -568,6 +537,9 @@ function permissionKeyFor(action: string, table?: string) {
   )
     return "staff";
   if (action === "send_admin_notification") return "broadcast";
+  if (["upsert_support_label", "set_support_labels", "convert_support_to_complaint", "assign_support_conversation_admin"].includes(action)) return "support_chats";
+  if (["set_merchant_badges", "set_merchant_trial"].includes(action)) return "monetization";
+  if (["assign_complaint_admin", "send_complaint_message_admin", "resolve_complaint_admin"].includes(action)) return "complaints";
   if (action === "update_referral_settings") return "referrals";
   if (action === "set_user_password" || action === "delete_user_account")
     return "users";
@@ -1204,8 +1176,6 @@ async function resolveNotificationRecipients(
     query = query.eq("role", "buyer");
   } else if (audience === "merchants") {
     query = query.eq("role", "merchant");
-  } else if (audience === "staff") {
-    query = query.in("role", ["admin", "support_agent"]);
   } else if (audience === "specific") {
     if (userIds.length === 0) {
       throw new Error("notification_recipients_required");
@@ -1222,7 +1192,7 @@ async function resolveNotificationRecipients(
 
   const rows = (data ?? []) as Array<{ id: string; role: string }>;
   const target = notificationLocationTarget(payload);
-  if (!target.hasTarget || audience === "specific" || audience === "staff") {
+  if (!target.hasTarget || audience === "specific") {
     return Array.from(new Set(rows.map((row) => row.id)));
   }
 
@@ -1758,7 +1728,7 @@ function staffAccessLevel(value: unknown) {
 }
 
 function permissionsForAccess(accessLevel: string, rawPermissions: unknown) {
-  const permissions = normalizePermissions(rawPermissions);
+  const { audit: _audit, stores: _stores, ...permissions } = normalizePermissions(rawPermissions);
   if (accessLevel === "full_admin") {
     return { ...permissions, __full_admin: true, __limit_admin: false };
   }
@@ -1821,8 +1791,8 @@ async function createAdminStaff(
   const email = requiredText(payload?.email, "email").toLowerCase();
   const mobile = requiredText(payload?.mobile, "mobile");
   const password = requiredText(payload?.password, "password");
-  const roleLabel = requiredText(payload?.role_label, "role_label");
   const accessLevel = staffAccessLevel(payload?.access_level);
+  const roleLabel = String(payload?.role_label ?? "").trim() || (accessLevel === "support_agent" ? "موظف دعم" : accessLevel === "full_admin" ? "مدير بصلاحيات كاملة" : "مدير");
   const internalRole =
     accessLevel === "support_agent" ? "support_agent" : "admin";
   const permissions = permissionsForAccess(accessLevel, payload?.permissions);
@@ -1837,6 +1807,7 @@ async function createAdminStaff(
       password,
       email_confirm: true,
       user_metadata: { full_name: fullName },
+      app_metadata: { role: internalRole },
     });
   if (authError || !authData.user) {
     throw new Error(authError?.message ?? "auth_user_not_created");
@@ -1902,19 +1873,32 @@ async function updateStaffPermissions(
     throw new Error("cannot_limit_your_own_admin_account");
   }
 
-  const roleLabel = requiredText(payload?.role_label, "role_label");
   const accessLevel = staffAccessLevel(payload?.access_level);
+  const roleLabel = String(payload?.role_label ?? "").trim() || (accessLevel === "support_agent" ? "موظف دعم" : accessLevel === "full_admin" ? "مدير بصلاحيات كاملة" : "مدير");
   const internalRole =
     accessLevel === "support_agent" ? "support_agent" : "admin";
   const permissions = permissionsForAccess(accessLevel, payload?.permissions);
   const isActive = payload?.is_active !== false;
 
   const before = await getBefore(service, "users", targetUserId);
+  if (!before) throw new Error("user_not_found");
+  const authLookup = await service.auth.admin.getUserById(targetUserId);
+  if (authLookup.error || !authLookup.data.user) throw new Error("auth_user_missing");
+  const { error: authUpdateError } = await service.auth.admin.updateUserById(targetUserId, {
+    ban_duration: isActive ? "none" : "876000h",
+    app_metadata: { ...(authLookup.data.user.app_metadata ?? {}), role: internalRole },
+  });
+  if (authUpdateError) throw new Error(authUpdateError.message);
+
   const { error: userError } = await service
     .from("users")
     .update({ role: internalRole, is_blocked: !isActive })
     .eq("id", targetUserId);
   if (userError) {
+    await service.auth.admin.updateUserById(targetUserId, {
+      ban_duration: before.is_blocked === true ? "876000h" : "none",
+      app_metadata: { ...(authLookup.data.user.app_metadata ?? {}), role: String(before.role ?? internalRole) },
+    });
     throw new Error(userError.message);
   }
 
@@ -1971,11 +1955,25 @@ async function setStaffActive(
   }
 
   const before = await getBefore(service, "users", targetUserId);
+  const authLookup = await service.auth.admin.getUserById(targetUserId);
+  if (authLookup.error || !authLookup.data.user) {
+    throw new Error("auth_user_missing");
+  }
+  const { error: authUpdateError } = await service.auth.admin.updateUserById(targetUserId, {
+    ban_duration: enabled ? "none" : "876000h",
+  });
+  if (authUpdateError) {
+    throw new Error(authUpdateError.message);
+  }
+
   const { error: userError } = await service
     .from("users")
     .update({ is_blocked: !enabled })
     .eq("id", targetUserId);
   if (userError) {
+    await service.auth.admin.updateUserById(targetUserId, {
+      ban_duration: enabled ? "876000h" : "none",
+    });
     throw new Error(userError.message);
   }
 
@@ -2065,6 +2063,34 @@ export async function GET(req: NextRequest) {
     const profile = await getAdminProfile(service, auth);
     const url = new URL(req.url);
 
+    if (url.searchParams.get("complaints") === "1") {
+      const complaintsSection = findSection("complaints");
+      if (!sectionIsAllowed(complaintsSection, profile)) return jsonError("permission_denied", 403);
+      const [complaintsResult, messagesResult, agentsResult] = await Promise.all([
+        service.from("admin_support_complaints_readable").select("*").order("updated_at", { ascending: false }).limit(300),
+        service.from("admin_support_complaint_messages_readable").select("*").order("created_at", { ascending: true }).limit(1500),
+        service.from("admin_staff_readable").select("id,full_name,primary_email,internal_role,staff_is_active,is_blocked,is_deleted").eq("internal_role", "support_agent").eq("staff_is_active", true).eq("is_blocked", false),
+      ]);
+      const loadError = complaintsResult.error ?? messagesResult.error ?? agentsResult.error;
+      if (loadError) return jsonError(loadError.message, 400);
+      return NextResponse.json({ data: { complaints: complaintsResult.data ?? [], messages: messagesResult.data ?? [], agents: agentsResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    }
+
+    if (url.searchParams.get("support") === "1") {
+      const supportSection = findSection("support");
+      if (!sectionIsAllowed(supportSection, profile)) return jsonError("permission_denied", 403);
+      const [conversationsResult, labelsResult, agentsResult, merchantsResult, ordersResult] = await Promise.all([
+        service.from("admin_support_conversations_readable").select("*").in("status", ["bot", "transferred"]).order("last_message_at", { ascending: false, nullsFirst: false }).limit(200),
+        service.from("admin_support_labels_readable").select("*").eq("is_active", true).order("name_ar"),
+        service.from("admin_staff_readable").select("id,full_name,primary_email,internal_role,staff_is_active,is_blocked,is_deleted").eq("internal_role", "support_agent").eq("staff_is_active", true).eq("is_blocked", false),
+        service.from("admin_merchants_readable").select("id,store_name,account_email,approval_status_ar,approval_status_en").order("store_name").limit(300),
+        service.from("admin_orders_readable").select("id,buyer_name,store_name,status_ar,status_en,created_at").order("created_at", { ascending: false }).limit(300),
+      ]);
+      const loadError = conversationsResult.error ?? labelsResult.error ?? agentsResult.error ?? merchantsResult.error ?? ordersResult.error;
+      if (loadError) return jsonError(loadError.message, 400);
+      return NextResponse.json({ data: { conversations: conversationsResult.data ?? [], labels: labelsResult.data ?? [], agents: agentsResult.data ?? [], merchants: merchantsResult.data ?? [], orders: ordersResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    }
+
     const sectionId = url.searchParams.get("section");
     if (sectionId) {
       const section = findSection(sectionId);
@@ -2106,7 +2132,8 @@ export async function GET(req: NextRequest) {
 
       const results = [];
       for (const report of adminReportDefinitions) {
-        const { data, error } = await service.rpc(report.key, report.args);
+        const reportClient = createUserScopedClient(accessTokenFromRequest(req) ?? "");
+        const { data, error } = await reportClient.rpc(report.key, report.args);
         results.push({
           key: report.key,
           rows: Array.isArray(data)
@@ -2256,6 +2283,124 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (action === "upsert_support_label") {
+    try {
+      const { data, error } = await service.rpc("admin_upsert_support_label_as", {
+        p_actor_id: auth.userId,
+        p_label_id: body.payload?.label_id ?? null,
+        p_name_ar: body.payload?.name_ar ?? null,
+        p_name_en: body.payload?.name_en ?? null,
+        p_color_hex: body.payload?.color_hex ?? "#12B76A",
+        p_is_active: body.payload?.is_active !== false,
+      });
+      if (error) throw error;
+      return NextResponse.json({ data });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
+  if (action === "set_support_labels") {
+    try {
+      const conversationId = requiredText(id, "conversation_id");
+      const labelIds = Array.isArray(body.payload?.label_ids) ? body.payload?.label_ids.map(String) : [];
+      const { error } = await service.rpc("admin_set_support_conversation_labels_as", { p_actor_id: auth.userId, p_conversation_id: conversationId, p_label_ids: labelIds });
+      if (error) throw error;
+      return NextResponse.json({ data: { conversation_id: conversationId, label_ids: labelIds } });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
+  if (action === "convert_support_to_complaint") {
+    try {
+      const conversationId = requiredText(id, "conversation_id");
+      const { data, error } = await service.rpc("admin_convert_support_conversation_to_complaint_as", {
+        p_actor_id: auth.userId, p_conversation_id: conversationId,
+        p_target_type: body.payload?.target_type ?? "other", p_merchant_id: body.payload?.merchant_id ?? null,
+        p_order_id: body.payload?.order_id ?? null, p_priority: body.payload?.priority ?? "normal",
+      });
+      if (error) throw error;
+      return NextResponse.json({ data: { complaint_id: data } });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
+  if (action === "assign_support_conversation_admin") {
+    try {
+      const conversationId = requiredText(id, "conversation_id");
+      const agentId = String(body.payload?.agent_id ?? auth.userId);
+      const { data, error } = await service.from("chat_conversations").update({ assigned_support_agent_id: agentId, status: "transferred", transferred_at: now, updated_at: now }).eq("id", conversationId).select("*").single();
+      if (error) throw error;
+      await service.from("support_agents").update({ last_assigned_at: now, updated_at: now }).eq("user_id", agentId);
+      return NextResponse.json({ data });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
+  if (action === "set_merchant_badges") {
+    try {
+      const merchantId = requiredText(id, "merchant_id");
+      const { data, error } = await service.rpc("admin_set_merchant_badges_as", {
+        p_actor_id: auth.userId, p_merchant_id: merchantId,
+        p_founder_badge: body.payload?.founder_badge ?? null, p_trusted_badge: body.payload?.trusted_badge ?? null,
+        p_reason: body.payload?.reason ?? null, p_is_test_account: body.payload?.is_test_account ?? null,
+      });
+      if (error) throw error;
+      return NextResponse.json({ data });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
+  if (action === "set_merchant_trial") {
+    try {
+      const merchantId = requiredText(id, "merchant_id");
+      const { data, error } = await service.rpc("admin_set_merchant_trial_as", {
+        p_actor_id: auth.userId, p_merchant_id: merchantId, p_trial_ends_at: body.payload?.trial_ends_at ?? null,
+        p_stop_trial: body.payload?.stop_trial === true, p_reason: body.payload?.reason ?? null,
+      });
+      if (error) throw error;
+      return NextResponse.json({ data });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
+  if (action === "assign_complaint_admin") {
+    try {
+      const complaintId = requiredText(id, "complaint_id");
+      const agentId = String(body.payload?.agent_id ?? auth.userId);
+      const before = await getBefore(service, "support_complaints", complaintId);
+      if (!before) throw new Error("complaint_not_found");
+      if (["resolved", "closed"].includes(String(before.status))) throw new Error("complaint_closed");
+      const { data, error } = await service.from("support_complaints").update({ assigned_support_agent_id: agentId, status: "in_support", updated_at: now }).eq("id", complaintId).select("*").single();
+      if (error) throw error;
+      await service.from("support_agents").update({ last_assigned_at: now, updated_at: now }).eq("user_id", agentId);
+      await writeAudit(service, auth.userId, "assign_support_complaint", "support_complaints", complaintId, before, data as AnyRow);
+      return NextResponse.json({ data });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
+  if (action === "send_complaint_message_admin") {
+    try {
+      const complaintId = requiredText(id, "complaint_id");
+      const message = requiredText(body.payload?.body, "message_body");
+      if (message.length < 1) throw new Error("message_body_required");
+      const { data: complaint, error: complaintError } = await service.from("support_complaints").select("id,status").eq("id", complaintId).single();
+      if (complaintError || !complaint) throw complaintError ?? new Error("complaint_not_found");
+      if (["resolved", "closed"].includes(String(complaint.status))) throw new Error("complaint_closed");
+      const { data, error } = await service.from("support_complaint_messages").insert({ complaint_id: complaintId, sender_type: "admin", sender_user_id: auth.userId, body: message.trim(), metadata: { source: "admin_web" } }).select("*").single();
+      if (error) throw error;
+      await service.from("support_complaints").update({ updated_at: now }).eq("id", complaintId);
+      return NextResponse.json({ data });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
+  if (action === "resolve_complaint_admin") {
+    try {
+      const complaintId = requiredText(id, "complaint_id");
+      const resolution = requiredText(body.payload?.resolution, "resolution");
+      if (resolution.length < 3) throw new Error("resolution_required");
+      const before = await getBefore(service, "support_complaints", complaintId);
+      const { data, error } = await service.from("support_complaints").update({ status: "resolved", resolution_summary: resolution.trim(), admin_action: body.payload?.admin_action ?? {}, closed_at: now, updated_at: now }).eq("id", complaintId).select("*").single();
+      if (error) throw error;
+      await service.from("support_complaint_messages").insert({ complaint_id: complaintId, sender_type: "admin", sender_user_id: auth.userId, body: resolution.trim(), metadata: { event: "resolved", source: "admin_web" } });
+      await writeAudit(service, auth.userId, "resolve_support_complaint", "support_complaints", complaintId, before, data as AnyRow);
+      return NextResponse.json({ data });
+    } catch (specialError) { return jsonError(serviceActionErrorMessage(specialError), 400); }
+  }
+
   if (action === "delete_user_account") {
     try {
       const userId = requiredText(id, "user_id");
@@ -2278,9 +2423,11 @@ export async function POST(req: NextRequest) {
     }
 
     const before = await getBefore(service, "users", userId);
-    const { error } = await service.auth.admin.updateUserById(userId, {
-      password,
-    });
+    const authLookup = await service.auth.admin.getUserById(userId);
+    if (authLookup.error || !authLookup.data.user) {
+      return jsonError("auth_user_missing", 400);
+    }
+    const { error } = await service.auth.admin.updateUserById(userId, { password });
     if (error) {
       return jsonError(serviceActionErrorMessage(error), 400);
     }
@@ -2342,6 +2489,11 @@ export async function POST(req: NextRequest) {
     table = "users";
     targetId = id;
     values = { is_blocked: action === "block_user" };
+    const authLookup = await service.auth.admin.getUserById(id);
+    if (!authLookup.error && authLookup.data.user) {
+      const { error: authUpdateError } = await service.auth.admin.updateUserById(id, { ban_duration: action === "block_user" ? "876000h" : "none" });
+      if (authUpdateError) return jsonError(serviceActionErrorMessage(authUpdateError), 400);
+    }
   } else if (action === "deactivate_product") {
     if (!id) return jsonError("missing_id");
     table = "products";
@@ -2406,8 +2558,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "delete_product") {
-    const before = await getBefore(adminDb, table, targetId);
-    const { error } = await adminDb
+    const before = await getBefore(service, table, targetId);
+    const { error } = await service
       .from(table)
       .delete()
       .eq(idColumnByTable[table] ?? "id", targetId);
@@ -2428,12 +2580,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "delete_merchant") {
-    const before = await getBefore(adminDb, table, targetId);
+    const before = await getBefore(service, table, targetId);
     const { data: products } = await adminDb
       .from("products")
       .select("*")
       .eq("merchant_id", targetId);
-    const { error } = await adminDb
+    const { error } = await service
       .from(table)
       .delete()
       .eq(idColumnByTable[table] ?? "id", targetId);
@@ -2459,8 +2611,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "delete_row") {
-    const before = await getBefore(adminDb, table, targetId);
-    const { error } = await adminDb
+    const before = await getBefore(service, table, targetId);
+    const { error } = await service
       .from(table)
       .delete()
       .eq(idColumnByTable[table] ?? "id", targetId);
@@ -2484,7 +2636,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "create_row") {
-    const { data, error } = await adminDb
+    const { data, error } = await service
       .from(table)
       .insert(values)
       .select("*")
@@ -2507,18 +2659,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data: created });
   }
 
-  const before = await getBefore(adminDb, table, targetId);
-  if (action === "approve_merchant" || action === "approve_branch") {
-    const documentBlockReason = await missingApprovalDocuments(
-      service,
-      table,
-      targetId,
-    );
-    if (documentBlockReason) {
-      return jsonError(documentBlockReason, 400);
-    }
-  }
-
+  const before = await getBefore(service, table, targetId);
   if (action === "suspend_merchant") {
     const suspensionReason = String(values.suspension_reason ?? "").trim();
     const { data, error } = await service.rpc("admin_set_merchant_suspension_as", {
@@ -2579,7 +2720,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data: updated });
   }
 
-  const { data, error } = await adminDb
+  const { data, error } = await service
     .from(table)
     .update(values)
     .eq(idColumnByTable[table] ?? "id", targetId)

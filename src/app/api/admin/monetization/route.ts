@@ -799,6 +799,38 @@ async function updateMerchant(service: SupabaseClient, actor: AdminActor, payloa
   return data;
 }
 
+
+async function setMerchantBadges(service: SupabaseClient, actor: AdminActor, payload: Row) {
+  const merchantId = id(payload.merchant_id);
+  if (!merchantId) throw new Error("merchant_required");
+  const { data, error } = await service.rpc("admin_set_merchant_badges_as", {
+    p_actor_id: actor.id,
+    p_merchant_id: merchantId,
+    p_founder_badge: payload.founder_badge === null || payload.founder_badge === undefined ? null : boolValue(payload.founder_badge, false),
+    p_trusted_badge: payload.trusted_badge === null || payload.trusted_badge === undefined ? null : boolValue(payload.trusted_badge, false),
+    p_reason: text(payload.reason) || null,
+    p_is_test_account: payload.is_test_account === null || payload.is_test_account === undefined ? null : boolValue(payload.is_test_account, false),
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function setMerchantTrial(service: SupabaseClient, actor: AdminActor, payload: Row) {
+  const merchantId = id(payload.merchant_id);
+  if (!merchantId) throw new Error("merchant_required");
+  const stopTrial = boolValue(payload.stop_trial, false);
+  const trialEndsAt = stopTrial ? null : safeDate(payload.trial_ends_at);
+  const { data, error } = await service.rpc("admin_set_merchant_trial_as", {
+    p_actor_id: actor.id,
+    p_merchant_id: merchantId,
+    p_trial_ends_at: trialEndsAt,
+    p_stop_trial: stopTrial,
+    p_reason: text(payload.reason) || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 async function reviewDocument(service: SupabaseClient, actor: AdminActor, payload: Row) {
   const documentId = id(payload.id);
   const approved = boolValue(payload.approved, false);
@@ -1204,6 +1236,8 @@ async function handleAction(service: SupabaseClient, actor: AdminActor, body: Ro
   if (action === "save_gateway") return saveGateway(service, actor, payload);
   if (action === "test_gateway") return testGateway(service, actor, payload);
   if (action === "update_merchant") return updateMerchant(service, actor, payload);
+  if (action === "set_merchant_badges") return setMerchantBadges(service, actor, payload);
+  if (action === "set_merchant_trial") return setMerchantTrial(service, actor, payload);
   if (action === "review_document") return reviewDocument(service, actor, payload);
   if (action === "set_badge") return setBadge(service, actor, payload);
   if (action === "settle_commissions") return settleCommissions(service, actor, payload);

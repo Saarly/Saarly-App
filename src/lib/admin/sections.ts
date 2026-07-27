@@ -24,7 +24,7 @@ export const sections: SectionConfig[] = [
     orderBy: "created_at",
     title: { ar: "موافقات المتاجر", en: "Merchant approvals" },
     description: {
-      ar: "التحقق من الفروع الجديدة وقبول انضمامها للخدمة في أسرع وقت.",
+      ar: "مراجعة بيانات المتجر وهوية المالك وواجهة المتجر واتخاذ قرار القبول أو الرفض.",
       en: "Review merchant data and approve or reject.",
     },
     searchKeys: [
@@ -72,7 +72,7 @@ export const sections: SectionConfig[] = [
     orderBy: "created_at",
     title: { ar: "موافقات الفروع", en: "Branch approvals" },
     description: {
-      ar: "إدارة عرض المتاجر النشطة وتعديل بياناتها من لوحة تحكم شاملة.",
+      ar: "مراجعة بيانات الفروع وهوية مدير الفرع وواجهة الفرع قبل ظهورها للمستخدمين.",
       en: "Review new branches before search visibility.",
     },
     searchKeys: [
@@ -142,7 +142,7 @@ export const sections: SectionConfig[] = [
     orderBy: "created_at",
     title: { ar: "المستخدمون", en: "Users" },
     description: {
-      ar: "دعم فني، إدارة شركات التوصيل، وتقييم أداء المندوبين والمتاجر.",
+      ar: "إدارة حسابات المستخدمين والحظر والحذف وتحديث كلمات المرور بشكل آمن.",
       en: "Search accounts, roles, and block status.",
     },
     searchKeys: ["full_name", "mobile", "primary_email", "role_ar"],
@@ -270,6 +270,7 @@ export const sections: SectionConfig[] = [
   },
   {
     id: "stores",
+    hidden: true,
     href: "/admin/stores",
     icon: "Building2",
     mode: "table",
@@ -318,7 +319,7 @@ export const sections: SectionConfig[] = [
       en: "Store and product moderation",
     },
     description: {
-      ar: "تتبع مسار الطلبات بالكامل ومراجعة الفواتير وحل أي إشكالات تتعلق بها.",
+      ar: "عرض المتاجر والمنتجات بصرياً ومراجعة الصور والبيانات غير المكتملة.",
       en: "Browse stores visually, review product images, and remove violations.",
     },
     allowedRoles: ["admin"],
@@ -333,7 +334,7 @@ export const sections: SectionConfig[] = [
     orderBy: "created_at",
     title: { ar: "الطلبات", en: "Orders" },
     description: {
-      ar: "حل الشكاوى والخلافات المتعلقة بالطلبات والرد على المستخدمين والمتاجر.",
+      ar: "متابعة حالات الطلبات والتأكيد والدفع والقيم المالية المرتبطة بها.",
       en: "All orders, accepted offer, confirmation, and payment.",
     },
     searchKeys: ["buyer_name", "buyer_mobile", "store_name", "status_ar"],
@@ -407,7 +408,7 @@ export const sections: SectionConfig[] = [
     orderBy: "created_at",
     title: { ar: "قراءات الذكاء الاصطناعي", en: "AI reads" },
     description: {
-      ar: "إدارة البوت الآلي للرد على الأسئلة المتكررة وتطوير قاعدة المعرفة.",
+      ar: "مراجعة قراءات الصور والملفات وطلبات المستخدمين وحالات المعالجة.",
       en: "Real request and file analysis readings.",
     },
     searchKeys: [
@@ -448,7 +449,7 @@ export const sections: SectionConfig[] = [
     mode: "support",
     title: { ar: "الدعم", en: "Support" },
     description: {
-      ar: "تحديد الكلمات الممنوعة ومنع الرسائل أو المنتجات غير الملائمة تلقائياً.",
+      ar: "استلام المحادثات المحولة من المساعد الآلي وتعيينها وتصنيفها والرد عليها.",
       en: "Transferred bot conversations and live replies.",
     },
     allowedRoles: ["admin", "support_agent"],
@@ -461,7 +462,7 @@ export const sections: SectionConfig[] = [
     mode: "broadcast",
     title: { ar: "إرسال إشعار", en: "Send notification" },
     description: {
-      ar: "مراجعة تقارير الذكاء الاصطناعي المتعلقة بالصور والمحتوى لمنع الاحتيال.",
+      ar: "إرسال إشعارات عربية وإنجليزية للمستخدمين مع اختيار النطاق والوجهة.",
       en: "Send a manual notification to the in-app bell and Firebase Push.",
     },
     allowedRoles: ["admin"],
@@ -564,13 +565,13 @@ export const sections: SectionConfig[] = [
     id: "complaints",
     href: "/admin/complaints",
     icon: "MessagesSquare",
-    mode: "table",
+    mode: "complaints",
     source: "admin_support_complaints_readable",
     sourceKind: "view",
     orderBy: "created_at",
     title: { ar: "الشكاوى", en: "Complaints" },
     description: {
-      ar: "عرض تقارير البوت عن رسائل المستخدمين والمحادثات.",
+      ar: "متابعة الشكاوى الرسمية والتواصل مع الأطراف وتوثيق الحل والإجراء.",
       en: "Open and escalated complaints.",
     },
     searchKeys: [
@@ -622,7 +623,7 @@ export const sections: SectionConfig[] = [
     orderBy: "updated_at",
     title: { ar: "قاعدة معرفة البوت", en: "Bot knowledge base" },
     description: {
-      ar: "إرسال الإشعارات الترويجية والتنبيهات العامة للمستخدمين بكل سهولة.",
+      ar: "إدارة محتوى المساعد الآلي باللغتين وتحديثه حسب أسئلة المستخدمين.",
       en: "Bot training content and embedding refresh flags.",
     },
     searchKeys: ["title_ar", "title_en", "content_ar", "category"],
@@ -656,7 +657,7 @@ export const sections: SectionConfig[] = [
     mode: "reports",
     title: { ar: "التقارير", en: "Reports" },
     description: {
-      ar: "مراقبة الإعلانات وتحديد مكان ظهورها وتحديث البانرات لزيادة التفاعل.",
+      ar: "تقارير تشغيلية ومالية منظمة لمتابعة الطلبات والمتاجر والأقسام والإحالات.",
       en: "Orders, active stores, categories, RFQ, and commissions.",
     },
     allowedRoles: ["admin"],
@@ -828,6 +829,7 @@ export const sections: SectionConfig[] = [
   },
   {
     id: "audit",
+    hidden: true,
     href: "/admin/audit",
     icon: "ShieldCheck",
     mode: "table",
