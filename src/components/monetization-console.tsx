@@ -127,7 +127,7 @@ type DraftCommission = {
 
 type BillingEditorState = {
   merchant: Row;
-  value: "commission" | "monthly_subscription";
+  value: string;
   reason: string;
 };
 
@@ -981,12 +981,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
                 onChange={(event) =>
                   setBillingEditor((current) =>
                     current
-                      ? {
-                          ...current,
-                          value: event.target.value as
-                            | "commission"
-                            | "monthly_subscription",
-                        }
+                      ? { ...current, value: event.target.value }
                       : current,
                   )
                 }
@@ -996,12 +991,39 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
                     ? "عمولة على كل عملية بيع"
                     : "Commission per sale"}
                 </option>
-                <option value="monthly_subscription">
-                  {lang === "ar"
-                    ? "اشتراك شهري"
-                    : "Monthly subscription"}
-                </option>
+                {(data?.plans ?? [])
+                  .filter((plan) =>
+                    Boolean(plan.is_active) ||
+                    asString(plan.id) === asString(billingEditor.merchant.billing_plan_id),
+                  )
+                  .map((plan) => (
+                    <option
+                      key={asString(plan.id)}
+                      value={`plan:${asString(plan.id)}`}
+                    >
+                      {lang === "ar" ? "اشتراك: " : "Subscription: "}
+                      {planOptionLabel(plan, lang)}
+                      {!Boolean(plan.is_active)
+                        ? lang === "ar"
+                          ? " (متوقفة)"
+                          : " (inactive)"
+                        : ""}
+                    </option>
+                  ))}
               </select>
+              {(data?.plans ?? []).filter((plan) => Boolean(plan.is_active)).length === 0 ? (
+                <small className="field-hint warning">
+                  {lang === "ar"
+                    ? "لا توجد باقات اشتراك مفعلة حاليًا. أضف أو فعّل باقة من تبويب الباقات والخصومات."
+                    : "There are no active subscription plans. Add or enable one in Plans and discounts."}
+                </small>
+              ) : (
+                <small className="field-hint">
+                  {lang === "ar"
+                    ? "القائمة تُقرأ مباشرة من الباقات؛ أي باقة جديدة مفعلة ستظهر هنا تلقائيًا."
+                    : "This list is loaded from plans; every newly enabled plan appears automatically."}
+                </small>
+              )}
             </label>
             <label>
               {lang === "ar" ? "سبب التعديل" : "Reason for change"}
@@ -1462,6 +1484,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
             ["store_name", lang === "ar" ? "المتجر" : "Store"],
             ["merchant_email", lang === "ar" ? "البريد" : "Email"],
             ["billing_preference", lang === "ar" ? "طريقة المحاسبة" : "Billing"],
+            [lang === "ar" ? "billing_plan_name_ar" : "billing_plan_name_en", lang === "ar" ? "باقة الاشتراك" : "Subscription plan"],
             ["founder_number", lang === "ar" ? "رقم المؤسس" : "Founder #"],
             ["free_trial_ends_at", lang === "ar" ? "نهاية الفترة" : "Trial ends"],
             ["founder_badge_enabled", lang === "ar" ? "شارة مؤسس" : "Founder badge"],
@@ -1919,13 +1942,23 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
 
 
   function adjustBillingPreference(row: Row) {
+    const activeSubscription = (data?.subscriptions ?? []).find(
+      (subscription) =>
+        asString(subscription.merchant_id) === asString(row.id) &&
+        ["active", "trialing", "past_due"].includes(asString(subscription.status)),
+    );
+    const assignedPlanId =
+      asString(row.billing_plan_id) || asString(activeSubscription?.plan_id);
+    const firstActivePlanId = asString(
+      (data?.plans ?? []).find((plan) => Boolean(plan.is_active))?.id,
+    );
     const current =
-      asString(row.billing_preference) === "monthly_subscription"
-        ? "monthly_subscription"
-        : "commission";
+      asString(row.billing_preference) === "commission"
+        ? "commission"
+        : `plan:${assignedPlanId || firstActivePlanId}`;
     setBillingEditor({
       merchant: row,
-      value: current,
+      value: current === "plan:" ? "commission" : current,
       reason: "",
     });
   }
@@ -1940,10 +1973,23 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
       );
       return;
     }
+    const isCommission = billingEditor.value === "commission";
+    const planId = billingEditor.value.startsWith("plan:")
+      ? billingEditor.value.slice(5)
+      : "";
+    if (!isCommission && !planId) {
+      setError(
+        lang === "ar"
+          ? "اختر باقة اشتراك مفعلة."
+          : "Select an active subscription plan.",
+      );
+      return;
+    }
     const saved = await post("update_merchant", {
       merchant_id: billingEditor.merchant.id,
-      field: "billing_preference",
-      value: billingEditor.value,
+      field: "billing_method",
+      value: isCommission ? "commission" : "monthly_subscription",
+      plan_id: isCommission ? null : planId,
       reason: billingEditor.reason.trim(),
     });
     if (saved) setBillingEditor(null);

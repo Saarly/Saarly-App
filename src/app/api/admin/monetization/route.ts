@@ -461,6 +461,8 @@ async function loadMonetizationData(service: SupabaseClient, from: string | null
     merchants: merchantsResult.data.map((merchant): Row => ({
       ...merchant,
       merchant_email: users.get(String(merchant.user_id ?? ""))?.primary_email ?? null,
+      billing_plan_name_ar: plans.get(String(merchant.billing_plan_id ?? ""))?.name_ar ?? null,
+      billing_plan_name_en: plans.get(String(merchant.billing_plan_id ?? ""))?.name_en ?? null,
     })),
     subscriptions,
     commissions,
@@ -843,11 +845,29 @@ async function updateMerchant(service: SupabaseClient, actor: AdminActor, payloa
     const value = text(payload.value);
     if (!pricingModes.has(value)) throw new Error("pricing_mode_not_allowed");
     values.pricing_mode = value;
-  } else if (field === "billing_preference") {
+  } else if (field === "billing_preference" || field === "billing_method") {
     const value = text(payload.value);
     if (!billingPreferences.has(value)) throw new Error("billing_preference_not_allowed");
     values.billing_preference = value;
     values.billing_preference_changed_at = new Date().toISOString();
+
+    if (value === "commission") {
+      values.billing_plan_id = null;
+    } else {
+      const planId = id(payload.plan_id);
+      if (!planId) throw new Error("subscription_plan_required");
+      const { data: selectedPlan, error: selectedPlanError } = await service
+        .from("subscription_plans")
+        .select("id,is_active")
+        .eq("id", planId)
+        .maybeSingle();
+      if (selectedPlanError) throw selectedPlanError;
+      if (!selectedPlan) throw new Error("subscription_plan_not_found");
+      if (!Boolean(selectedPlan.is_active) && text(before.billing_plan_id) !== planId) {
+        throw new Error("subscription_plan_not_available");
+      }
+      values.billing_plan_id = planId;
+    }
   } else if (field === "suspension") {
     const suspended = boolValue(payload.value, false);
     const { data, error } = await service.rpc("admin_set_merchant_suspension_as", {

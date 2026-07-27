@@ -73,15 +73,22 @@ test("complaints support labels and atomic resolution", () => {
   assert.match(complaintsConsole, /set_support_complaint_labels/);
 });
 
-test("ads include a real ongoing option", () => {
+test("ads include a persisted ongoing option", () => {
   assert.match(dataSection, /ad_ongoing/);
+  assert.match(dataSection, /values\.is_ongoing = ongoing/);
+  assert.match(dataSection, /row\.is_ongoing/);
   assert.match(dataSection, /values\.starts_at = null/);
   assert.match(dataSection, /values\.ends_at = null/);
+  assert.match(actionRoute, /"is_ongoing"/);
 });
 
-test("merchant billing method can be changed from the founders tab", () => {
+test("merchant billing method reads active and future plans dynamically", () => {
   assert.match(monetizationConsole, /adjustBillingPreference/);
-  assert.match(monetizationConsole, /field:\s*["']billing_preference["']/);
+  assert.match(monetizationConsole, /field:\s*["']billing_method["']/);
+  assert.match(monetizationConsole, /data\?\.plans/);
+  assert.match(monetizationConsole, /value=\{`plan:/);
+  assert.match(monetizationRoute, /billing_plan_id/);
+  assert.match(monetizationRoute, /subscription_plans/);
 });
 
 
@@ -111,11 +118,12 @@ test("founder counting can be paused and commission settings are configurable", 
   assert.match(monetizationConsole, /category_rates/);
 });
 
-test("merchant billing uses a controlled selector instead of raw enum text", () => {
+test("merchant billing uses a controlled selector backed by subscription plans", () => {
   assert.match(monetizationConsole, /billing-method-modal/);
   assert.match(monetizationConsole, /<select/);
   assert.match(monetizationConsole, /value="commission"/);
-  assert.match(monetizationConsole, /value="monthly_subscription"/);
+  assert.match(monetizationConsole, /planOptionLabel\(plan, lang\)/);
+  assert.match(monetizationConsole, /أي باقة جديدة مفعلة ستظهر هنا تلقائيًا/);
   const billingHandler = monetizationConsole.match(/function adjustBillingPreference[\s\S]*?function saveBillingPreference/)?.[0] ?? "";
   assert.doesNotMatch(billingHandler, /window\.prompt|prompt\(/);
 });

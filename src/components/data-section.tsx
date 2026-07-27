@@ -294,7 +294,11 @@ export function DataSection({
       nextValues.target_governorate_ar = nextValues.target_governorate_ar || "";
       nextValues.target_city_ar = nextValues.target_city_ar || "";
       nextValues.ad_ongoing =
-        row === "new" ? true : !Boolean(row.starts_at || row.ends_at);
+        row === "new"
+          ? true
+          : typeof row.is_ongoing === "boolean"
+            ? row.is_ongoing
+            : !Boolean(row.starts_at || row.ends_at);
       nextValues.ad_saved_starts_at =
         row === "new" ? "" : String(nextValues.starts_at ?? "");
       nextValues.ad_saved_ends_at =
@@ -481,7 +485,9 @@ export function DataSection({
       }
 
       if (section.id === "ads") {
-        if (Boolean(formValues.ad_ongoing)) {
+        const ongoing = Boolean(formValues.ad_ongoing);
+        values.is_ongoing = ongoing;
+        if (ongoing) {
           values.starts_at = null;
           values.ends_at = null;
         } else {
@@ -1374,6 +1380,9 @@ function adTargetSummary(row: Row, lang: Lang, locations: Row[]) {
 }
 
 function adScheduleSummary(row: Row, lang: Lang) {
+  if (row.is_ongoing === true) {
+    return lang === "ar" ? "مستمر بدون نهاية" : "Ongoing without an end date";
+  }
   const startsAt = row.starts_at ? formatCell(row.starts_at, "date", lang) : "";
   const endsAt = row.ends_at ? formatCell(row.ends_at, "date", lang) : "";
   if (startsAt && endsAt) {
@@ -1392,6 +1401,7 @@ function adScheduleSummary(row: Row, lang: Lang) {
 
 function adLifecycleKey(row: Row) {
   const now = Date.now();
+  if (row.is_active === true && row.is_ongoing === true) return "running";
   const startsAt = row.starts_at ? new Date(String(row.starts_at)).getTime() : null;
   const endsAt = row.ends_at ? new Date(String(row.ends_at)).getTime() : null;
   if (row.is_active !== true) return "inactive";
@@ -1404,7 +1414,7 @@ function adStatus(row: Row) {
   const key = adLifecycleKey(row);
   if (key === "ended") return { ar: "منتهي", en: "Ended", tone: "expired" };
   if (key === "scheduled") return { ar: "مجدول", en: "Scheduled", tone: "pending" };
-  if (key === "running") return { ar: row.starts_at || row.ends_at ? "شغال" : "مستمر بدون نهاية", en: row.starts_at || row.ends_at ? "Running" : "Ongoing", tone: "active" };
+  if (key === "running") return { ar: row.is_ongoing === true ? "مستمر بدون نهاية" : "شغال", en: row.is_ongoing === true ? "Ongoing" : "Running", tone: "active" };
   return { ar: "متوقف", en: "Inactive", tone: "muted" };
 }
 

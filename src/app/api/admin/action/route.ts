@@ -139,6 +139,7 @@ const editableFields: Record<string, string[]> = {
     "sort_order",
     "starts_at",
     "ends_at",
+    "is_ongoing",
     "is_active",
   ],
   support_agents: ["department", "permissions", "is_active"],
