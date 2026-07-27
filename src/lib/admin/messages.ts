@@ -264,6 +264,30 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "Team permission setup is not ready yet.";
   }
 
+  if (message.includes("staff_email_already_exists")) {
+    return lang === "ar"
+      ? "البريد الإلكتروني ده مربوط بحساب موجود في فريق الإدارة بالفعل. افتح الحساب من القائمة وعدّل صلاحياته بدل إنشاء حساب جديد."
+      : "This email is already linked to an admin team account. Open it from the list and edit its permissions instead.";
+  }
+
+  if (message.includes("email_belongs_to_existing_account")) {
+    return lang === "ar"
+      ? "البريد الإلكتروني ده مستخدم في حساب مستخدم أو متجر موجود بالفعل، ومينفعش نحوله لحساب إدارة تلقائيًا حفاظًا على الحساب. استخدم بريدًا مختلفًا."
+      : "This email belongs to an existing user or store account and cannot be converted into an admin account automatically. Use a different email.";
+  }
+
+  if (message.includes("staff_mobile_already_exists")) {
+    return lang === "ar"
+      ? "رقم الموبايل ده مستخدم في حساب آخر بالفعل. راجع الرقم أو استخدم رقمًا مختلفًا."
+      : "This mobile number is already used by another account. Check it or use a different number.";
+  }
+
+  if (message.includes("auth_user_lookup_limit_reached")) {
+    return lang === "ar"
+      ? "تعذر التأكد من حسابات تسجيل الدخول حاليًا. حاول مرة تانية بعد تحديث الصفحة."
+      : "Could not finish checking login accounts. Refresh the page and try again.";
+  }
+
   if (message.includes("permission_denied")) {
     return lang === "ar"
       ? "الحساب الحالي لا يملك صلاحية تنفيذ الإجراء ده."
@@ -352,10 +376,16 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "The action could not be completed because this data is linked to other records. Review required fields or related items and try again.";
   }
 
+  if (message.includes("email_exists") || message.includes("email address has already been registered")) {
+    return lang === "ar"
+      ? "البريد الإلكتروني ده موجود في نظام تسجيل الدخول. النسخة الجديدة بتحاول إصلاح الحساب الناقص تلقائيًا؛ حدّث الصفحة وجرّب مرة تانية."
+      : "This email already exists in the login system. The new version repairs incomplete accounts automatically; refresh and try again.";
+  }
+
   if (message.includes("duplicate") || message.includes("already registered") || message.includes("already been registered")) {
     return lang === "ar"
-      ? "هذا السجل موجود بالفعل."
-      : "This record already exists.";
+      ? "في قيمة مستخدمة قبل كده، زي البريد أو رقم الموبايل. راجع البيانات وحاول مرة تانية."
+      : "A value such as the email or mobile number is already in use. Review the details and try again.";
   }
 
   if (message.includes("password")) {

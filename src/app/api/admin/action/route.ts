@@ -1860,6 +1860,43 @@ async function upsertSupportAgent(
   }
 }
 
+async function findAuthUserByEmail(
+  service: ServiceClient,
+  email: string,
+): Promise<AuthUserForAdmin | null> {
+  const perPage = 1000;
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await service.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(error.message);
+
+    const match = data.users.find(
+      (user: AuthUserForAdmin) => String(user.email ?? "").trim().toLowerCase() === email,
+    );
+    if (match) return match as AuthUserForAdmin;
+    if (data.users.length < perPage) return null;
+  }
+  throw new Error("auth_user_lookup_limit_reached");
+}
+
+function staffCreationConflict(message: string) {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("users_mobile_unique") ||
+    normalized.includes("mobile") && normalized.includes("duplicate")
+  ) {
+    return "staff_mobile_already_exists";
+  }
+  if (
+    normalized.includes("users_primary_email_unique") ||
+    normalized.includes("users_recovery_email_unique") ||
+    normalized.includes("email_exists") ||
+    normalized.includes("email address has already been registered")
+  ) {
+    return "staff_email_already_exists";
+  }
+  return message;
+}
+
 async function createAdminStaff(
   service: ServiceClient,
   actorId: string,
@@ -1881,19 +1918,92 @@ async function createAdminStaff(
     throw new Error("password_must_be_at_least_8_chars");
   }
 
-  const { data: authData, error: authError } =
-    await service.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: fullName },
-      app_metadata: { role: internalRole },
-    });
-  if (authError || !authData.user) {
-    throw new Error(authError?.message ?? "auth_user_not_created");
+  const [authUser, emailLookup, mobileLookup] = await Promise.all([
+    findAuthUserByEmail(service, email),
+    service
+      .from("users")
+      .select("id, role, primary_email")
+      .ilike("primary_email", email)
+      .maybeSingle(),
+    service
+      .from("users")
+      .select("id, role, mobile")
+      .eq("mobile", mobile)
+      .maybeSingle(),
+  ]);
+
+  if (emailLookup.error) throw new Error(emailLookup.error.message);
+  if (mobileLookup.error) throw new Error(mobileLookup.error.message);
+
+  const existingPublicByEmail = emailLookup.data as AnyRow | null;
+  const existingPublicByMobile = mobileLookup.data as AnyRow | null;
+
+  if (existingPublicByMobile && String(existingPublicByMobile.id) !== String(authUser?.id ?? "")) {
+    throw new Error("staff_mobile_already_exists");
   }
 
-  const userId = authData.user.id;
+  let userId = authUser?.id ?? "";
+  let createdAuthUser = false;
+  let repairedOrphanAuthUser = false;
+
+  if (authUser) {
+    const { data: publicById, error: publicByIdError } = await service
+      .from("users")
+      .select("id, role, primary_email")
+      .eq("id", authUser.id)
+      .maybeSingle();
+    if (publicByIdError) throw new Error(publicByIdError.message);
+
+    if (publicById) {
+      const { data: staffProfile, error: staffProfileError } = await service
+        .from("admin_staff_profiles")
+        .select("user_id")
+        .eq("user_id", authUser.id)
+        .maybeSingle();
+      if (staffProfileError) throw new Error(staffProfileError.message);
+
+      if (staffProfile || ["admin", "support_agent"].includes(String(publicById.role ?? ""))) {
+        throw new Error("staff_email_already_exists");
+      }
+      throw new Error("email_belongs_to_existing_account");
+    }
+
+    if (existingPublicByEmail && String(existingPublicByEmail.id) !== authUser.id) {
+      throw new Error("email_belongs_to_existing_account");
+    }
+
+    const { error: authRepairError } = await service.auth.admin.updateUserById(
+      authUser.id,
+      {
+        password,
+        email_confirm: true,
+        ban_duration: "none",
+        user_metadata: { ...(authUser.user_metadata ?? {}), full_name: fullName },
+        app_metadata: { ...(authUser.app_metadata ?? {}), role: internalRole },
+      },
+    );
+    if (authRepairError) throw new Error(authRepairError.message);
+    repairedOrphanAuthUser = true;
+  } else {
+    if (existingPublicByEmail) {
+      throw new Error("email_belongs_to_existing_account");
+    }
+
+    const { data: authData, error: authError } =
+      await service.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+        app_metadata: { role: internalRole },
+      });
+    if (authError || !authData.user) {
+      throw new Error(staffCreationConflict(authError?.message ?? "auth_user_not_created"));
+    }
+    userId = authData.user.id;
+    createdAuthUser = true;
+  }
+
   try {
     const { error: userError } = await service.from("users").insert({
       id: userId,
@@ -1907,13 +2017,15 @@ async function createAdminStaff(
       is_blocked: false,
     });
     if (userError) {
-      throw new Error(userError.message);
+      throw new Error(staffCreationConflict(userError.message));
     }
 
     await upsertStaffProfile(service, userId, roleLabel, permissions, true);
 
     if (internalRole === "support_agent") {
       await upsertSupportAgent(service, userId, roleLabel, permissions, true);
+    } else {
+      await service.from("support_agents").delete().eq("user_id", userId);
     }
 
     await writeAudit(
@@ -1931,12 +2043,23 @@ async function createAdminStaff(
         role_label: roleLabel,
         access_level: accessLevel,
         permissions,
+        repaired_orphan_auth_user: repairedOrphanAuthUser,
       },
     );
 
-    return { id: userId, email, role: internalRole };
+    return {
+      id: userId,
+      email,
+      role: internalRole,
+      repaired_existing_login: repairedOrphanAuthUser,
+    };
   } catch (error) {
-    await service.auth.admin.deleteUser(userId).catch(() => undefined);
+    if (createdAuthUser) {
+      const { error: cleanupError } = await service.auth.admin.deleteUser(userId);
+      if (cleanupError) {
+        console.error("Failed to remove incomplete staff auth account:", cleanupError.message);
+      }
+    }
     throw error;
   }
 }
