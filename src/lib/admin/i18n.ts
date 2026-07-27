@@ -30,18 +30,18 @@ export const copy = {
     en: "This account is not an active admin or support agent."
   },
   serviceKeyMissing: {
-    ar: "أضف مفتاح الخدمة في Vercel لتفعيل هذا الإجراء.",
-    en: "Add the service role key in Vercel to enable this action."
+    ar: "إعدادات هذا الإجراء غير مكتملة. راجع مسؤول النظام.",
+    en: "This action is not fully configured. Ask the system owner to review it."
   },
   supportQueue: { ar: "طابور الدعم", en: "Support queue" },
   message: { ar: "اكتب رداً", en: "Write reply" },
   assignToMe: { ar: "تعيين لي", en: "Assign to me" },
   closeConversation: { ar: "إغلاق المحادثة", en: "Close conversation" },
   openApp: { ar: "فتح القسم", en: "Open section" },
-  connected: { ar: "متصل ببيانات قاعدة البيانات", en: "Connected to Supabase data" },
+  connected: { ar: "متصل بالبيانات المباشرة", en: "Connected to live data" },
   readOnly: {
-    ar: "عرض مباشر للبيانات، والتعديلات الحساسة تتم عبر API محمي.",
-    en: "Live read access; sensitive writes go through a protected API."
+    ar: "البيانات محدثة، والإجراءات الحساسة محمية بصلاحيات الإدارة.",
+    en: "Data is up to date, and sensitive actions are protected by admin permissions."
   },
   theme: { ar: "المظهر", en: "Theme" },
   language: { ar: "اللغة", en: "Language" },

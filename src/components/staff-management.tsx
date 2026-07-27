@@ -64,10 +64,10 @@ const permissionGroups = [
       { key: "orders", ar: "الطلبات", en: "Orders" },
       { key: "support_chats", ar: "محادثات الدعم", en: "Support chats" },
       { key: "complaints", ar: "الشكاوى", en: "Complaints" },
-      { key: "knowledge_base", ar: "قاعدة معرفة البوت", en: "Bot knowledge base" },
+      { key: "knowledge_base", ar: "معرفة المساعد الآلي", en: "Assistant knowledge" },
       { key: "content_moderation", ar: "مراقبة المحتوى", en: "Content moderation" },
       { key: "suspicious_matches", ar: "تطابقات غير مؤكدة", en: "Low confidence matches" },
-      { key: "ai_reads", ar: "قراءات الذكاء الاصطناعي", en: "AI reads" }
+      { key: "ai_reads", ar: "قراءات المساعد الذكي", en: "Smart assistant readings" }
     ]
   },
   {
@@ -303,8 +303,8 @@ export function StaffManagement({ lang }: { lang: Lang }) {
           <h1>{lang === "ar" ? "الفريق والصلاحيات" : "Team and permissions"}</h1>
           <p>
             {lang === "ar"
-              ? "أضف حساب موظف، اكتب اسم الرتبة، وحدد الصلاحيات المناسبة بدون الرجوع إلى Supabase."
-              : "Add a staff account, name the rank, and choose what it can access without opening Supabase."}
+              ? "أضف حساب موظف، اكتب اسم الرتبة، وحدد الصلاحيات المناسبة من نفس الصفحة."
+              : "Add a staff account, name the rank, and choose its permissions from this page."}
           </p>
         </div>
         <button className="soft-button" onClick={loadStaff}>
@@ -558,12 +558,12 @@ function normalizeError(error: unknown, lang: Lang) {
   const message = error instanceof Error ? error.message : String(error);
   const labels: Record<string, { ar: string; en: string }> = {
     service_role_key_missing: {
-      ar: "مفتاح الخدمة غير موجود في Vercel، لذلك لا يمكن تعديل حسابات الفريق حالياً.",
-      en: "The service role key is missing in Vercel, so staff accounts cannot be changed."
+      ar: "إعدادات إدارة حسابات الفريق غير مكتملة حاليًا.",
+      en: "Staff account management is not fully configured right now."
     },
     admin_staff_sql_not_applied: {
-      ar: "ملف SQL الخاص بصلاحيات الفريق لم يتم تشغيله في Supabase بعد.",
-      en: "The staff permissions SQL file has not been run in Supabase yet."
+      ar: "إعدادات صلاحيات الفريق غير مكتملة حاليًا.",
+      en: "Team permission settings are not fully configured right now."
     },
     password_must_be_at_least_8_chars: {
       ar: "كلمة المرور لازم تكون 8 حروف على الأقل.",

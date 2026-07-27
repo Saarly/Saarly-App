@@ -239,7 +239,7 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
     if (!nameAr?.trim()) return;
     const nameEn = window.prompt(lang === "ar" ? "اسم التصنيف بالإنجليزي" : "English label name");
     if (!nameEn?.trim()) return;
-    const color = window.prompt(lang === "ar" ? "اختر لون HEX مثل #12B76A" : "Choose a HEX color such as #12B76A", "#12B76A");
+    const color = window.prompt(lang === "ar" ? "اختر لونًا للتصنيف مثل #12B76A" : "Choose a label color such as #12B76A", "#12B76A");
     if (!color) return;
     await run("new-label", async () => {
       await postAction({

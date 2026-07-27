@@ -5,16 +5,19 @@ import {
   CheckCircle2,
   Filter,
   MessageSquareText,
+  Pencil,
+  Plus,
   RefreshCw,
   Search,
   Send,
   Tag,
+  Trash2,
   UserCheck,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import type { AdminProfile } from "@/lib/admin/types";
-import { formatCell } from "@/lib/admin/format";
+import { adminValueLabel, formatCell } from "@/lib/admin/format";
 import { humanizeAdminError } from "@/lib/admin/messages";
 
 type Row = Record<string, unknown>;
@@ -233,6 +236,54 @@ export function ComplaintsConsole({
     await action("set_support_complaint_labels", text(selected.id), { label_ids: labelIds });
   }
 
+  async function updateStatus(nextStatus: string) {
+    if (!selected || nextStatus === text(selected.status)) return;
+    await action("set_complaint_status_admin", text(selected.id), { status: nextStatus });
+  }
+
+  async function saveLabel(label?: SupportLabel) {
+    if (profile?.role !== "admin") return;
+    const nameAr = window.prompt(
+      lang === "ar" ? "اسم التصنيف بالعربية" : "Arabic label name",
+      label?.name_ar ?? "",
+    );
+    if (!nameAr?.trim()) return;
+    const nameEn = window.prompt(
+      lang === "ar" ? "اسم التصنيف بالإنجليزية" : "English label name",
+      label?.name_en ?? "",
+    );
+    if (!nameEn?.trim()) return;
+    const colorHex = window.prompt(
+      lang === "ar" ? "لون التصنيف بصيغة HEX" : "Label HEX color",
+      label?.color_hex ?? "#12B76A",
+    );
+    if (!colorHex?.trim()) return;
+    await action("upsert_support_label", label?.id ?? "new", {
+      label_id: label?.id ?? null,
+      name_ar: nameAr.trim(),
+      name_en: nameEn.trim(),
+      color_hex: colorHex.trim(),
+      is_active: true,
+    });
+  }
+
+  async function deleteLabel(label: SupportLabel) {
+    if (profile?.role !== "admin") return;
+    const confirmed = window.confirm(
+      lang === "ar"
+        ? `حذف التصنيف «${label.name_ar}» من القوائم؟`
+        : `Remove the “${label.name_en}” label from the lists?`,
+    );
+    if (!confirmed) return;
+    await action("upsert_support_label", label.id, {
+      label_id: label.id,
+      name_ar: label.name_ar,
+      name_en: label.name_en,
+      color_hex: label.color_hex,
+      is_active: false,
+    });
+  }
+
   return (
     <section className="content-panel complaints-console">
       <div className="section-head">
@@ -260,7 +311,7 @@ export function ComplaintsConsole({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={lang === "ar" ? "ابحث بالعميل أو المتجر أو العنوان" : "Search customer, store, or title"}
+            placeholder={lang === "ar" ? "ابحث بالعميل أو المتجر أو نص الشكوى" : "Search customer, store, or complaint text"}
           />
         </label>
         <label className="compact-field">
@@ -294,6 +345,40 @@ export function ComplaintsConsole({
         </label>
       </div>
 
+      <div className="complaint-label-manager">
+        <div className="complaint-label-manager-head">
+          <div>
+            <strong>{lang === "ar" ? "تصنيفات الدعم" : "Support labels"}</strong>
+            <small>{lang === "ar" ? "نفس التصنيفات المستخدمة في صفحة الدعم." : "The same labels used on the support page."}</small>
+          </div>
+          {profile?.role === "admin" ? (
+            <button className="tiny-button" onClick={() => void saveLabel()} disabled={busy === "upsert_support_label"}>
+              <Plus size={15} />
+              {lang === "ar" ? "إضافة تصنيف" : "Add label"}
+            </button>
+          ) : null}
+        </div>
+        <div className="complaint-label-manager-list">
+          {data.labels.map((label) => (
+            <div className="managed-support-label" key={label.id} style={{ borderColor: label.color_hex }}>
+              <span style={{ backgroundColor: label.color_hex }} />
+              <b>{lang === "ar" ? label.name_ar : label.name_en}</b>
+              {profile?.role === "admin" ? (
+                <div>
+                  <button type="button" title={lang === "ar" ? "تعديل" : "Edit"} onClick={() => void saveLabel(label)} disabled={busy === "upsert_support_label"}>
+                    <Pencil size={14} />
+                  </button>
+                  <button type="button" title={lang === "ar" ? "حذف" : "Delete"} onClick={() => void deleteLabel(label)} disabled={busy === "upsert_support_label"}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ))}
+          {data.labels.length === 0 ? <span className="muted">{lang === "ar" ? "لا توجد تصنيفات مفعلة." : "No active labels."}</span> : null}
+        </div>
+      </div>
+
       <div className="complaints-layout">
         <aside className="complaints-list">
           {loading ? <div className="empty-state">{lang === "ar" ? "جار التحميل..." : "Loading..."}</div> : null}
@@ -310,14 +395,14 @@ export function ComplaintsConsole({
                 onClick={() => setSelectedId(text(item.id))}
               >
                 <div className="complaint-card-head">
-                  <strong>{text(item.title) || (lang === "ar" ? "شكوى بدون عنوان" : "Untitled complaint")}</strong>
+                  <strong>{friendlyName(item.reporter_name, lang)}</strong>
                   <span className={`status-pill ${itemPriority === "urgent" || itemPriority === "high" ? "danger" : "muted"}`}>
-                    {priorityLabels[itemPriority]?.[lang] ?? itemPriority}
+                    {priorityLabels[itemPriority]?.[lang] ?? adminValueLabel(itemPriority, lang)}
                   </span>
                 </div>
-                <span>{friendlyName(item.reporter_name, lang)}</span>
+                {text(item.reporter_mobile) ? <span>{text(item.reporter_mobile)}</span> : null}
                 {text(item.store_name) ? <small>{text(item.store_name)}</small> : null}
-                <small>{statusLabels[itemStatus]?.[lang] ?? itemStatus}</small>
+                <small>{statusLabels[itemStatus]?.[lang] ?? adminValueLabel(itemStatus, lang)}</small>
                 <div className="support-labels">
                   {rowLabels(item).map((label) => (
                     <i key={label.id} style={{ backgroundColor: label.color_hex }}>
@@ -340,7 +425,7 @@ export function ComplaintsConsole({
             <>
               <div className="complaint-thread-head">
                 <div>
-                  <h2>{text(selected.title)}</h2>
+                  <h2>{lang === "ar" ? "تفاصيل الشكوى" : "Complaint details"}</h2>
                   <p>{friendlyName(selected.reporter_name, lang)} · {text(selected.reporter_mobile) || "-"}</p>
                   <small>
                     {lang === "ar" ? "مسؤول الشكوى: " : "Complaint owner: "}
@@ -351,7 +436,19 @@ export function ComplaintsConsole({
                         : "No support agent assigned"}
                   </small>
                 </div>
-                <div className="row-actions">
+                <div className="row-actions complaint-head-actions">
+                  <label className="complaint-status-control">
+                    <span>{lang === "ar" ? "تحديث الحالة" : "Update status"}</span>
+                    <select
+                      value={text(selected.status)}
+                      onChange={(event) => void updateStatus(event.target.value)}
+                      disabled={busy === "set_complaint_status_admin"}
+                    >
+                      {Object.entries(statusLabels).map(([key, label]) => (
+                        <option value={key} key={key}>{label[lang]}</option>
+                      ))}
+                    </select>
+                  </label>
                   {!closed ? (
                     <button className="tiny-button" onClick={() => void assign()} disabled={busy === "assign_complaint_admin"}>
                       <UserCheck size={15} />
@@ -414,8 +511,8 @@ export function ComplaintsConsole({
               </div>
 
               <div className="complaint-summary-grid">
-                <div><strong>{lang === "ar" ? "الحالة" : "Status"}</strong><span>{statusLabels[text(selected.status)]?.[lang] ?? text(selected.status)}</span></div>
-                <div><strong>{lang === "ar" ? "الأولوية" : "Priority"}</strong><span>{priorityLabels[text(selected.priority)]?.[lang] ?? text(selected.priority)}</span></div>
+                <div><strong>{lang === "ar" ? "الحالة" : "Status"}</strong><span>{statusLabels[text(selected.status)]?.[lang] ?? adminValueLabel(selected.status, lang)}</span></div>
+                <div><strong>{lang === "ar" ? "الأولوية" : "Priority"}</strong><span>{priorityLabels[text(selected.priority)]?.[lang] ?? adminValueLabel(selected.priority, lang)}</span></div>
                 <div><strong>{lang === "ar" ? "المتجر" : "Store"}</strong><span>{text(selected.store_name) || "-"}</span></div>
                 <div><strong>{lang === "ar" ? "آخر تحديث" : "Updated"}</strong><span>{formatCell(selected.updated_at, "date", lang)}</span></div>
               </div>

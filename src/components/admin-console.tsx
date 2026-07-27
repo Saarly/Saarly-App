@@ -83,8 +83,8 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
       setProfile(null);
       setProfileError(
         lang === "ar"
-          ? "تعذر الاتصال بخدمة صلاحيات لوحة الإدارة. اعمل تحديث للصفحة، ولو استمرت المشكلة ارفع آخر نسخة على Vercel."
-          : "Could not contact the Admin Web permissions service. Refresh the page, and if it continues deploy the latest version to Vercel."
+          ? "تعذر التحقق من صلاحيات لوحة الإدارة. حدّث الصفحة ثم حاول مرة أخرى."
+          : "Could not verify admin permissions. Refresh the page and try again."
       );
     } finally {
       setCheckingProfile(false);
@@ -118,6 +118,18 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
     document.documentElement.dataset.theme = theme;
+    document.title = lang === "ar" ? "لوحة إدارة سعرلي" : "Saarly Admin Panel";
+    const description =
+      lang === "ar"
+        ? "لوحة إدارة عمليات سعرلي والدعم والمدفوعات والإعدادات."
+        : "Admin panel for Saarly operations, support, payments, and settings.";
+    let descriptionMeta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (!descriptionMeta) {
+      descriptionMeta = document.createElement("meta");
+      descriptionMeta.name = "description";
+      document.head.appendChild(descriptionMeta);
+    }
+    descriptionMeta.content = description;
     window.localStorage.setItem("saarly-admin-lang", lang);
     window.localStorage.setItem("saarly-admin-theme", theme);
   }, [lang, theme]);
@@ -150,7 +162,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     return (
       <main className="login-page">
         <section className="login-card">
-          <img className="brand-logo brand-logo-large" src="/saarly-logo.png" alt="سعرلي" />
+          <img className="brand-logo brand-logo-large" src="/saarly-logo.png" alt={lang === "ar" ? "سعرلي" : "Saarly"} />
           <h1>{t("unauthorized", lang)}</h1>
           {profileError ? <p className="login-error-detail">{profileError}</p> : null}
           <button className="ghost-button" onClick={() => void retryProfileCheck()} disabled={checkingProfile}>
@@ -182,10 +194,19 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
       ) : null}
       <aside className={menuOpen ? "sidebar open" : "sidebar"}>
         <div className="sidebar-brand">
-          <img className="brand-logo brand-logo-sidebar" src="/saarly-logo.png" alt="سعرلي" />
+          <img className="brand-logo brand-logo-sidebar" src="/saarly-logo.png" alt={lang === "ar" ? "سعرلي" : "Saarly"} />
           <div>
             <strong>{t("appName", lang)}</strong>
-            <span>{profile.role_label || (profile.role === "admin" ? "Admin" : "Support")}</span>
+            <span>
+              {profile.role_label ||
+                (profile.role === "admin"
+                  ? lang === "ar"
+                    ? "مدير"
+                    : "Administrator"
+                  : lang === "ar"
+                    ? "موظف دعم"
+                    : "Support agent")}
+            </span>
           </div>
           <button
             type="button"
@@ -213,7 +234,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
 
       <main className="main-area">
         <header className="topbar">
-          <button className="icon-only mobile-menu" onClick={() => setMenuOpen((current) => !current)} aria-label="menu">
+          <button className="icon-only mobile-menu" onClick={() => setMenuOpen((current) => !current)} aria-label={lang === "ar" ? "فتح القائمة" : "Open menu"}>
             <Menu size={20} />
           </button>
           <div>
@@ -222,9 +243,30 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
           </div>
           <div className="topbar-actions">
             <button className="soft-button" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>
-              {lang === "ar" ? "EN" : "عربي"}
+              {lang === "ar" ? "الإنجليزية" : "Arabic"}
             </button>
-            <button className="icon-only" onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
+            <button
+              className="icon-only"
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              aria-label={
+                theme === "light"
+                  ? lang === "ar"
+                    ? "تفعيل الوضع الداكن"
+                    : "Enable dark mode"
+                  : lang === "ar"
+                    ? "تفعيل الوضع الفاتح"
+                    : "Enable light mode"
+              }
+              title={
+                theme === "light"
+                  ? lang === "ar"
+                    ? "الوضع الداكن"
+                    : "Dark mode"
+                  : lang === "ar"
+                    ? "الوضع الفاتح"
+                    : "Light mode"
+              }
+            >
               {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <button className="soft-button" onClick={signOut}>

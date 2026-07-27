@@ -364,7 +364,10 @@ function actionRequiresServiceRole(action: string) {
     "assign_complaint_admin",
     "send_complaint_message_admin",
     "resolve_complaint_admin",
+    "set_complaint_status_admin",
     "set_support_complaint_labels",
+    "delete_merchant",
+    "restore_merchant",
     "signed_admin_file",
   ].includes(action);
 }
@@ -598,7 +601,7 @@ function permissionKeyFor(action: string, table?: string) {
   if (action === "send_admin_notification") return "broadcast";
   if (["upsert_support_label", "set_support_labels", "convert_support_to_complaint", "assign_support_conversation_admin"].includes(action)) return "support_chats";
   if (["set_merchant_badges", "set_merchant_trial"].includes(action)) return "monetization";
-  if (["assign_complaint_admin", "send_complaint_message_admin", "resolve_complaint_admin", "set_support_complaint_labels"].includes(action)) return "complaints";
+  if (["assign_complaint_admin", "send_complaint_message_admin", "resolve_complaint_admin", "set_complaint_status_admin", "set_support_complaint_labels"].includes(action)) return "complaints";
   if (action === "signed_admin_file") return "merchant_approvals";
   if (action === "update_referral_settings") return "referrals";
   if (action === "set_user_password" || action === "delete_user_account")
@@ -607,6 +610,7 @@ function permissionKeyFor(action: string, table?: string) {
     action === "approve_merchant" ||
     action === "reject_merchant" ||
     action === "suspend_merchant" ||
+    action === "restore_merchant" ||
     action === "delete_merchant"
   )
     return "merchant_approvals";
@@ -649,6 +653,13 @@ function assertActionAllowed(auth: AdminAuth, action: string, table?: string) {
     ["merchant_approvals", "branch_approvals", "store_catalog", "monetization"].some(
       (key) => auth.permissions[key] === true,
     )
+  ) {
+    return;
+  }
+
+  if (
+    action === "upsert_support_label" &&
+    (auth.permissions.support_chats === true || auth.permissions.complaints === true)
   ) {
     return;
   }
@@ -2157,7 +2168,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data: { products: productsResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
       }
       const [storesResult, productRowsResult] = await Promise.all([
-        service.from("admin_merchants_readable").select("id,store_name,owner_name,contact_mobile,category_name_ar,category_name_en,approval_status,approval_status_ar,approval_status_en,store_front_image_url,store_front_bucket,founder_badge_enabled,trusted_badge_enabled,created_at").order("created_at", { ascending: false }).limit(300),
+        service.from("admin_merchants_readable").select("id,store_name,owner_name,contact_mobile,category_name_ar,category_name_en,approval_status,approval_status_ar,approval_status_en,store_front_image_url,store_front_bucket,founder_badge_enabled,trusted_badge_enabled,manually_suspended_at,suspension_reason,created_at").order("created_at", { ascending: false }).limit(300),
         service.from("products").select("merchant_id,is_active").limit(10000),
       ]);
       const loadError = storesResult.error ?? productRowsResult.error;
@@ -2487,6 +2498,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (action === "set_complaint_status_admin") {
+    try {
+      const complaintId = requiredText(id, "complaint_id");
+      const complaintStatus = requiredText(body.payload?.status, "complaint_status");
+      const { data, error } = await service.rpc("admin_set_support_complaint_status_as", {
+        p_actor_id: auth.userId,
+        p_complaint_id: complaintId,
+        p_status: complaintStatus,
+      });
+      if (error) throw error;
+      return NextResponse.json({ data });
+    } catch (statusError) {
+      return jsonError(serviceActionErrorMessage(statusError), 400);
+    }
+  }
+
   if (action === "assign_complaint_admin") {
     try {
       const complaintId = requiredText(id, "complaint_id");
@@ -2638,22 +2665,18 @@ export async function POST(req: NextRequest) {
     table = "products";
     targetId = id;
     values = { is_active: true };
-  } else if (action === "suspend_merchant") {
+  } else if (action === "suspend_merchant" || action === "restore_merchant") {
     if (!id) return jsonError("missing_id");
     const suspensionReason = String(
-      body.payload?.reason ?? "مخالفة واضحة",
+      body.payload?.reason ??
+        (action === "suspend_merchant" ? "مخالفة واضحة" : "إعادة تشغيل المتجر من لوحة الإدارة"),
     ).trim();
     if (suspensionReason.length < 3) {
       return jsonError("reason_required");
     }
     table = "merchants";
     targetId = id;
-    values = {
-      manually_suspended_at: now,
-      suspension_reason: suspensionReason,
-      suspended_by: auth.userId,
-      last_admin_contact_at: now,
-    };
+    values = { suspension_reason: suspensionReason };
   } else if (action === "delete_product") {
     if (!id) return jsonError("missing_id");
     table = "products";
@@ -2715,14 +2738,16 @@ export async function POST(req: NextRequest) {
 
   if (action === "delete_merchant") {
     const before = await getBefore(service, table, targetId);
+    if (!before) return jsonError("merchant_not_found", 404);
     const { data: products } = await adminDb
       .from("products")
       .select("*")
       .eq("merchant_id", targetId);
-    const { error } = await service
-      .from(table)
-      .delete()
-      .eq(idColumnByTable[table] ?? "id", targetId);
+    const { data, error } = await service.rpc("admin_delete_merchant_as", {
+      p_actor_id: auth.userId,
+      p_merchant_id: targetId,
+      p_reason: String(body.payload?.reason ?? "Deleted from Saarly Admin Web"),
+    });
     if (error) {
       return jsonError(adminDbActionErrorMessage(error), 400);
     }
@@ -2732,16 +2757,7 @@ export async function POST(req: NextRequest) {
       ),
     );
     await removeMerchantImages(adminDb, before);
-    await writeAudit(
-      service,
-      auth.userId,
-      action,
-      table,
-      targetId,
-      before,
-      null,
-    );
-    return NextResponse.json({ data: { id: targetId, deleted: true } });
+    return NextResponse.json({ data: data ?? { id: targetId, deleted: true } });
   }
 
   if (action === "delete_row") {
@@ -2794,12 +2810,12 @@ export async function POST(req: NextRequest) {
   }
 
   const before = await getBefore(service, table, targetId);
-  if (action === "suspend_merchant") {
+  if (action === "suspend_merchant" || action === "restore_merchant") {
     const suspensionReason = String(values.suspension_reason ?? "").trim();
     const { data, error } = await service.rpc("admin_set_merchant_suspension_as", {
       p_actor_id: auth.userId,
       p_merchant_id: targetId,
-      p_suspended: true,
+      p_suspended: action === "suspend_merchant",
       p_reason: suspensionReason,
     });
     if (error) return jsonError(adminDbActionErrorMessage(error), 400);

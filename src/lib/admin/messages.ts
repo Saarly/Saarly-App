@@ -1,4 +1,5 @@
 import type { Lang } from "./i18n";
+import { adminValueLabel } from "./format";
 
 const statusLabels: Record<string, { ar: string; en: string }> = {
   awaiting_confirmation: { ar: "بانتظار تأكيد المتجر", en: "Waiting for store confirmation" },
@@ -27,6 +28,59 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (!raw) return "";
 
+
+  if (
+    message.includes("invalid login credentials") ||
+    message.includes("invalid credentials") ||
+    message.includes("invalid_grant")
+  ) {
+    return lang === "ar"
+      ? "البريد الإلكتروني أو كلمة المرور غير صحيحة."
+      : "The email or password is incorrect.";
+  }
+
+  if (message.includes("email not confirmed")) {
+    return lang === "ar"
+      ? "فعّل البريد الإلكتروني أولاً ثم حاول تسجيل الدخول مرة أخرى."
+      : "Confirm your email first, then try signing in again.";
+  }
+
+  if (
+    message.includes("otp expired") ||
+    message.includes("token has expired") ||
+    message.includes("email link is invalid or has expired")
+  ) {
+    return lang === "ar"
+      ? "انتهت صلاحية كود الدخول. اطلب كودًا جديدًا."
+      : "The sign-in code expired. Request a new code.";
+  }
+
+  if (
+    message.includes("invalid otp") ||
+    message.includes("token is invalid") ||
+    message.includes("invalid token")
+  ) {
+    return lang === "ar"
+      ? "كود الدخول غير صحيح. راجعه أو اطلب كودًا جديدًا."
+      : "The sign-in code is incorrect. Check it or request a new code.";
+  }
+
+  if (
+    message.includes("rate limit") ||
+    message.includes("too many requests") ||
+    message.includes("email rate limit")
+  ) {
+    return lang === "ar"
+      ? "تمت محاولات كثيرة في وقت قصير. انتظر قليلاً ثم حاول مرة أخرى."
+      : "There were too many attempts in a short time. Wait a moment and try again.";
+  }
+
+  if (message.includes("ad_schedule_required")) {
+    return lang === "ar"
+      ? "حدد تاريخ بداية الإعلان وتاريخ انتهائه قبل الحفظ."
+      : "Choose the ad start and end dates before saving.";
+  }
+
   if (message.includes("ad_end_must_be_after_start")) {
     return lang === "ar"
       ? "تاريخ انتهاء الإعلان لازم يكون بعد تاريخ البداية."
@@ -49,10 +103,33 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
     return lang === "ar" ? "أدخل اسم الدولة أولاً." : "Enter the country name first.";
   }
 
-  if (message.includes("invalid_access_token") || message.includes("jwt") || message.includes("expired")) {
+  if (
+    message.includes("invalid_access_token") ||
+    message.includes("jwt expired") ||
+    message.includes("session expired") ||
+    message.includes("refresh_token_not_found")
+  ) {
     return lang === "ar"
       ? "انتهت جلسة الدخول. سجل خروج وادخل مرة تانية."
       : "Your session expired. Sign out and sign in again.";
+  }
+
+  if (message.includes("auth_required") || message.includes("missing_session")) {
+    return lang === "ar"
+      ? "انتهت جلسة الدخول. سجل الدخول مرة أخرى."
+      : "Your session ended. Sign in again.";
+  }
+
+  if (message.includes("action_failed") || message.includes("load_failed")) {
+    return lang === "ar"
+      ? "تعذر إتمام العملية. حدّث الصفحة ثم حاول مرة أخرى."
+      : "The action could not be completed. Refresh and try again.";
+  }
+
+  if (message.includes("missing_update_payload") || message.includes("missing_create_payload") || message.includes("missing_id")) {
+    return lang === "ar"
+      ? "بيانات العملية غير مكتملة. حدّث الصفحة ثم حاول مرة أخرى."
+      : "The action details are incomplete. Refresh and try again.";
   }
 
   if (message.includes("service_role_key_missing")) {
@@ -94,7 +171,7 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
   if (message.includes("cannot_delete_current_admin")) {
     return lang === "ar"
       ? "لا يمكنك حذف الحساب المستخدم حالياً في لوحة الإدارة."
-      : "You cannot delete the account currently signed in to Admin Web.";
+      : "You cannot delete the account currently signed in to the admin panel.";
   }
 
   if (message.includes("user_not_found")) {
@@ -120,6 +197,20 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
 
   if (message.includes("reason_required")) {
     return lang === "ar" ? "اكتب سبباً واضحاً قبل حفظ الإجراء." : "Enter a clear reason before saving this action.";
+  }
+
+  if (message.includes("merchant_not_found")) {
+    return lang === "ar" ? "لم يتم العثور على المتجر. حدّث الصفحة وحاول مرة أخرى." : "The store was not found. Refresh and try again.";
+  }
+
+  if (message.includes("merchant_has_financial_or_order_history")) {
+    return lang === "ar"
+      ? "لا يمكن حذف المتجر نهائيًا لأنه مرتبط بطلبات أو سجلات مالية محفوظة. استخدم إيقاف المتجر بدلًا من الحذف للحفاظ على السجلات."
+      : "This store cannot be permanently deleted because it has retained orders or financial history. Suspend it instead to preserve those records.";
+  }
+
+  if (message.includes("invalid_complaint_status") || message.includes("complaint_status_required")) {
+    return lang === "ar" ? "اختر حالة صحيحة للشكوى." : "Choose a valid complaint status.";
   }
   if (message.includes("complaint_not_found")) {
     return lang === "ar" ? "لم يتم العثور على الشكوى. حدّث الصفحة وحاول مرة أخرى." : "The complaint was not found. Refresh and try again.";
@@ -252,7 +343,7 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
   if (message.includes("duplicate") || message.includes("already registered") || message.includes("already been registered")) {
     return lang === "ar"
       ? "هذا السجل موجود بالفعل."
-      : "This record already exists. Try a different email or mobile.";
+      : "This record already exists.";
   }
 
   if (message.includes("password")) {
@@ -261,10 +352,13 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "Please check the password requirements.";
   }
 
-  return raw;
+  console.error("Admin operation error:", raw);
+  return lang === "ar"
+    ? "حدثت مشكلة غير متوقعة. حدّث الصفحة ثم حاول مرة أخرى."
+    : "An unexpected problem occurred. Refresh and try again.";
 }
 
 export function friendlyStatus(value: unknown, lang: Lang) {
   const text = String(value ?? "").trim();
-  return statusLabels[text]?.[lang] ?? text;
+  return statusLabels[text]?.[lang] ?? adminValueLabel(text, lang);
 }

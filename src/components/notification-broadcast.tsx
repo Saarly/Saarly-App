@@ -134,9 +134,9 @@ const destinationOptions: DestinationOption[] = [
     id: "merchant_rfqs",
     deepLink: "saarly://merchant/rfqs",
     ar: "طلبات التسعير",
-    en: "RFQs",
+    en: "Quote requests",
     hintAr: "يفتح طلبات التسعير اليدوية للمتجر.",
-    hintEn: "Opens manual RFQs for the store.",
+    hintEn: "Opens manual quote requests for the store.",
   },
   {
     id: "merchant_products",
@@ -184,7 +184,7 @@ const destinationOptions: DestinationOption[] = [
     ar: "وجهة مخصصة",
     en: "Custom destination",
     hintAr: "لوجهة داخلية غير موجودة في القائمة.",
-    hintEn: "For a developer-only internal destination not listed above.",
+    hintEn: "For an internal destination not listed above.",
     custom: true,
   },
 ];
@@ -192,10 +192,10 @@ const destinationOptions: DestinationOption[] = [
 function friendlyPushResult(status: string | null, error: string | null, lang: Lang) {
   const raw = `${status ?? "pending"} ${error ?? ""}`.toLowerCase();
   if (raw.includes("no active fcm") || raw.includes("skipped")) {
-    return lang === "ar" ? "حُفظ داخل التطبيق، ولا يوجد جهاز نشط لاستقبال التنبيه حالياً." : "Saved in the app; no active device is currently available for push delivery.";
+    return lang === "ar" ? "حُفظ داخل التطبيق، ولا يوجد جهاز نشط لاستقبال التنبيه حالياً." : "Saved in the app; no active device is currently available for notification delivery.";
   }
   if (raw.includes("404") || raw.includes("failed") || raw.includes("error")) {
-    return lang === "ar" ? "حُفظ داخل التطبيق، وتعذر إرسال التنبيه للهاتف." : "Saved in the app, but phone push delivery was unsuccessful.";
+    return lang === "ar" ? "حُفظ داخل التطبيق، وتعذر إرسال التنبيه للهاتف." : "Saved in the app, but phone notification delivery was unsuccessful.";
   }
   if (raw.includes("sent") || raw.includes("success")) {
     return lang === "ar" ? "تم الإرسال داخل التطبيق وإلى الهاتف." : "Delivered in the app and to the phone.";
@@ -424,14 +424,14 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
         <div>
           <span className="eyebrow">
             {lang === "ar"
-              ? "Firebase + جرس التطبيق"
-              : "Firebase + in-app bell"}
+              ? "داخل التطبيق وعلى جهاز المستخدم"
+              : "In the app and on the user’s device"}
           </span>
           <h1>{lang === "ar" ? "إرسال إشعار" : "Send notification"}</h1>
           <p>
             {lang === "ar"
-              ? "الإشعار يظهر داخل التطبيق، ويصل كتنبيه Push عندما يكون جهاز المستخدم مسجلاً والصلاحيات مفعلة."
-              : "The notification appears in-app, and reaches Push when the user's device is registered and permissions are enabled."}
+              ? "الإشعار يظهر داخل التطبيق، ويصل إلى جهاز المستخدم عندما تكون الإشعارات مفعلة."
+              : "The notification appears in the app and reaches the user’s device when notifications are enabled."}
           </p>
         </div>
         <button className="soft-button" onClick={() => void loadRecent()}>

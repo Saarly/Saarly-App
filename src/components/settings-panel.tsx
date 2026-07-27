@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
+import { adminValueLabel } from "@/lib/admin/format";
 
 type Flag = {
   key: string;
@@ -185,7 +186,7 @@ function priceAlertStatusLabel(status: string, lang: Lang) {
     no_change: { ar: "لا تغيير", en: "No change" },
     waiting: { ar: "في الانتظار", en: "Waiting" }
   };
-  return labels[status]?.[lang] ?? status;
+  return labels[status]?.[lang] ?? adminValueLabel(status, lang);
 }
 
 export function SettingsPanel({ lang }: { lang: Lang }) {
@@ -737,7 +738,7 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
 
                   <div className="provider-config-grid">
                     <label>
-                      {lang === "ar" ? "\u0631\u0642\u0645 \u0627\u0644\u062a\u0627\u062c\u0631 / \u062d\u0633\u0627\u0628 \u0627\u0644\u062f\u0641\u0639" : "Merchant/account ID"}
+                      {lang === "ar" ? "رقم حساب الدفع" : "Payment account number"}
                       <input
                         dir="auto"
                         value={draft.merchant_id}
@@ -771,34 +772,34 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
                       </label>
                     ) : null}
                     <label>
-                      {lang === "ar" ? "\u0627\u0633\u0645 \u0645\u0641\u062a\u0627\u062d \u0627\u0644\u062f\u0641\u0639 \u0627\u0644\u0645\u062d\u0641\u0648\u0638" : "Saved payment key name"}
+                      {lang === "ar" ? "اسم بيانات ربط الدفع" : "Saved payment connection name"}
                       <input
                         dir="ltr"
                         value={draft.api_secret_name}
                         onChange={(event) => updateProviderDraft(provider.id, { api_secret_name: event.target.value })}
-                        placeholder="PAYMENT_PROVIDER_SECRET"
+                        placeholder=""
                       />
                     </label>
                     <label>
-                      {lang === "ar" ? "\u0627\u0633\u0645 \u0633\u0631 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u062f\u0641\u0639" : "Webhook secret name"}
+                      {lang === "ar" ? "اسم بيانات تأكيد الدفع" : "Payment confirmation name"}
                       <input
                         dir="ltr"
                         value={draft.webhook_secret_name}
                         onChange={(event) => updateProviderDraft(provider.id, { webhook_secret_name: event.target.value })}
-                        placeholder="PAYMENT_WEBHOOK_SECRET"
+                        placeholder=""
                       />
                     </label>
                     <label>
-                      {lang === "ar" ? "\u0647\u064a\u062f\u0631 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u062f\u0641\u0639" : "Webhook signature header"}
+                      {lang === "ar" ? "اسم حقل تأكيد الدفع" : "Payment confirmation field"}
                       <input
                         dir="ltr"
                         value={draft.webhook_signature_header}
                         onChange={(event) => updateProviderDraft(provider.id, { webhook_signature_header: event.target.value })}
-                        placeholder="x-signature"
+                        placeholder=""
                       />
                     </label>
                     <label className="provider-wide-field">
-                      {lang === "ar" ? "\u0645\u0644\u0627\u062d\u0638\u0627\u062a \u062a\u0634\u063a\u064a\u0644 \u0644\u0644\u0623\u062f\u0645\u0646" : "Admin operation notes"}
+                      {lang === "ar" ? "ملاحظات الإدارة" : "Admin notes"}
                       <textarea
                         dir="auto"
                         value={draft.instructions}

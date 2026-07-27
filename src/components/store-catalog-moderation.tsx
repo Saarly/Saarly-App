@@ -19,6 +19,8 @@ type StoreRow = {
   approval_status_en: string | null;
   founder_badge_enabled: boolean | null;
   trusted_badge_enabled: boolean | null;
+  manually_suspended_at: string | null;
+  suspension_reason: string | null;
   store_front_image_url: string | null;
   store_front_bucket: string | null;
   owner_id_image_url: string | null;
@@ -59,7 +61,9 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   const [productQuery, setProductQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const productAreaRef = useRef<HTMLElement | null>(null);
 
   const filteredStores = useMemo(() => {
@@ -241,6 +245,14 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     await runAction({ action: "suspend_merchant", id: store.id, payload: { reason } });
   }
 
+  async function restoreStore(store: StoreRow) {
+    await runAction({
+      action: "restore_merchant",
+      id: store.id,
+      payload: { reason: lang === "ar" ? "إعادة تشغيل المتجر من لوحة الإدارة" : "Store restored from Admin Web" },
+    });
+  }
+
   async function deleteStore(store: StoreRow) {
     const typed = window.prompt(
       lang === "ar"
@@ -248,17 +260,46 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
         : `This permanently deletes the store and may fail if it has restricted orders. Type the store name: ${store.store_name}`
     );
     if (typed !== store.store_name) return;
-    await runAction({ action: "delete_merchant", id: store.id });
+    await runAction({
+      action: "delete_merchant",
+      id: store.id,
+      payload: { reason: lang === "ar" ? "حذف مؤكد من لوحة الإدارة" : "Confirmed deletion from Admin Web" },
+    });
   }
 
   async function runAction(body: Record<string, unknown>) {
+    const actionName = String(body.action ?? "action");
     try {
+      setBusy(actionName);
       setError(null);
+      setMessage(null);
       await postAdminAction(body);
+      if (actionName === "delete_merchant") {
+        setSelectedStore(null);
+        setProducts([]);
+      }
       await loadStores();
-      if (selectedStore) await loadProducts(selectedStore.id);
+      setMessage(
+        lang === "ar"
+          ? actionName === "delete_merchant"
+            ? "تم حذف المتجر بنجاح."
+            : actionName === "restore_merchant"
+              ? "تمت إعادة تشغيل المتجر بنجاح."
+              : actionName === "suspend_merchant"
+                ? "تم إيقاف المتجر بنجاح."
+                : "تم حفظ التحديث بنجاح."
+          : actionName === "delete_merchant"
+            ? "Store deleted successfully."
+            : actionName === "restore_merchant"
+              ? "Store restored successfully."
+              : actionName === "suspend_merchant"
+                ? "Store suspended successfully."
+                : "Update saved successfully.",
+      );
     } catch (actionError) {
       setError(humanizeAdminError(actionError, lang));
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -301,7 +342,8 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
         </button>
       </div>
 
-      {error ? <div className="alert">{humanizeAdminError(error, lang)}</div> : null}
+      {error ? <div className="alert">{error}</div> : null}
+      {message ? <div className="success-banner">{message}</div> : null}
 
       <div className="catalog-layout">
         <aside className="store-gallery">
@@ -329,6 +371,9 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                   )}
                   <strong>{store.store_name}</strong>
                   <span>{(lang === "ar" ? store.category_name_ar : store.category_name_en) || (lang === "ar" ? store.approval_status_ar : store.approval_status_en) || "-"}</span>
+                  {store.manually_suspended_at ? (
+                    <small className="status-pill danger">{lang === "ar" ? "متوقف" : "Suspended"}</small>
+                  ) : null}
                   {store.founder_badge_enabled || store.trusted_badge_enabled ? (
                     <div className="store-badge-row">
                       {store.founder_badge_enabled ? <small className="brand-badge founder">{lang === "ar" ? "متجر مؤسس" : "Founding store"}</small> : null}
@@ -355,11 +400,18 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                   <p>{selectedStore.owner_name || "-"} | {selectedStore.contact_mobile || "-"}</p>
                 </div>
                 <div className="row-actions">
-                  <button className="tiny-button danger" onClick={() => void suspendStore(selectedStore)}>
-                    <Ban size={15} />
-                    {lang === "ar" ? "إيقاف المتجر" : "Suspend store"}
-                  </button>
-                  <button className="tiny-button danger" onClick={() => void deleteStore(selectedStore)}>
+                  {selectedStore.manually_suspended_at ? (
+                    <button className="tiny-button success" onClick={() => void restoreStore(selectedStore)} disabled={busy !== null}>
+                      <RefreshCw size={15} />
+                      {lang === "ar" ? "إعادة تشغيل المتجر" : "Restore store"}
+                    </button>
+                  ) : (
+                    <button className="tiny-button danger" onClick={() => void suspendStore(selectedStore)} disabled={busy !== null}>
+                      <Ban size={15} />
+                      {lang === "ar" ? "إيقاف المتجر" : "Suspend store"}
+                    </button>
+                  )}
+                  <button className="tiny-button danger" onClick={() => void deleteStore(selectedStore)} disabled={busy !== null}>
                     <Trash2 size={15} />
                     {lang === "ar" ? "حذف المتجر" : "Delete store"}
                   </button>
@@ -407,7 +459,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                           <span>{[product.brand, product.size, product.color].filter(Boolean).join(" | ") || product.unit}</span>
                         </div>
                         <div className="price-line">
-                          <b>{Number(product.price).toLocaleString("ar-EG")} ج.م</b>
+                          <b>{Number(product.price).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")} {lang === "ar" ? "ج.م" : "EGP"}</b>
                           <span>{product.quantity} {product.unit}</span>
                         </div>
                         <span className={product.is_active ? "status-pill active" : "status-pill muted"}>

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
+import { humanizeAdminError } from "@/lib/admin/messages";
 
 const loginPageStyle = {
   minHeight: "100svh",
@@ -133,7 +134,7 @@ export function LoginCard({ lang }: { lang: Lang }) {
     if (!error) saveRememberedEmail(cleanEmail);
 
     setBusy(false);
-    setMessage(error ? error.message : text("signedIn", lang));
+    setMessage(error ? humanizeAdminError(error, lang) : text("signedIn", lang));
   }
 
   async function sendOtpCode() {
@@ -152,7 +153,7 @@ export function LoginCard({ lang }: { lang: Lang }) {
     if (!error) saveRememberedEmail(cleanEmail);
 
     setBusy(false);
-    setMessage(error ? error.message : text("codeSent", lang));
+    setMessage(error ? humanizeAdminError(error, lang) : text("codeSent", lang));
   }
 
   async function verifyOtpCode(event: FormEvent) {
@@ -169,7 +170,7 @@ export function LoginCard({ lang }: { lang: Lang }) {
     if (!error) saveRememberedEmail(cleanEmail);
 
     setBusy(false);
-    setMessage(error ? error.message : text("signedIn", lang));
+    setMessage(error ? humanizeAdminError(error, lang) : text("signedIn", lang));
   }
 
   return (

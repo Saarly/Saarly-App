@@ -8,8 +8,8 @@ export const sections: SectionConfig[] = [
     mode: "dashboard",
     title: { ar: "لوحة التحكم", en: "Dashboard" },
     description: {
-      ar: "مراقبة طلبات المتاجر والموافقة عليها وتفعيلها.",
-      en: "Daily operating numbers and alerts.",
+      ar: "ملخص أرقام التشغيل اليومية والتنبيهات والمهام التي تحتاج متابعة.",
+      en: "Daily operating numbers, alerts, and items that need attention.",
     },
     allowedRoles: ["admin", "support_agent"],
   },
@@ -25,7 +25,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "موافقات المتاجر", en: "Merchant approvals" },
     description: {
       ar: "مراجعة بيانات المتجر وهوية المالك وواجهة المتجر واتخاذ قرار القبول أو الرفض.",
-      en: "Review merchant data and approve or reject.",
+      en: "Review store details, owner identity, and storefront before approving or rejecting.",
     },
     searchKeys: [
       "store_name",
@@ -73,7 +73,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "موافقات الفروع", en: "Branch approvals" },
     description: {
       ar: "مراجعة بيانات الفروع وهوية مدير الفرع وواجهة الفرع قبل ظهورها للمستخدمين.",
-      en: "Review new branches before search visibility.",
+      en: "Review branch details, manager identity, and storefront before making them visible to users.",
     },
     searchKeys: [
       "branch_name",
@@ -114,10 +114,10 @@ export const sections: SectionConfig[] = [
     sourceKind: "view",
     editableTable: "merchant_shipping_companies",
     orderBy: "created_at",
-    title: { ar: "شركات الشحن", en: "Shipping Companies" },
+    title: { ar: "شركات الشحن", en: "Shipping companies" },
     description: {
-      ar: "مراقبة المنتجات المعروضة وتعديل الكتالوج الخاص بالمنتجات.",
-      en: "Monitor shipping companies added by merchants.",
+      ar: "متابعة شركات الشحن التي أضافتها المتاجر وحالة استخدامها.",
+      en: "Monitor shipping companies added by stores and their current status.",
     },
     searchKeys: ["store_name", "company_name"],
     actions: [], // Read-only for admins for now
@@ -143,7 +143,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "المستخدمون", en: "Users" },
     description: {
       ar: "إدارة حسابات المستخدمين والحظر والحذف وتحديث كلمات المرور بشكل آمن.",
-      en: "Search accounts, roles, and block status.",
+      en: "Manage user accounts, blocking, deletion, and password updates securely.",
     },
     searchKeys: ["full_name", "mobile", "primary_email", "role_ar"],
     actions: [
@@ -200,7 +200,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "الأقسام", en: "Categories" },
     description: {
       ar: "تقسيم الأقسام والمنتجات لتسهيل الوصول للمستخدمين وإدارة التطبيق.",
-      en: "Manage the full category tree.",
+      en: "Organize categories and products so users can find them easily.",
     },
     searchKeys: ["name_ar", "name_en"],
     actions: ["edit_row", "toggle_active", "delete_row"],
@@ -238,7 +238,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "المدن والمناطق", en: "Cities and areas" },
     description: {
       ar: "تحديد المدن والمناطق التي سيتاح فيها التوصيل وإدارة رسوم الشحن.",
-      en: "Manage operating areas and expansion.",
+      en: "Manage delivery cities, operating areas, and shipping charges.",
     },
     searchKeys: [
       "country_ar",
@@ -256,11 +256,11 @@ export const sections: SectionConfig[] = [
     columns: [
       { key: "country_ar", label: { ar: "الدولة", en: "Country" } },
       { key: "currency_name_ar", label: { ar: "العملة", en: "Currency" } },
-      { key: "currency_code", label: { ar: "رمز العملة", en: "Currency code" } },
+      { key: "currency_code", label: { ar: "اختصار العملة", en: "Currency abbreviation" } },
       { key: "governorate_ar", label: { ar: "المحافظة", en: "Governorate" } },
       { key: "name_ar", label: { ar: "المدينة", en: "City" } },
       { key: "display_order", label: { ar: "الترتيب", en: "Order" } },
-      { key: "name_en", label: { ar: "City EN", en: "City EN" } },
+      { key: "name_en", label: { ar: "اسم المدينة بالإنجليزية", en: "English city name" } },
       {
         key: "is_active",
         label: { ar: "مفعل", en: "Active" },
@@ -315,12 +315,12 @@ export const sections: SectionConfig[] = [
     icon: "Images",
     mode: "catalog",
     title: {
-      ar: "تقرير شامل بالمستخدمين",
-      en: "Store and product moderation",
+      ar: "مراجعة المتاجر والمنتجات",
+      en: "Store and product review",
     },
     description: {
       ar: "عرض المتاجر والمنتجات بصرياً ومراجعة الصور والبيانات غير المكتملة.",
-      en: "Browse stores visually, review product images, and remove violations.",
+      en: "Browse stores and products, review images and incomplete information, and remove violations.",
     },
     allowedRoles: ["admin"],
   },
@@ -335,7 +335,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "الطلبات", en: "Orders" },
     description: {
       ar: "متابعة حالات الطلبات والتأكيد والدفع والقيم المالية المرتبطة بها.",
-      en: "All orders, accepted offer, confirmation, and payment.",
+      en: "Track order status, confirmation, payment, and related amounts.",
     },
     searchKeys: ["buyer_name", "buyer_mobile", "store_name", "status_ar"],
     allowedRoles: ["admin", "support_agent"],
@@ -372,8 +372,8 @@ export const sections: SectionConfig[] = [
     orderBy: "created_at",
     title: { ar: "تطابقات غير مؤكدة", en: "Low confidence matches" },
     description: {
-      ar: "متابعة تطور الشكاوى واتخاذ القرار المناسب وإغلاق المشاكل الشائعة.",
-      en: "Review low-confidence offer items.",
+      ar: "مراجعة المنتجات التي لم يتأكد النظام من مطابقتها للطلبات قبل اعتمادها.",
+      en: "Review products that were not confidently matched to requests before accepting them.",
     },
     searchKeys: [
       "store_name",
@@ -406,10 +406,10 @@ export const sections: SectionConfig[] = [
     source: "admin_ai_reading_log",
     sourceKind: "view",
     orderBy: "created_at",
-    title: { ar: "قراءات الذكاء الاصطناعي", en: "AI reads" },
+    title: { ar: "قراءات المساعد الذكي", en: "Smart assistant readings" },
     description: {
-      ar: "مراجعة قراءات الصور والملفات وطلبات المستخدمين وحالات المعالجة.",
-      en: "Real request and file analysis readings.",
+      ar: "مراجعة نتائج قراءة الصور والملفات وطلبات المستخدمين وحالات المعالجة.",
+      en: "Review image and document readings, user requests, and processing status.",
     },
     searchKeys: [
       "owner_name",
@@ -438,7 +438,7 @@ export const sections: SectionConfig[] = [
         tone: "status",
       },
       { key: "confidence", label: { ar: "نسبة التأكد", en: "Confidence" } },
-      { key: "error_code", label: { ar: "رمز الخطأ", en: "Error code" } },
+      { key: "error_code", label: { ar: "تفاصيل المشكلة", en: "Issue details" }, tone: "status" },
       { key: "created_at", label: { ar: "التاريخ", en: "Date" }, tone: "date" },
     ],
   },
@@ -450,7 +450,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "الدعم", en: "Support" },
     description: {
       ar: "استلام المحادثات المحولة من المساعد الآلي وتعيينها وتصنيفها والرد عليها.",
-      en: "Transferred bot conversations and live replies.",
+      en: "Review conversations transferred from the automated assistant, assign them, label them, and reply.",
     },
     allowedRoles: ["admin", "support_agent"],
     supportPermission: "support_chats",
@@ -463,7 +463,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "إرسال إشعار", en: "Send notification" },
     description: {
       ar: "إرسال إشعارات عربية وإنجليزية للمستخدمين مع اختيار النطاق والوجهة.",
-      en: "Send a manual notification to the in-app bell and Firebase Push.",
+      en: "Send a notification inside the app and to registered devices.",
     },
     allowedRoles: ["admin"],
   },
@@ -572,7 +572,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "الشكاوى", en: "Complaints" },
     description: {
       ar: "متابعة الشكاوى الرسمية والتواصل مع الأطراف وتوثيق الحل والإجراء.",
-      en: "Open and escalated complaints.",
+      en: "Track formal complaints, contact involved parties, and document the resolution and final action.",
     },
     searchKeys: [
       "reporter_name",
@@ -621,10 +621,10 @@ export const sections: SectionConfig[] = [
       "is_active",
     ],
     orderBy: "updated_at",
-    title: { ar: "قاعدة معرفة البوت", en: "Bot knowledge base" },
+    title: { ar: "معرفة المساعد الآلي", en: "Assistant knowledge" },
     description: {
       ar: "إدارة محتوى المساعد الآلي باللغتين وتحديثه حسب أسئلة المستخدمين.",
-      en: "Bot training content and embedding refresh flags.",
+      en: "Manage the assistant's bilingual help content and refresh state.",
     },
     searchKeys: ["title_ar", "title_en", "content_ar", "category"],
     actions: ["edit_row", "toggle_active"],
@@ -640,7 +640,7 @@ export const sections: SectionConfig[] = [
       { key: "is_active", label: { ar: "مفعل", en: "Active" }, tone: "status" },
       {
         key: "needs_embedding",
-        label: { ar: "يحتاج لتضمين", en: "Needs embedding" },
+        label: { ar: "يحتاج تحديث المساعد", en: "Assistant update needed" },
         tone: "status",
       },
       {
@@ -658,7 +658,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "التقارير", en: "Reports" },
     description: {
       ar: "تقارير تشغيلية ومالية منظمة لمتابعة الطلبات والمتاجر والأقسام والإحالات.",
-      en: "Orders, active stores, categories, RFQ, and commissions.",
+      en: "Organized operational and financial reports for orders, stores, categories, invitations, and commissions.",
     },
     allowedRoles: ["admin"],
   },
@@ -682,8 +682,8 @@ export const sections: SectionConfig[] = [
     orderBy: "updated_at",
     title: { ar: "مراقبة المحتوى", en: "Content moderation" },
     description: {
-      ar: "متابعة أرباح التطبيق ومدفوعات المتاجر، وإعدادات العمولات والخطط.",
-      en: "Manage blocked words and phrases used for messages and product content.",
+      ar: "إدارة الكلمات والعبارات المحظورة في الرسائل ومحتوى المنتجات.",
+      en: "Manage blocked words and phrases used in messages and product content.",
     },
     searchKeys: [
       "term",
@@ -759,8 +759,8 @@ export const sections: SectionConfig[] = [
     orderBy: "created_at",
     title: { ar: "المدفوعات", en: "Payments" },
     description: {
-      ar: "متابعة التحويلات المالية للمتاجر، وإرسال التقارير، ودفع مستحقات المتاجر.",
-      en: "Payment statuses across providers.",
+      ar: "متابعة عمليات الدفع وحالاتها وطرق التحصيل والمستحقات المرتبطة بها.",
+      en: "Track payment transactions, their status, collection methods, and related dues.",
     },
     searchKeys: [
       "user_name",
@@ -794,7 +794,7 @@ export const sections: SectionConfig[] = [
     title: { ar: "الإحالات والمكافآت", en: "Referrals and rewards" },
     description: {
       ar: "مراقبة دعوات المستخدمين ونظام الإحالة وتقديم المكافآت الترويجية.",
-      en: "Track codes, confirmed registrations, and rewards.",
+      en: "Track invitation codes, confirmed registrations, referrals, and promotional rewards.",
     },
     searchKeys: [
       "referrer_name",

@@ -87,6 +87,7 @@ export function DataSection({
   const [locationRows, setLocationRows] = useState<Row[]>([]);
   const [uploadingAdImage, setUploadingAdImage] = useState(false);
   const [adTabs, setAdTabs] = useState<Record<string, string>>({});
+  const [adClock, setAdClock] = useState(() => Date.now());
 
   const filteredRows = useMemo(() => {
     let result = rows.filter((row) =>
@@ -249,6 +250,12 @@ export function DataSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section.id]);
 
+  useEffect(() => {
+    if (section.id !== "ads") return;
+    const timer = window.setInterval(() => setAdClock(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [section.id]);
+
   function startEdit(
     row: Row | "new",
     defaults: Record<string, string | boolean> = {},
@@ -300,9 +307,13 @@ export function DataSection({
             ? row.is_ongoing
             : !Boolean(row.starts_at || row.ends_at);
       nextValues.ad_saved_starts_at =
-        row === "new" ? "" : String(nextValues.starts_at ?? "");
+        row === "new"
+          ? ""
+          : toDateTimeLocal(row.saved_starts_at ?? row.starts_at);
       nextValues.ad_saved_ends_at =
-        row === "new" ? "" : String(nextValues.ends_at ?? "");
+        row === "new"
+          ? ""
+          : toDateTimeLocal(row.saved_ends_at ?? row.ends_at);
       if (nextValues.ad_ongoing) {
         nextValues.starts_at = "";
         nextValues.ends_at = "";
@@ -486,25 +497,33 @@ export function DataSection({
 
       if (section.id === "ads") {
         const ongoing = Boolean(formValues.ad_ongoing);
+        const active = Boolean(formValues.is_active);
         values.is_ongoing = ongoing;
         if (ongoing) {
           values.starts_at = null;
           values.ends_at = null;
         } else {
-          const suggested = defaultAdSchedule();
-          const startsAt = String(formValues.starts_at ?? "").trim() || suggested.startsAt;
-          const endsAt = String(formValues.ends_at ?? "").trim() || suggested.endsAt;
-          const startsDate = new Date(startsAt);
-          const endsDate = new Date(endsAt);
-          if (
-            Number.isNaN(startsDate.getTime()) ||
-            Number.isNaN(endsDate.getTime()) ||
-            endsDate.getTime() <= startsDate.getTime()
-          ) {
-            throw new Error("ad_end_must_be_after_start");
+          const startsAt = String(formValues.starts_at ?? "").trim();
+          const endsAt = String(formValues.ends_at ?? "").trim();
+          if (!startsAt && !endsAt && !active) {
+            values.starts_at = null;
+            values.ends_at = null;
+          } else {
+            if (!startsAt || !endsAt) {
+              throw new Error("ad_schedule_required");
+            }
+            const startsDate = new Date(startsAt);
+            const endsDate = new Date(endsAt);
+            if (
+              Number.isNaN(startsDate.getTime()) ||
+              Number.isNaN(endsDate.getTime()) ||
+              endsDate.getTime() <= startsDate.getTime()
+            ) {
+              throw new Error("ad_end_must_be_after_start");
+            }
+            values.starts_at = startsDate.toISOString();
+            values.ends_at = endsDate.toISOString();
           }
-          values.starts_at = startsDate.toISOString();
-          values.ends_at = endsDate.toISOString();
         }
       }
 
@@ -680,7 +699,7 @@ export function DataSection({
                       className="tiny-button"
                       onClick={() => void runRowAction(action, row)}
                     >
-                      {actionLabel(action, lang)}
+                      {actionLabel(action, lang, row)}
                     </button>
                   ))}
                 </div>
@@ -709,7 +728,7 @@ export function DataSection({
                           void runRowAction(action, group.governorateRow!)
                         }
                       >
-                        {actionLabel(action, lang)}
+                        {actionLabel(action, lang, group.governorateRow!)}
                       </button>
                     ))}
                   </div>
@@ -771,7 +790,7 @@ export function DataSection({
                             void runRowAction(action, country.countryRow!)
                           }
                         >
-                          {actionLabel(action, lang)}
+                          {actionLabel(action, lang, country.countryRow!)}
                         </button>
                       ))}
                   </div>
@@ -817,7 +836,7 @@ export function DataSection({
                                       )
                                     }
                                   >
-                                    {actionLabel(action, lang)}
+                                    {actionLabel(action, lang, group.governorateRow!)}
                                   </button>
                                 ))}
                               </div>
@@ -861,7 +880,7 @@ export function DataSection({
                                   className="tiny-button"
                                   onClick={() => void runRowAction(action, row)}
                                 >
-                                  {actionLabel(action, lang)}
+                                  {actionLabel(action, lang, row)}
                                 </button>
                               ))}
                             </div>
@@ -877,7 +896,7 @@ export function DataSection({
       ) : null}
 
       {!loading && section.id === "ads" ? (
-        <div className="ads-placement-grid">
+        <div className="ads-placement-grid" data-ad-clock={adClock}>
           {adGroups.map((group) => (
             <article className="ads-placement-card" key={group.value}>
               <div className="ads-placement-head">
@@ -965,7 +984,7 @@ export function DataSection({
                               className="tiny-button"
                               onClick={() => void runRowAction(action, row)}
                             >
-                              {actionLabel(action, lang)}
+                              {actionLabel(action, lang, row)}
                             </button>
                           ))}
                         </div>
@@ -1022,7 +1041,7 @@ export function DataSection({
                             className="tiny-button"
                             onClick={() => void runRowAction(action, row)}
                           >
-                            {actionLabel(action, lang)}
+                            {actionLabel(action, lang, row)}
                           </button>
                         ))}
                       </div>
@@ -1071,8 +1090,8 @@ export function DataSection({
                         <strong>{lang === "ar" ? "إعلان مستمر" : "Ongoing ad"}</strong>
                         <small>
                           {lang === "ar"
-                            ? "يظل الإعلان شغالًا بدون تاريخ بداية أو نهاية حتى توقفه أو تحذفه."
-                            : "Keep the ad running without start or end dates until you disable or delete it."}
+                            ? "عند إزالة العلامة يتوقف الإعلان فورًا وينتقل إلى متوقفة. لجدولته اختر تاريخ بداية مستقبليًا وتاريخ نهاية ثم فعّله."
+                            : "Clearing this option stops the ad immediately. To schedule it, choose a future start and end date, then activate it."}
                         </small>
                       </span>
                       <input
@@ -1095,16 +1114,16 @@ export function DataSection({
                                 ends_at: "",
                               };
                             }
-                            const suggested = defaultAdSchedule();
                             return {
                               ...current,
                               ad_ongoing: false,
-                              starts_at:
-                                String(current.ad_saved_starts_at ?? "") ||
-                                suggested.startsAt,
-                              ends_at:
-                                String(current.ad_saved_ends_at ?? "") ||
-                                suggested.endsAt,
+                              is_active: false,
+                              starts_at: String(
+                                current.ad_saved_starts_at ?? "",
+                              ),
+                              ends_at: String(
+                                current.ad_saved_ends_at ?? "",
+                              ),
                             };
                           })
                         }
@@ -1428,6 +1447,26 @@ function formatSectionCell(
   if (section.id === "ads" && key === "placement") {
     return adPlacementLabel(String(value ?? ""), lang);
   }
+  if (key === "is_active" || key === "is_enabled") {
+    return value === true
+      ? lang === "ar" ? "مفعّل" : "Active"
+      : lang === "ar" ? "متوقف" : "Inactive";
+  }
+  if (key === "is_blocked") {
+    return value === true
+      ? lang === "ar" ? "محظور" : "Blocked"
+      : lang === "ar" ? "غير محظور" : "Not blocked";
+  }
+  if (key === "needs_embedding") {
+    return value === true
+      ? lang === "ar" ? "يحتاج تحديث" : "Update needed"
+      : lang === "ar" ? "محدّث" : "Up to date";
+  }
+  if (key === "error_code" && value) {
+    return lang === "ar"
+      ? "حدثت مشكلة أثناء المعالجة"
+      : "A processing issue occurred";
+  }
   return formatCell(value, tone, lang);
 }
 
@@ -1442,17 +1481,6 @@ function toDateTimeLocal(value: unknown) {
   }
   const pad = (part: number) => String(part).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function defaultAdSchedule() {
-  const starts = new Date();
-  starts.setSeconds(0, 0);
-  const ends = new Date(starts);
-  ends.setDate(ends.getDate() + 30);
-  return {
-    startsAt: toDateTimeLocal(starts.toISOString()),
-    endsAt: toDateTimeLocal(ends.toISOString()),
-  };
 }
 
 function coerceEditableFormValue(field: string, value: string | boolean) {
@@ -1747,7 +1775,7 @@ function CategoryEditorV2({
 
       {lang === "en" ? (
         <label>
-          English name
+          English category name
           <input
             dir="auto"
             value={String(formValues.name_en ?? "")}
@@ -1830,7 +1858,7 @@ function CategoryEditor({
       </label>
       {lang === "en" ? (
         <label>
-          English name
+          English category name
           <input
             dir="auto"
             value={String(formValues.name_en ?? "")}
@@ -2031,7 +2059,7 @@ function CityEditorV2({
       {placeKind === "country" ? (
         <>
           <label>
-            {lang === "ar" ? "كود العملة" : "Currency code"}
+            {lang === "ar" ? "اختصار العملة" : "Currency abbreviation"}
             <input
               dir="ltr"
               value={String(formValues.currency_code ?? "EGP")}
@@ -2143,7 +2171,7 @@ function CityEditorV2({
       {lang === "en" ? (
         <>
           <label>
-            Country EN
+            English country name
             <input
               dir="auto"
               value={String(formValues.country_en ?? "")}
@@ -2157,7 +2185,7 @@ function CityEditorV2({
           </label>
           {placeKind !== "country" ? (
             <label>
-              Governorate EN
+              English governorate name
               <input
                 dir="auto"
                 value={String(formValues.governorate_en ?? "")}
@@ -2172,7 +2200,7 @@ function CityEditorV2({
           ) : null}
           {placeKind === "city" ? (
             <label>
-              City EN
+              English city name
               <input
                 dir="auto"
                 value={String(formValues.name_en ?? "")}
@@ -2279,7 +2307,7 @@ function CityEditor({
       {lang === "en" ? (
         <>
           <label>
-            Governorate EN
+            English governorate name
             <input
               dir="auto"
               value={String(formValues.governorate_en ?? "")}
@@ -2292,7 +2320,7 @@ function CityEditor({
             />
           </label>
           <label>
-            City EN
+            English city name
             <input
               dir="auto"
               value={String(formValues.name_en ?? "")}
@@ -2376,7 +2404,7 @@ function fieldLabel(field: string, lang: Lang, section?: SectionConfig) {
     target_type: { ar: "نوع الشكوى", en: "Complaint type" },
     priority: { ar: "الأولوية", en: "Priority" },
     body: { ar: "التفاصيل", en: "Details" },
-    error_code: { ar: "رمز الخطأ", en: "Error code" },
+    error_code: { ar: "تفاصيل المشكلة", en: "Issue details" },
     reading_type_ar: { ar: "نوع القراءة", en: "Reading type" },
     source_ar: { ar: "المصدر", en: "Source" },
     confidence: { ar: "نسبة التأكد", en: "Confidence" },
@@ -2403,7 +2431,7 @@ function fieldLabel(field: string, lang: Lang, section?: SectionConfig) {
     is_active: { ar: "\u0645\u0641\u0639\u0644", en: "Active" },
     country_ar: { ar: "البلد", en: "Country" },
     country_en: { ar: "البلد بالإنجليزي", en: "English country" },
-    currency_code: { ar: "كود العملة", en: "Currency code" },
+    currency_code: { ar: "اختصار العملة", en: "Currency abbreviation" },
     currency_name_ar: { ar: "اسم العملة بالعربي", en: "Arabic currency name" },
     currency_name_en: {
       ar: "اسم العملة بالإنجليزي",
@@ -2475,12 +2503,12 @@ function fieldLabel(field: string, lang: Lang, section?: SectionConfig) {
     },
     is_enabled: { ar: "\u0645\u0641\u0639\u0644", en: "Enabled" },
     webhook_secret_name: {
-      ar: "\u0627\u0633\u0645 \u0633\u0631 \u0627\u0644\u0648\u064a\u0628 \u0647\u0648\u0643",
-      en: "Webhook secret name",
+      ar: "اسم بيانات تأكيد الدفع",
+      en: "Payment confirmation key",
     },
     webhook_signature_header: {
-      ar: "\u0647\u064a\u062f\u0631 \u062a\u0648\u0642\u064a\u0639 \u0627\u0644\u062f\u0641\u0639",
-      en: "Signature header",
+      ar: "اسم حقل تأكيد الدفع",
+      en: "Confirmation field name",
     },
     is_direct_to_merchant_supported: {
       ar: "\u064a\u062f\u0639\u0645 \u0627\u0644\u062f\u0641\u0639 \u0644\u0644\u0645\u062a\u062c\u0631 \u0645\u0628\u0627\u0634\u0631\u0629",
@@ -2516,8 +2544,8 @@ function fieldLabel(field: string, lang: Lang, section?: SectionConfig) {
     match_type: { ar: "طريقة الفحص", en: "Match type" },
     severity: { ar: "الإجراء", en: "Action" },
     needs_embedding: {
-      ar: "\u064a\u062d\u062a\u0627\u062c \u062a\u062c\u0647\u064a\u0632 \u0644\u0644\u0628\u0648\u062a",
-      en: "Needs bot indexing",
+      ar: "يحتاج تحديث المساعد",
+      en: "Assistant update needed",
     },
     delivery_status: {
       ar: "\u062d\u0627\u0644\u0629 \u0627\u0644\u062a\u0633\u0644\u064a\u0645",
@@ -2557,10 +2585,10 @@ function actionShouldShow(action: string, row: Row) {
   return true;
 }
 
-function actionLabel(action: string, lang: Lang) {
+function actionLabel(action: string, lang: Lang, row?: Row) {
   if (action === "set_user_password") {
     return lang === "ar"
-      ? "\u062a\u0639\u064a\u064a\u0646 \u0628\u0627\u0633\u0648\u0631\u062f"
+      ? "تعيين كلمة مرور"
       : "Set password";
   }
   if (action === "delete_row") {
@@ -2577,7 +2605,9 @@ function actionLabel(action: string, lang: Lang) {
     reject_branch: { ar: "رفض", en: "Reject" },
     block_user: { ar: "حظر", en: "Block" },
     unblock_user: { ar: "فك الحظر", en: "Unblock" },
-    toggle_active: { ar: "تغيير الحالة", en: "Toggle" },
+    toggle_active: row?.is_active === true
+      ? { ar: "إيقاف", en: "Disable" }
+      : { ar: "تشغيل", en: "Enable" },
     edit_row: { ar: "تعديل", en: "Edit" },
   };
   return labels[action]?.[lang] ?? action;

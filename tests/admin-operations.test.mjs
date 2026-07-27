@@ -103,10 +103,13 @@ test("support label editor auto-sizes instead of filling the conversation card",
   assert.match(globalsCss, /\.conversation-label-editor\s*\{[\s\S]*?height:\s*auto/);
 });
 
-test("an ongoing ad can be converted back to a timed ad", () => {
-  assert.match(dataSection, /defaultAdSchedule\(\)/);
+test("an ongoing ad restores its saved finite schedule without inventing a new duration", () => {
+  assert.doesNotMatch(dataSection, /defaultAdSchedule\(\)/);
+  assert.match(dataSection, /row\.saved_starts_at \?\? row\.starts_at/);
+  assert.match(dataSection, /row\.saved_ends_at \?\? row\.ends_at/);
   assert.match(dataSection, /ad_saved_starts_at/);
   assert.match(dataSection, /ad_saved_ends_at/);
+  assert.match(dataSection, /ad_schedule_required/);
   assert.match(dataSection, /ad_end_must_be_after_start/);
 });
 
@@ -126,4 +129,30 @@ test("merchant billing uses a controlled selector backed by subscription plans",
   assert.match(monetizationConsole, /أي باقة جديدة مفعلة ستظهر هنا تلقائيًا/);
   const billingHandler = monetizationConsole.match(/function adjustBillingPreference[\s\S]*?function saveBillingPreference/)?.[0] ?? "";
   assert.doesNotMatch(billingHandler, /window\.prompt|prompt\(/);
+});
+
+test("turning off an ongoing ad immediately deactivates it", () => {
+  assert.match(dataSection, /ad_ongoing:\s*false,[\s\S]*?is_active:\s*false/);
+  assert.match(dataSection, /!startsAt\s*&&\s*!endsAt\s*&&\s*!active/);
+  assert.match(globalsCss, /\.ads-placement-grid\s*\{[\s\S]*?align-items:\s*start/);
+  assert.match(globalsCss, /\.ads-placement-card\s*\{[\s\S]*?align-self:\s*start/);
+});
+
+test("complaints can update status and manage the shared support labels", () => {
+  assert.match(actionRoute, /admin_set_support_complaint_status_as/);
+  assert.match(complaintsConsole, /set_complaint_status_admin/);
+  assert.match(complaintsConsole, /upsert_support_label/);
+  assert.match(complaintsConsole, /complaint-label-manager/);
+  assert.doesNotMatch(complaintsConsole, /<h2>\{text\(selected\.title\)\}<\/h2>/);
+  assert.doesNotMatch(complaintsConsole, /<strong>\{text\(item\.title\)/);
+});
+
+test("store moderation supports visible suspend, restore and atomic delete operations", async () => {
+  const catalog = await read("../src/components/store-catalog-moderation.tsx");
+  assert.match(catalog, /restore_merchant/);
+  assert.match(catalog, /manually_suspended_at/);
+  assert.match(catalog, /تم إيقاف المتجر بنجاح/);
+  assert.match(actionRoute, /admin_set_merchant_suspension_as/);
+  assert.match(actionRoute, /admin_delete_merchant_as/);
+  assert.match(actionRoute, /merchant_has_financial_or_order_history|delete_merchant/);
 });

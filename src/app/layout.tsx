@@ -10,8 +10,8 @@ const tajawal = Tajawal({
 });
 
 export const metadata: Metadata = {
-  title: "Saarly Admin",
-  description: "Admin dashboard for Saarly operations, support, payments, and feature flags."
+  title: "لوحة إدارة سعرلي",
+  description: "لوحة إدارة عمليات سعرلي والدعم والمدفوعات والإعدادات."
 };
 
 export const viewport: Viewport = {

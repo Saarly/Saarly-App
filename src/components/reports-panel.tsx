@@ -43,7 +43,7 @@ const reportDefinitions = [
   },
   {
     key: "admin_report_rfq_acceptance",
-    title: { ar: "طلبات تسعير يدوية", en: "Manual RFQ requests" },
+    title: { ar: "طلبات تسعير يدوية", en: "Manual quote requests" },
     args: { p_from: null, p_to: null }
   },
   {
@@ -167,7 +167,7 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
               </div>
               <button className="tiny-button" onClick={() => exportCsv(report)} disabled={report.rows.length === 0}>
                 <Download size={15} />
-                {lang === "ar" ? "CSV" : "CSV"}
+                {lang === "ar" ? "تنزيل التقرير" : "Download report"}
               </button>
             </div>
             {report.error ? <div className="alert">{report.error}</div> : null}

@@ -25,6 +25,7 @@ import {
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
+import { adminValueLabel } from "@/lib/admin/format";
 
 type Row = Record<string, unknown>;
 
@@ -485,10 +486,12 @@ function cell(value: unknown, lang: Lang) {
       return date.toLocaleString(lang === "ar" ? "ar-EG" : "en-US");
     }
     if (valueLabels[value]) return valueLabels[value][lang];
-    return value;
+    return adminValueLabel(value, lang);
   }
-  if (Array.isArray(value)) return value.join(", ");
-  return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return value.map((item) => adminValueLabel(item, lang)).join(", ");
+  }
+  return lang === "ar" ? "إعدادات محفوظة" : "Saved settings";
 }
 
 function money(value: unknown, currency: unknown, lang: Lang) {

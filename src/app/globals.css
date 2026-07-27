@@ -2440,3 +2440,147 @@ button:not(:disabled):active {
     grid-template-columns: 1fr;
   }
 }
+
+/* V6 final: prevent independent ad placement cards from stretching each other. */
+.ads-placement-grid {
+  align-items: start;
+  grid-auto-rows: max-content;
+}
+
+.ads-placement-card {
+  align-self: start;
+  height: max-content;
+  min-height: 0;
+}
+
+/* V6 final: compact label management and status editing inside complaints. */
+.complaint-label-manager {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--panel-soft);
+}
+
+.complaint-label-manager-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.complaint-label-manager-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.complaint-label-manager-head small {
+  color: var(--muted);
+}
+
+.complaint-label-manager-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.managed-support-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 5px 7px 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+.managed-support-label > span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.managed-support-label > b {
+  font-size: .82rem;
+  white-space: nowrap;
+}
+
+.managed-support-label > div {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.managed-support-label button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.managed-support-label button:hover {
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+.complaint-head-actions {
+  align-items: flex-end;
+}
+
+.complaint-status-control {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.complaint-status-control select {
+  min-width: 155px;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.complaint-messages {
+  max-height: 460px;
+}
+
+@media (min-width: 1180px) {
+  .complaints-layout {
+    grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .complaint-thread {
+    min-height: 640px;
+  }
+}
+
+@media (max-width: 700px) {
+  .complaint-label-manager-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .complaint-head-actions {
+    width: 100%;
+  }
+
+  .complaint-status-control,
+  .complaint-status-control select {
+    width: 100%;
+  }
+}
