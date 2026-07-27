@@ -216,7 +216,15 @@ export function ComplaintsConsole({
 
   async function assign(agentId?: string) {
     if (!selected) return;
-    const targetId = agentId || profile.id;
+    const targetId = agentId || profile?.id;
+    if (!targetId) {
+      setError(
+        lang === "ar"
+          ? "تعذر تحديد موظف الدعم. حدّث الصفحة ثم حاول مرة أخرى."
+          : "Could not determine the support agent. Refresh the page and try again.",
+      );
+      return;
+    }
     await action("assign_complaint_admin", text(selected.id), { agent_id: targetId });
   }
 

@@ -1,0 +1,11 @@
+إصلاح Vercel V3
+================
+
+تم إصلاح خطأ TypeScript:
+'profile' is possibly 'undefined'
+
+الملف المعدل:
+src/components/complaints-console.tsx
+
+تم إضافة تحقق آمن من profile قبل استخدام profile.id.
+تم تشغيل اختبارات المشروع: 18/18 ناجحة.
