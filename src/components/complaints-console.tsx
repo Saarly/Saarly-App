@@ -53,9 +53,22 @@ function text(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function isMissingValue(value: unknown) {
+  const normalized = text(value).toLowerCase();
+  return !normalized || ["not_provided", "not provided", "null", "undefined", "n/a"].includes(normalized);
+}
+
+function displayText(value: unknown, lang: Lang, fallback?: string) {
+  if (isMissingValue(value)) return fallback ?? (lang === "ar" ? "غير متوفر" : "Not provided");
+  return adminValueLabel(value, lang);
+}
+
 function friendlyName(value: unknown, lang: Lang) {
   const name = text(value);
-  if (!name || name === "Deleted User" || /^deleted_/i.test(name)) {
+  if (isMissingValue(value)) {
+    return lang === "ar" ? "الاسم غير متوفر" : "Name not provided";
+  }
+  if (name === "Deleted User" || /^deleted_/i.test(name)) {
     return lang === "ar" ? "مستخدم محذوف" : "Deleted user";
   }
   return name;
@@ -400,8 +413,8 @@ export function ComplaintsConsole({
                     {priorityLabels[itemPriority]?.[lang] ?? adminValueLabel(itemPriority, lang)}
                   </span>
                 </div>
-                {text(item.reporter_mobile) ? <span>{text(item.reporter_mobile)}</span> : null}
-                {text(item.store_name) ? <small>{text(item.store_name)}</small> : null}
+                {!isMissingValue(item.reporter_mobile) ? <span>{displayText(item.reporter_mobile, lang)}</span> : null}
+                {!isMissingValue(item.store_name) ? <small>{displayText(item.store_name, lang)}</small> : null}
                 <small>{statusLabels[itemStatus]?.[lang] ?? adminValueLabel(itemStatus, lang)}</small>
                 <div className="support-labels">
                   {rowLabels(item).map((label) => (
@@ -426,10 +439,10 @@ export function ComplaintsConsole({
               <div className="complaint-thread-head">
                 <div>
                   <h2>{lang === "ar" ? "تفاصيل الشكوى" : "Complaint details"}</h2>
-                  <p>{friendlyName(selected.reporter_name, lang)} · {text(selected.reporter_mobile) || "-"}</p>
+                  <p>{friendlyName(selected.reporter_name, lang)} · {displayText(selected.reporter_mobile, lang)}</p>
                   <small>
                     {lang === "ar" ? "مسؤول الشكوى: " : "Complaint owner: "}
-                    {text(selected.assigned_agent_name)
+                    {!isMissingValue(selected.assigned_agent_name)
                       ? friendlyName(selected.assigned_agent_name, lang)
                       : lang === "ar"
                         ? "لم يتم تعيين موظف دعم"
@@ -513,7 +526,7 @@ export function ComplaintsConsole({
               <div className="complaint-summary-grid">
                 <div><strong>{lang === "ar" ? "الحالة" : "Status"}</strong><span>{statusLabels[text(selected.status)]?.[lang] ?? adminValueLabel(selected.status, lang)}</span></div>
                 <div><strong>{lang === "ar" ? "الأولوية" : "Priority"}</strong><span>{priorityLabels[text(selected.priority)]?.[lang] ?? adminValueLabel(selected.priority, lang)}</span></div>
-                <div><strong>{lang === "ar" ? "المتجر" : "Store"}</strong><span>{text(selected.store_name) || "-"}</span></div>
+                <div><strong>{lang === "ar" ? "المتجر" : "Store"}</strong><span>{displayText(selected.store_name, lang)}</span></div>
                 <div><strong>{lang === "ar" ? "آخر تحديث" : "Updated"}</strong><span>{formatCell(selected.updated_at, "date", lang)}</span></div>
               </div>
 

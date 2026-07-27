@@ -100,7 +100,19 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
   }
 
   if (message.includes("country_required")) {
-    return lang === "ar" ? "أدخل اسم الدولة أولاً." : "Enter the country name first.";
+    return lang === "ar" ? "اكتب اسم البلد الأول." : "Enter the country name first.";
+  }
+  if (message.includes("governorate_required")) {
+    return lang === "ar" ? "اختار أو اكتب اسم المحافظة الأول." : "Choose or enter the governorate first.";
+  }
+  if (message.includes("city_required")) {
+    return lang === "ar" ? "اكتب اسم المدينة الأول." : "Enter the city name first.";
+  }
+  if (message.includes("location_already_exists")) {
+    return lang === "ar" ? "البلد أو المحافظة أو المدينة دي موجودة بالفعل." : "This country, governorate, or city already exists.";
+  }
+  if (message.includes("invalid_location_kind")) {
+    return lang === "ar" ? "اختار نوع الإضافة: بلد أو محافظة أو مدينة." : "Choose whether this is a country, governorate, or city.";
   }
 
   if (

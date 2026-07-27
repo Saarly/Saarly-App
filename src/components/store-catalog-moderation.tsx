@@ -216,8 +216,12 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
       },
       body: JSON.stringify(body)
     });
-    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      data?: Record<string, unknown>;
+    };
     if (!response.ok) throw new Error(payload.error ?? "action_failed");
+    return payload.data ?? {};
   }
 
   async function deactivateProduct(product: ProductRow) {
@@ -256,8 +260,8 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
   async function deleteStore(store: StoreRow) {
     const typed = window.prompt(
       lang === "ar"
-        ? `سيتم حذف هذا المتجر نهائياً وقد يفشل الحذف لو عليه طلبات مرتبطة. اكتب اسم المتجر للتأكيد: ${store.store_name}`
-        : `This permanently deletes the store and may fail if it has restricted orders. Type the store name: ${store.store_name}`
+        ? `اكتب اسم المتجر للتأكيد: ${store.store_name}. لو المتجر عليه طلبات قديمة هيتشال من التشغيل مع الاحتفاظ بالسجل، ولو مفيش سجل هيتحذف نهائيًا.`
+        : `Type the store name to confirm: ${store.store_name}. Stores with retained history are removed from operation while their records are kept; otherwise they are deleted permanently.`
     );
     if (typed !== store.store_name) return;
     await runAction({
@@ -273,7 +277,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
       setBusy(actionName);
       setError(null);
       setMessage(null);
-      await postAdminAction(body);
+      const result = await postAdminAction(body);
       if (actionName === "delete_merchant") {
         setSelectedStore(null);
         setProducts([]);
@@ -282,14 +286,18 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
       setMessage(
         lang === "ar"
           ? actionName === "delete_merchant"
-            ? "تم حذف المتجر بنجاح."
+            ? result.archived === true
+              ? "تم حذف المتجر من النظام التشغيلي مع الاحتفاظ بسجل الطلبات القديم."
+              : "تم حذف المتجر نهائيًا بنجاح."
             : actionName === "restore_merchant"
               ? "تمت إعادة تشغيل المتجر بنجاح."
               : actionName === "suspend_merchant"
                 ? "تم إيقاف المتجر بنجاح."
                 : "تم حفظ التحديث بنجاح."
           : actionName === "delete_merchant"
-            ? "Store deleted successfully."
+            ? result.archived === true
+              ? "The store was removed from operation while its historical orders were retained."
+              : "Store deleted permanently."
             : actionName === "restore_merchant"
               ? "Store restored successfully."
               : actionName === "suspend_merchant"

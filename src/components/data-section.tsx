@@ -290,7 +290,10 @@ export function DataSection({
               ? "governorate"
               : "city";
       nextValues.country_ar = nextValues.country_ar || DEFAULT_COUNTRY_AR;
-      nextValues.country_en = nextValues.country_en || DEFAULT_COUNTRY_EN;
+      nextValues.country_en =
+        row === "new" && nextValues.place_kind === "country"
+          ? ""
+          : nextValues.country_en || DEFAULT_COUNTRY_EN;
       nextValues.display_order = nextValues.display_order || "0";
     }
     if (section.id === "ads") {
@@ -569,6 +572,7 @@ export function DataSection({
           action: "create_row",
           table: section.editableTable,
           values,
+          payload: section.id === "cities" ? { place_kind: String(formValues.place_kind ?? "city") } : undefined,
         });
       } else if (editing && typeof editing === "object") {
         await postAdminAction({
@@ -576,6 +580,7 @@ export function DataSection({
           table: section.editableTable,
           id: rowIdFor(section, editing),
           values,
+          payload: section.id === "cities" ? { place_kind: String(formValues.place_kind ?? "city") } : undefined,
         });
       }
 
@@ -1946,6 +1951,14 @@ function CityEditorV2({
         .filter(Boolean),
     ),
   ).sort();
+  const countryEnglishByArabic = new Map(
+    rows
+      .filter((row) => String(row.country_ar ?? "").trim())
+      .map((row) => [
+        String(row.country_ar ?? "").trim(),
+        String(row.country_en ?? row.country_ar ?? "").trim(),
+      ]),
+  );
   const placeKind = String(formValues.place_kind ?? "city");
   const countryOptions = countries.includes(DEFAULT_COUNTRY_AR)
     ? [
@@ -2023,9 +2036,10 @@ function CityEditorV2({
               setFormValues((current) => ({
                 ...current,
                 country_ar: country,
-                country_en: String(
-                  current.country_en || country || DEFAULT_COUNTRY_EN,
-                ),
+                country_en:
+                  !current.country_en || current.country_en === DEFAULT_COUNTRY_EN
+                    ? country
+                    : String(current.country_en),
                 governorate_ar: "",
               }));
             }}
@@ -2039,9 +2053,8 @@ function CityEditorV2({
               setFormValues((current) => ({
                 ...current,
                 country_ar: country,
-                country_en: String(
-                  current.country_en || country || DEFAULT_COUNTRY_EN,
-                ),
+                country_en:
+                  countryEnglishByArabic.get(country) || country,
                 governorate_ar: "",
               }));
             }}
@@ -2129,12 +2142,19 @@ function CityEditorV2({
               : "Parent governorate"}
             <select
               value={String(formValues.governorate_ar ?? "")}
-              onChange={(event) =>
+              onChange={(event) => {
+                const governorate = event.target.value;
+                const matchingRow = rows.find(
+                  (row) =>
+                    String(row.country_ar ?? "").trim() === selectedCountry &&
+                    String(row.governorate_ar ?? "").trim() === governorate,
+                );
                 setFormValues((current) => ({
                   ...current,
-                  governorate_ar: event.target.value,
-                }))
-              }
+                  governorate_ar: governorate,
+                  governorate_en: String(matchingRow?.governorate_en ?? governorate),
+                }));
+              }}
               required
             >
               <option value="" disabled>

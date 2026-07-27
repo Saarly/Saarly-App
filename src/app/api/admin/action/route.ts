@@ -32,15 +32,15 @@ const adminReportDefinitions = [
   },
   {
     key: "admin_report_active_merchants",
-    args: { p_from: null, p_to: null, p_limit: 10 },
+    args: { p_from: null, p_to: null, p_limit: 1000 },
   },
   {
     key: "admin_report_active_categories",
-    args: { p_from: null, p_to: null, p_limit: 10 },
+    args: { p_from: null, p_to: null, p_limit: 1000 },
   },
   {
     key: "admin_report_top_accepted_offers",
-    args: { p_from: null, p_to: null, p_limit: 10 },
+    args: { p_from: null, p_to: null, p_limit: 1000 },
   },
   {
     key: "admin_report_rfq_acceptance",
@@ -2148,7 +2148,7 @@ export async function GET(req: NextRequest) {
       if (!sectionIsAllowed(dashboardSection, profile)) return jsonError("permission_denied", 403);
       const [overviewResult, merchantsResult, branchesResult] = await Promise.all([
         service.from("admin_dashboard_overview").select("*").maybeSingle(),
-        service.from("admin_merchants_readable").select("id,store_name,owner_name,approval_status,approval_status_ar,approval_status_en,created_at").eq("approval_status", "pending").order("created_at", { ascending: false }).limit(6),
+        service.from("admin_active_merchants_readable").select("id,store_name,owner_name,approval_status,approval_status_ar,approval_status_en,created_at").eq("approval_status", "pending").order("created_at", { ascending: false }).limit(6),
         service.from("admin_branches_readable").select("id,branch_name,store_name,city_name,city_name_ar,city_name_en,approval_status,approval_status_ar,approval_status_en,created_at").eq("approval_status", "pending").order("created_at", { ascending: false }).limit(6),
       ]);
       const loadError = overviewResult.error ?? merchantsResult.error ?? branchesResult.error;
@@ -2168,7 +2168,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data: { products: productsResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
       }
       const [storesResult, productRowsResult] = await Promise.all([
-        service.from("admin_merchants_readable").select("id,store_name,owner_name,contact_mobile,category_name_ar,category_name_en,approval_status,approval_status_ar,approval_status_en,store_front_image_url,store_front_bucket,founder_badge_enabled,trusted_badge_enabled,manually_suspended_at,suspension_reason,created_at").order("created_at", { ascending: false }).limit(300),
+        service.from("admin_active_merchants_readable").select("id,store_name,owner_name,contact_mobile,category_name_ar,category_name_en,approval_status,approval_status_ar,approval_status_en,store_front_image_url,store_front_bucket,founder_badge_enabled,trusted_badge_enabled,manually_suspended_at,suspension_reason,created_at").order("created_at", { ascending: false }).limit(300),
         service.from("products").select("merchant_id,is_active").limit(10000),
       ]);
       const loadError = storesResult.error ?? productRowsResult.error;
@@ -2197,7 +2197,7 @@ export async function GET(req: NextRequest) {
         service.from("admin_support_conversations_readable").select("*").in("status", ["bot", "transferred"]).order("last_message_at", { ascending: false, nullsFirst: false }).limit(200),
         service.from("admin_support_labels_readable").select("*").eq("is_active", true).order("name_ar"),
         service.from("admin_staff_readable").select("id,full_name,primary_email,internal_role,staff_is_active,is_blocked,is_deleted").eq("internal_role", "support_agent").eq("staff_is_active", true).eq("is_blocked", false),
-        service.from("admin_merchants_readable").select("id,store_name,account_email,approval_status_ar,approval_status_en").order("store_name").limit(300),
+        service.from("admin_active_merchants_readable").select("id,store_name,account_email,approval_status_ar,approval_status_en").order("store_name").limit(300),
         service.from("admin_orders_readable").select("id,buyer_name,store_name,status_ar,status_en,created_at").order("created_at", { ascending: false }).limit(300),
       ]);
       const loadError = conversationsResult.error ?? labelsResult.error ?? agentsResult.error ?? merchantsResult.error ?? ordersResult.error;
@@ -2714,6 +2714,35 @@ export async function POST(req: NextRequest) {
     return jsonError("table_not_allowed", 403);
   }
 
+  if ((action === "create_row" || action === "update_row") && table === "cities") {
+    const locationKind = String(
+      body.payload?.place_kind ??
+        (String(values.governorate_ar ?? "") === "__country__"
+          ? "country"
+          : String(values.name_ar ?? "") === String(values.governorate_ar ?? "")
+            ? "governorate"
+            : "city"),
+    );
+    const { data, error } = await service.rpc("admin_upsert_city_location_as", {
+      p_actor_id: auth.userId,
+      p_id: action === "update_row" ? targetId : null,
+      p_place_kind: locationKind,
+      p_country_ar: values.country_ar ?? null,
+      p_country_en: values.country_en ?? null,
+      p_name_ar: values.name_ar ?? null,
+      p_name_en: values.name_en ?? null,
+      p_governorate_ar: values.governorate_ar ?? null,
+      p_governorate_en: values.governorate_en ?? null,
+      p_currency_code: values.currency_code ?? null,
+      p_currency_name_ar: values.currency_name_ar ?? null,
+      p_currency_name_en: values.currency_name_en ?? null,
+      p_display_order: Number.isFinite(Number(values.display_order)) ? Math.max(0, Number(values.display_order)) : 0,
+      p_is_active: values.is_active ?? true,
+    });
+    if (error) return jsonError(adminDbActionErrorMessage(error), 400);
+    return NextResponse.json({ data });
+  }
+
   if (action === "delete_product") {
     const before = await getBefore(service, table, targetId);
     const { error } = await service
@@ -2751,13 +2780,16 @@ export async function POST(req: NextRequest) {
     if (error) {
       return jsonError(adminDbActionErrorMessage(error), 400);
     }
-    await Promise.all(
-      ((products ?? []) as AnyRow[]).map((product) =>
-        removeProductImages(adminDb, product),
-      ),
-    );
-    await removeMerchantImages(adminDb, before);
-    return NextResponse.json({ data: data ?? { id: targetId, deleted: true } });
+    const deletionResult = (data ?? { id: targetId, deleted: true }) as AnyRow;
+    if (deletionResult.archived !== true) {
+      await Promise.all(
+        ((products ?? []) as AnyRow[]).map((product) =>
+          removeProductImages(adminDb, product),
+        ),
+      );
+      await removeMerchantImages(adminDb, before);
+    }
+    return NextResponse.json({ data: deletionResult });
   }
 
   if (action === "delete_row") {

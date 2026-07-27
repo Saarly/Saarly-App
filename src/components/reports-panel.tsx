@@ -1,75 +1,198 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Download, RefreshCw, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
-import { friendlyStatus, humanizeAdminError } from "@/lib/admin/messages";
-import { formatCell, localizedValue } from "@/lib/admin/format";
+import { humanizeAdminError } from "@/lib/admin/messages";
+import { adminValueLabel, localizedValue } from "@/lib/admin/format";
 
+type Row = Record<string, unknown>;
 type ReportResult = {
   key: string;
-  title: { ar: string; en: string };
-  rows: Record<string, unknown>[];
+  rows: Row[];
   error?: string;
 };
 
-type ReportSummary = {
-  title: string;
-  details: string;
+type FieldDefinition = {
+  key: string;
+  label: { ar: string; en: string };
+  kind?: "text" | "status" | "money" | "number" | "percent" | "date" | "boolean";
 };
 
-const reportDefinitions = [
+type ReportDefinition = {
+  key: string;
+  title: { ar: string; en: string };
+  description: { ar: string; en: string };
+  titleFields: string[];
+  fields: FieldDefinition[];
+};
+
+const reports: ReportDefinition[] = [
   {
     key: "admin_report_orders",
-    title: { ar: "تقرير الطلبات", en: "Orders report" },
-    args: { p_from: null, p_to: null, p_status: null, p_merchant_id: null, p_category_id: null }
+    title: { ar: "الطلبات", en: "Orders" },
+    description: {
+      ar: "كل طلب ظاهر كسطر واحد، ومعاه العميل والمتجر والحالة والقيمة والعمولة.",
+      en: "Each order is shown as one clear row with buyer, store, status, value, and commission.",
+    },
+    titleFields: ["buyer_name", "store_name"],
+    fields: [
+      { key: "store_name", label: { ar: "المتجر", en: "Store" } },
+      { key: "status", label: { ar: "الحالة", en: "Status" }, kind: "status" },
+      { key: "order_total", label: { ar: "قيمة الطلب", en: "Order value" }, kind: "money" },
+      { key: "commission_amount", label: { ar: "العمولة", en: "Commission" }, kind: "money" },
+      { key: "categories_ar", label: { ar: "الأقسام", en: "Categories" } },
+      { key: "accepted_at", label: { ar: "وقت القبول", en: "Accepted" }, kind: "date" },
+      { key: "confirmed_at", label: { ar: "وقت التأكيد", en: "Confirmed" }, kind: "date" },
+    ],
   },
   {
     key: "admin_report_active_merchants",
-    title: { ar: "المتاجر الأكثر نشاطاً", en: "Most active stores" },
-    args: { p_from: null, p_to: null, p_limit: 10 }
+    title: { ar: "المتاجر النشطة", en: "Active stores" },
+    description: {
+      ar: "بيوضح المتاجر اللي عليها شغل أكتر، وحجم الطلبات والمبيعات والتقييم.",
+      en: "Shows the busiest stores with order volume, sales, commission, and ratings.",
+    },
+    titleFields: ["store_name"],
+    fields: [
+      { key: "category_name_ar", label: { ar: "القسم", en: "Category" } },
+      { key: "confirmed_orders_count", label: { ar: "طلبات مؤكدة", en: "Confirmed orders" }, kind: "number" },
+      { key: "gross_sales", label: { ar: "إجمالي المبيعات", en: "Gross sales" }, kind: "money" },
+      { key: "commissions_due", label: { ar: "العمولات المستحقة", en: "Commission due" }, kind: "money" },
+      { key: "average_rating", label: { ar: "متوسط التقييم", en: "Average rating" }, kind: "number" },
+      { key: "last_order_at", label: { ar: "آخر طلب", en: "Last order" }, kind: "date" },
+    ],
   },
   {
     key: "admin_report_active_categories",
-    title: { ar: "الأقسام الأكثر طلباً", en: "Most requested categories" },
-    args: { p_from: null, p_to: null, p_limit: 10 }
+    title: { ar: "الأقسام الأكثر طلبًا", en: "Top categories" },
+    description: {
+      ar: "بيعرض الأقسام اللي عليها طلبات ومبيعات أكتر عشان تعرف اتجاه الاستخدام.",
+      en: "Shows the categories with the most orders and sales so you can understand demand.",
+    },
+    titleFields: ["category_name_ar", "category_name_en"],
+    fields: [
+      { key: "merchants_count", label: { ar: "عدد المتاجر", en: "Stores" }, kind: "number" },
+      { key: "confirmed_orders_count", label: { ar: "طلبات مؤكدة", en: "Confirmed orders" }, kind: "number" },
+      { key: "gross_sales", label: { ar: "إجمالي المبيعات", en: "Gross sales" }, kind: "money" },
+      { key: "commissions_due", label: { ar: "العمولات المستحقة", en: "Commission due" }, kind: "money" },
+    ],
   },
   {
     key: "admin_report_top_accepted_offers",
-    title: { ar: "العروض المختارة من المشترين", en: "Offers chosen by buyers" },
-    args: { p_from: null, p_to: null, p_limit: 10 }
+    title: { ar: "العروض المقبولة", en: "Accepted offers" },
+    description: {
+      ar: "بيوضح العروض اللي العملاء اختاروها، وترتيب العرض ونسبة التغطية والسعر.",
+      en: "Shows offers chosen by buyers, including rank, coverage, price, and final order status.",
+    },
+    titleFields: ["store_name"],
+    fields: [
+      { key: "ranking", label: { ar: "ترتيب العرض", en: "Rank" }, kind: "number" },
+      { key: "coverage_percentage", label: { ar: "نسبة التغطية", en: "Coverage" }, kind: "percent" },
+      { key: "total_price_snapshot", label: { ar: "سعر العرض", en: "Offer price" }, kind: "money" },
+      { key: "status", label: { ar: "حالة الطلب", en: "Order status" }, kind: "status" },
+      { key: "accepted_at", label: { ar: "وقت القبول", en: "Accepted" }, kind: "date" },
+      { key: "confirmed_at", label: { ar: "وقت التأكيد", en: "Confirmed" }, kind: "date" },
+    ],
   },
   {
     key: "admin_report_rfq_acceptance",
-    title: { ar: "طلبات تسعير يدوية", en: "Manual quote requests" },
-    args: { p_from: null, p_to: null }
+    title: { ar: "طلبات التسعير اليدوي", en: "Manual quote requests" },
+    description: {
+      ar: "تابع عدد ردود المتاجر على كل طلب تسعير وهل تم قبول رد وإنشاء طلب منه.",
+      en: "Track store responses to manual quote requests and whether a response became an accepted order.",
+    },
+    titleFields: ["status", "created_at"],
+    fields: [
+      { key: "status", label: { ar: "الحالة", en: "Status" }, kind: "status" },
+      { key: "responses_count", label: { ar: "كل الردود", en: "All responses" }, kind: "number" },
+      { key: "submitted_responses_count", label: { ar: "ردود مرسلة", en: "Submitted responses" }, kind: "number" },
+      { key: "priced_responses_count", label: { ar: "ردود مسعرة", en: "Priced responses" }, kind: "number" },
+      { key: "accepted_total", label: { ar: "قيمة الرد المقبول", en: "Accepted value" }, kind: "money" },
+      { key: "created_at", label: { ar: "تاريخ الطلب", en: "Created" }, kind: "date" },
+    ],
   },
   {
     key: "admin_report_payment_transactions",
-    title: { ar: "مدفوعات الاشتراكات", en: "Subscription payments" },
-    args: { p_status: null, p_provider: null, p_purpose: null, p_from: null, p_to: null }
+    title: { ar: "عمليات الدفع", en: "Payment transactions" },
+    description: {
+      ar: "راجع كل عملية دفع وحالتها وطريقتها وهل تخص اشتراك أو عمولة أو طلب عميل.",
+      en: "Review payment transactions, methods, status, and whether each payment relates to a subscription, commission, or order.",
+    },
+    titleFields: ["store_name", "purpose"],
+    fields: [
+      { key: "purpose", label: { ar: "نوع العملية", en: "Purpose" }, kind: "status" },
+      { key: "provider", label: { ar: "طريقة الدفع", en: "Provider" }, kind: "status" },
+      { key: "amount", label: { ar: "المبلغ", en: "Amount" }, kind: "money" },
+      { key: "status", label: { ar: "الحالة", en: "Status" }, kind: "status" },
+      { key: "direct_to_merchant", label: { ar: "وصل للمتجر مباشرة", en: "Direct to store" }, kind: "boolean" },
+      { key: "created_at", label: { ar: "تاريخ الإنشاء", en: "Created" }, kind: "date" },
+      { key: "paid_at", label: { ar: "تاريخ الدفع", en: "Paid" }, kind: "date" },
+    ],
   },
   {
     key: "admin_report_commission_dues",
-    title: { ar: "عمولات الطلبات", en: "Order commissions" },
-    args: { p_from: null, p_to: null, p_merchant_id: null, p_status: null }
+    title: { ar: "العمولات", en: "Commissions" },
+    description: {
+      ar: "بيوضح العمولة المحسوبة على كل طلب، نسبتها وحالتها وهل اتسددت ولا لسه.",
+      en: "Shows the commission calculated for each order, its rate, amount, and payment status.",
+    },
+    titleFields: ["store_name"],
+    fields: [
+      { key: "category_name_ar", label: { ar: "القسم", en: "Category" } },
+      { key: "base_amount", label: { ar: "قيمة الطلب الأساسية", en: "Base amount" }, kind: "money" },
+      { key: "commission_rate", label: { ar: "نسبة العمولة", en: "Commission rate" }, kind: "percent" },
+      { key: "commission_amount", label: { ar: "قيمة العمولة", en: "Commission amount" }, kind: "money" },
+      { key: "status", label: { ar: "الحالة", en: "Status" }, kind: "status" },
+      { key: "calculated_at", label: { ar: "وقت الحساب", en: "Calculated" }, kind: "date" },
+    ],
   },
   {
     key: "admin_report_merchant_arrears",
-    title: { ar: "مستحقات المتاجر", en: "Store dues" },
-    args: {}
+    title: { ar: "حالة حسابات المتاجر", en: "Store account status" },
+    description: {
+      ar: "اعرف طريقة محاسبة كل متجر، اشتراكه الحالي، المبلغ المستحق وهل يقدر يستقبل طلبات جديدة.",
+      en: "Review each store’s billing method, subscription, balance due, and ability to receive new work.",
+    },
+    titleFields: ["store_name"],
+    fields: [
+      { key: "billing_preference", label: { ar: "طريقة المحاسبة", en: "Billing method" }, kind: "status" },
+      { key: "subscription_status", label: { ar: "حالة الاشتراك", en: "Subscription status" }, kind: "status" },
+      { key: "plan_name_ar", label: { ar: "الباقة", en: "Plan" } },
+      { key: "monthly_price", label: { ar: "سعر الباقة", en: "Plan price" }, kind: "money" },
+      { key: "balance_due", label: { ar: "المبلغ المستحق", en: "Balance due" }, kind: "money" },
+      { key: "unpaid_months", label: { ar: "شهور غير مسددة", en: "Unpaid months" }, kind: "number" },
+      { key: "grace_months", label: { ar: "فترة السماح بالشهور", en: "Grace months" }, kind: "number" },
+      { key: "can_receive_new_work", label: { ar: "يستقبل طلبات", en: "Receives new work" }, kind: "boolean" },
+    ],
   },
   {
     key: "admin_report_referrals_rewards",
     title: { ar: "الدعوات والمكافآت", en: "Invites and rewards" },
-    args: {}
-  }
-] as const;
+    description: {
+      ar: "تابع كود الدعوة وعدد التسجيلات المؤكدة ونوع المكافأة وحالة تسليمها.",
+      en: "Track invite codes, confirmed registrations, reward type, and delivery status.",
+    },
+    titleFields: ["referrer_email", "referral_code"],
+    fields: [
+      { key: "referral_code", label: { ar: "كود الدعوة", en: "Invite code" } },
+      { key: "confirmed_registrations", label: { ar: "تسجيلات مؤكدة", en: "Confirmed registrations" }, kind: "number" },
+      { key: "target_confirmed_registrations", label: { ar: "الهدف", en: "Target" }, kind: "number" },
+      { key: "reward_type", label: { ar: "المكافأة", en: "Reward" }, kind: "status" },
+      { key: "delivery_status", label: { ar: "حالة التسليم", en: "Delivery status" }, kind: "status" },
+      { key: "delivered_at", label: { ar: "وقت التسليم", en: "Delivered" }, kind: "date" },
+      { key: "created_at", label: { ar: "تاريخ الدعوة", en: "Created" }, kind: "date" },
+    ],
+  },
+];
 
 export function ReportsPanel({ lang }: { lang: Lang }) {
-  const [reports, setReports] = useState<ReportResult[]>([]);
+  const [results, setResults] = useState<ReportResult[]>([]);
+  const [selectedKey, setSelectedKey] = useState(reports[0].key);
+  const [query, setQuery] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(10);
   const [loading, setLoading] = useState(true);
 
   async function loadReports() {
@@ -77,41 +200,31 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     if (!token) {
-      setReports(
-        reportDefinitions.map((report) => ({
-          key: report.key,
-          title: report.title,
-          rows: [],
-          error: humanizeAdminError("auth_required", lang),
-        })),
-      );
+      setResults(reports.map((report) => ({ key: report.key, rows: [], error: humanizeAdminError("auth_required", lang) })));
       setLoading(false);
       return;
     }
 
     const response = await fetch("/api/admin/action?reports=1", {
       cache: "no-store",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
     const payload = (await response.json().catch(() => ({}))) as {
-      data?: { key: string; rows: Record<string, unknown>[]; error?: string }[];
+      data?: { key: string; rows: Row[]; error?: string }[];
       error?: string;
     };
 
-    const nextReports: ReportResult[] = reportDefinitions.map((report) => {
-      const result = payload.data?.find((item) => item.key === report.key);
-      const rawError = response.ok ? result?.error : payload.error;
-      return {
-        key: report.key,
-        title: report.title,
-        rows: result?.rows ?? [],
-        error: rawError ? humanizeAdminError(rawError, lang) : undefined
-      };
-    });
-
-    setReports(nextReports);
+    setResults(
+      reports.map((report) => {
+        const result = payload.data?.find((item) => item.key === report.key);
+        const rawError = response.ok ? result?.error : payload.error;
+        return {
+          key: report.key,
+          rows: result?.rows ?? [],
+          error: rawError ? humanizeAdminError(rawError, lang) : undefined,
+        };
+      }),
+    );
     setLoading(false);
   }
 
@@ -120,266 +233,189 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function exportCsv(report: ReportResult) {
-    const columns = Array.from(new Set(report.rows.flatMap((row) => Object.keys(row))));
+  const definition = reports.find((item) => item.key === selectedKey) ?? reports[0];
+  const result = results.find((item) => item.key === selectedKey) ?? { key: selectedKey, rows: [] };
+  const filteredRows = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return result.rows;
+    return result.rows.filter((row) =>
+      Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(needle)),
+    );
+  }, [query, result.rows]);
+  const visibleRows = filteredRows.slice(0, visibleLimit);
+
+  function selectReport(key: string) {
+    setSelectedKey(key);
+    setQuery("");
+    setVisibleLimit(10);
+  }
+
+  function exportCsv() {
+    const fields = definition.fields.filter((field) => result.rows.some((row) => hasValue(row[field.key])));
     const lines = [
-      columns.join(","),
-      ...report.rows.map((row) =>
-        columns.map((column) => JSON.stringify(String(row[column] ?? "").replace(/\n/g, " "))).join(",")
-      )
+      fields.map((field) => csvEscape(field.label[lang])).join(","),
+      ...result.rows.map((row) =>
+        fields.map((field) => csvEscape(formatValue(field, localizedValue(row, field.key, lang), row, lang))).join(","),
+      ),
     ];
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob(["\uFEFF", lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${report.key}.csv`;
+    anchor.download = `${definition.key}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
 
   return (
-    <section className="content-panel">
+    <section className="content-panel reports-panel-simple">
       <div className="section-head">
         <div>
-          <span className="eyebrow">{lang === "ar" ? "ملخصات الإدارة" : "Admin summaries"}</span>
+          <span className="eyebrow">{lang === "ar" ? "متابعة الأرقام" : "Operational numbers"}</span>
           <h1>{lang === "ar" ? "التقارير" : "Reports"}</h1>
           <p>
             {lang === "ar"
-              ? "ملخصات بسيطة للطلبات والمتاجر والمبيعات والمستحقات والدعوات."
-              : "Simple summaries for orders, stores, sales, dues, and invites."}
+              ? "اختار تقرير واحد من فوق عشان تتابعه من غير زحمة، وبعدها ابحث أو نزّل البيانات كاملة."
+              : "Choose one report at a time for a clearer view, then search or export all of its data."}
           </p>
         </div>
-        <button className="soft-button" onClick={loadReports}>
+        <button className="soft-button" onClick={() => void loadReports()} disabled={loading}>
           <RefreshCw size={17} />
           {t("refresh", lang)}
         </button>
       </div>
 
-      {loading ? <div className="empty-state">{t("loading", lang)}</div> : null}
+      <nav className="report-selector" aria-label={lang === "ar" ? "أنواع التقارير" : "Report types"}>
+        {reports.map((item) => {
+          const count = results.find((entry) => entry.key === item.key)?.rows.length ?? 0;
+          return (
+            <button key={item.key} className={selectedKey === item.key ? "active" : ""} onClick={() => selectReport(item.key)}>
+              <span>{item.title[lang]}</span>
+              <b>{count.toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}</b>
+            </button>
+          );
+        })}
+      </nav>
 
-      <div className="reports-grid">
-        {reports.map((report) => (
-          <article className="report-card" key={report.key}>
-            <div className="report-head">
-              <div>
-                <h2>{report.title[lang]}</h2>
-                <span>{lang === "ar" ? `${report.rows.length} نتيجة` : `${report.rows.length} results`}</span>
-              </div>
-              <button className="tiny-button" onClick={() => exportCsv(report)} disabled={report.rows.length === 0}>
-                <Download size={15} />
-                {lang === "ar" ? "تنزيل التقرير" : "Download report"}
-              </button>
-            </div>
-            {report.error ? <div className="alert">{report.error}</div> : null}
-            <div className="report-list">
-              {report.rows.length === 0 ? (
-                <div className="empty-state compact">
-                  {lang === "ar" ? "لا توجد بيانات لهذا التقرير حالياً." : "No data for this report right now."}
-                </div>
-              ) : (
-                report.rows.slice(0, 5).map((row, index) => {
-                  const summary = reportRowSummary(report.key, row, lang);
-                  const details = splitReportDetails(summary.details, lang);
-                  return (
-                    <section className="report-row" key={`${report.key}-${index}`}>
-                      <strong className="report-row-title">{summary.title}</strong>
-                      {details.length === 0 ? (
-                        <span className="muted">
-                          {lang === "ar" ? "لا توجد تفاصيل إضافية" : "No extra details"}
-                        </span>
-                      ) : (
-                        <div className="report-details">
-                          {details.map((detail) => (
-                            <span className="report-detail" key={`${detail.label}-${detail.value}`}>
-                              <b>{detail.label}</b>
-                              <span>{detail.value}</span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })
-              )}
-            </div>
-          </article>
+      <div className="tab-guide report-guide">
+        <div>
+          <strong>{definition.title[lang]}</strong>
+          <p>{definition.description[lang]}</p>
+        </div>
+      </div>
+
+      <div className="report-active-toolbar">
+        <label className="search-box">
+          <Search size={18} />
+          <input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setVisibleLimit(10);
+            }}
+            placeholder={lang === "ar" ? "ابحث جوه التقرير الحالي" : "Search this report"}
+          />
+        </label>
+        <div className="report-count-summary">
+          <strong>{filteredRows.length.toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}</strong>
+          <span>{lang === "ar" ? "نتيجة مطابقة" : "matching results"}</span>
+        </div>
+        <button className="soft-button" onClick={exportCsv} disabled={result.rows.length === 0}>
+          <Download size={17} />
+          {lang === "ar" ? "تنزيل التقرير كامل" : "Download full report"}
+        </button>
+      </div>
+
+      {loading ? <div className="empty-state">{t("loading", lang)}</div> : null}
+      {result.error ? <div className="alert">{result.error}</div> : null}
+      {!loading && !result.error && filteredRows.length === 0 ? (
+        <div className="empty-state">{lang === "ar" ? "مفيش بيانات مطابقة في التقرير ده دلوقتي." : "There is no matching data in this report right now."}</div>
+      ) : null}
+
+      <div className="report-record-list">
+        {visibleRows.map((row, index) => (
+          <ReportRecord key={`${definition.key}-${index}`} definition={definition} row={row} lang={lang} index={index} />
         ))}
       </div>
+
+      {visibleRows.length < filteredRows.length ? (
+        <button className="soft-button report-more" onClick={() => setVisibleLimit((current) => current + 10)}>
+          {lang === "ar"
+            ? `عرض ١٠ نتائج كمان — ظاهر ${visibleRows.length.toLocaleString("ar-EG")} من ${filteredRows.length.toLocaleString("ar-EG")}`
+            : `Show 10 more — showing ${visibleRows.length} of ${filteredRows.length}`}
+        </button>
+      ) : null}
     </section>
   );
 }
 
-function splitReportDetails(details: string, lang: Lang) {
-  if (!details || details === "No extra details" || details.includes("لا توجد")) return [];
-  return details
-    .split(" | ")
-    .map((part) => {
-      const separator = part.indexOf(":");
-      if (separator === -1) {
-        return { label: lang === "ar" ? "معلومات" : "Info", value: part.trim() };
-      }
-      return {
-        label: part.slice(0, separator).trim(),
-        value: part.slice(separator + 1).trim()
-      };
-    })
-    .filter((part) => part.label && part.value);
+function ReportRecord({ definition, row, lang, index }: { definition: ReportDefinition; row: Row; lang: Lang; index: number }) {
+  const title = definition.titleFields
+    .map((key) => localizedValue(row, key, lang))
+    .find(hasValue);
+  const fields = definition.fields.filter((field) => hasValue(localizedValue(row, field.key, lang)));
+
+  return (
+    <article className="report-record">
+      <header>
+        <span>{(index + 1).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}</span>
+        <strong>{formatTitle(title, lang)}</strong>
+      </header>
+      <div className="report-record-fields">
+        {fields.map((field) => (
+          <div key={field.key}>
+            <small>{field.label[lang]}</small>
+            <b>{formatValue(field, localizedValue(row, field.key, lang), row, lang)}</b>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
 }
 
-function reportRowSummary(key: string, row: Record<string, unknown>, lang: Lang): ReportSummary {
-  const titleKeys: Record<string, string[]> = {
-    admin_report_orders: ["buyer_name", "store_name"],
-    admin_report_active_merchants: ["store_name"],
-    admin_report_active_categories: [lang === "ar" ? "category_name_ar" : "category_name_en"],
-    admin_report_top_accepted_offers: ["store_name"],
-    admin_report_rfq_acceptance: ["store_name", lang === "ar" ? "status_ar" : "status_en", "status"],
-    admin_report_payment_transactions: ["store_name", "purpose", lang === "ar" ? "status_ar" : "status_en", "status"],
-    admin_report_commission_dues: ["store_name", lang === "ar" ? "status_ar" : "status_en", "status"],
-    admin_report_merchant_arrears: ["store_name", "merchant_name"],
-    admin_report_referrals_rewards: ["referrer_email", "referrer_name", "referral_code"]
-  };
-
-  const hidden = new Set([
-    "id",
-    "buyer_id",
-    "merchant_id",
-    "quote_request_id",
-    "order_id",
-    "owner_user_id",
-    "category_id",
-    "offer_id",
-    "rfq_request_id",
-    "accepted_response_id",
-    "accepted_order_id",
-    "accepted_merchant_id",
-    "referrer_user_id",
-    "rewarded_user_id",
-    "referral_id",
-    "referral_url",
-    "category_name_en",
-    "categories_en"
-  ]);
-
-  const title =
-    titleKeys[key]
-      ?.map((field) => localizedValue(row, field, lang))
-      .find((value) => value !== null && value !== undefined && String(value).trim() !== "") ??
-    Object.entries(row).find(([field, value]) => !hidden.has(field) && value)?.[1] ??
-    "-";
-
-  const detailEntries = Object.entries(row)
-    .filter(([field, value]) => !hidden.has(field) && value !== null && value !== undefined && String(value).trim() !== "")
-    .filter(([field]) => !(field === "status" && (row.status_ar || row.status_en)))
-    .filter(([field]) => !(field.endsWith("_ar") && lang === "en" && row[field.replace(/_ar$/, "_en")]))
-    .filter(([field]) => !(field.endsWith("_en") && lang === "ar" && row[field.replace(/_en$/, "_ar")]))
-    .filter(([field]) => !titleKeys[key]?.includes(field))
-    .slice(0, 5);
-
-  return {
-    title: String(formatCell(title, undefined, lang)),
-    details:
-      detailEntries.length === 0
-        ? lang === "ar"
-          ? "لا توجد تفاصيل إضافية"
-          : "No extra details"
-        : detailEntries.map(([field, value]) => `${reportFieldLabel(field, lang)}: ${formatReportValue(field, value, lang)}`).join(" | ")
-  };
+function hasValue(value: unknown): boolean {
+  return value !== null && value !== undefined && String(value).trim() !== "";
 }
 
-function reportFieldLabel(field: string, lang: Lang) {
-  const labels: Record<string, { ar: string; en: string }> = {
-    buyer_name: { ar: "المشتري", en: "Buyer" },
-    store_name: { ar: "المتجر", en: "Store" },
-    merchant_name: { ar: "المتجر", en: "Store" },
-    category_name_ar: { ar: "القسم", en: "Category" },
-    categories_ar: { ar: "الأقسام", en: "Categories" },
-    merchants_count: { ar: "عدد المتاجر", en: "Stores count" },
-    orders_count: { ar: "عدد الطلبات", en: "Orders count" },
-    status_ar: { ar: "الحالة", en: "Status" },
-    status: { ar: "الحالة", en: "Status" },
-    order_total: { ar: "إجمالي الطلب", en: "Order total" },
-    gross_sales: { ar: "إجمالي المبيعات", en: "Gross sales" },
-    commissions_due: { ar: "العمولات المستحقة", en: "Commissions due" },
-    commission_amount: { ar: "العمولة", en: "Commission" },
-    amount: { ar: "المبلغ", en: "Amount" },
-    currency: { ar: "العملة", en: "Currency" },
-    purpose: { ar: "سبب الدفع", en: "Payment purpose" },
-    provider: { ar: "طريقة الدفع", en: "Payment method" },
-    direct_to_merchant: { ar: "الدفع للمتجر مباشرة", en: "Paid directly to store" },
-    confirmed_orders_count: { ar: "طلبات مؤكدة", en: "Confirmed orders" },
-    coverage_percentage: { ar: "نسبة تغطية الطلب", en: "Order coverage" },
-    total_price_snapshot: { ar: "سعر العرض", en: "Offer price" },
-    ranking: { ar: "ترتيب العرض", en: "Offer rank" },
-    balance_due: { ar: "المستحق حالياً", en: "Current due" },
-    unpaid_months: { ar: "أشهر غير مدفوعة", en: "Unpaid months" },
-    grace_months: { ar: "فترة السماح", en: "Grace period" },
-    confirmed_registrations: { ar: "تسجيلات مؤكدة", en: "Confirmed registrations" },
-    target_confirmed_registrations: { ar: "الهدف المطلوب", en: "Required target" },
-    referral_url: { ar: "رابط الدعوة", en: "Invite link" },
-    referral_code: { ar: "كود الإحالة", en: "Referral code" },
-    reward_type: { ar: "المكافأة", en: "Reward" },
-    delivery_status: { ar: "التوصيل", en: "Delivery" },
-    referrer_email: { ar: "بريد المُحيل", en: "Referrer email" },
-    accepted_at: { ar: "تاريخ القبول", en: "Accepted at" },
-    confirmed_at: { ar: "تاريخ التأكيد", en: "Confirmed at" },
-    created_at: { ar: "تاريخ الإنشاء", en: "Created at" },
-    last_order_at: { ar: "آخر طلب", en: "Last order" },
-    average_rating: { ar: "متوسط التقييم", en: "Average rating" },
-    responses_count: { ar: "الردود", en: "Responses" },
-    submitted_responses_count: { ar: "ردود مقدمة", en: "Submitted responses" },
-    priced_responses_count: { ar: "ردود مسعرة", en: "Priced responses" },
-    accepted_total: { ar: "إجمالي المقبول", en: "Accepted total" }
-  };
-  return labels[field]?.[lang] ?? (lang === "ar" ? "معلومة" : field.split("_").join(" "));
+function formatTitle(value: unknown, lang: Lang) {
+  if (!hasValue(value)) return lang === "ar" ? "سجل بدون اسم" : "Unnamed record";
+  return adminValueLabel(value, lang);
 }
 
-function formatReportValue(field: string, value: unknown, lang: Lang) {
-  if (value === null || value === undefined || value === "") return "-";
-  if (field.includes("status")) return friendlyStatus(value, lang);
-  if (field === "purpose") {
-    const raw = String(value);
-    if (raw === "subscription") return lang === "ar" ? "اشتراك متجر" : "Store subscription";
-    if (raw === "commission") return lang === "ar" ? "عمولة متجر" : "Store commission";
-    if (raw === "order") return lang === "ar" ? "طلب عميل" : "Buyer order";
-  }
-  if (field === "provider") {
-    const raw = String(value);
-    if (raw === "visa") return lang === "ar" ? "بطاقة بنكية" : "Card";
-    if (raw === "wallet") return lang === "ar" ? "محفظة إلكترونية" : "Wallet";
-    if (raw === "vodafone_cash") return lang === "ar" ? "فودافون كاش" : "Vodafone Cash";
-    if (raw === "meeza") return lang === "ar" ? "ميزة" : "Meeza";
-  }
-  if (field.endsWith("_at") || field === "created_at") {
+function formatValue(field: FieldDefinition, value: unknown, row: Row, lang: Lang) {
+  if (!hasValue(value)) return lang === "ar" ? "غير متوفر" : "Not provided";
+  if (field.kind === "date") {
     const date = new Date(String(value));
-    if (!Number.isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat(lang === "ar" ? "ar-EG" : "en-US", {
-        dateStyle: "medium",
-        timeStyle: "short"
-      }).format(date);
-    }
+    return Number.isNaN(date.getTime())
+      ? adminValueLabel(value, lang)
+      : new Intl.DateTimeFormat(lang === "ar" ? "ar-EG" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(date);
   }
-  if (
-    field.includes("total") ||
-    field.includes("sales") ||
-    field.includes("amount") ||
-    field.includes("due") ||
-    field.includes("price")
-  ) {
+  if (field.kind === "money") {
     const amount = Number(value);
-    if (Number.isFinite(amount)) {
-      return new Intl.NumberFormat(lang === "ar" ? "ar-EG" : "en-US", {
-        style: "currency",
-        currency: "EGP"
-      }).format(amount);
+    if (!Number.isFinite(amount)) return adminValueLabel(value, lang);
+    const currency = String(row.currency ?? "EGP").toUpperCase();
+    try {
+      return new Intl.NumberFormat(lang === "ar" ? "ar-EG" : "en-US", { style: "currency", currency }).format(amount);
+    } catch {
+      return `${amount.toLocaleString(lang === "ar" ? "ar-EG" : "en-US")} ${currency}`;
     }
   }
-  if (field.includes("percentage")) {
-    const number = Number(value);
-    if (Number.isFinite(number)) return `${number.toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}%`;
+  if (field.kind === "percent") {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? `${amount.toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}%` : adminValueLabel(value, lang);
   }
-  if (typeof value === "boolean") {
-    return value ? (lang === "ar" ? "نعم" : "Yes") : lang === "ar" ? "لا" : "No";
+  if (field.kind === "number") {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount.toLocaleString(lang === "ar" ? "ar-EG" : "en-US") : adminValueLabel(value, lang);
   }
-  if (lang === "ar" && String(value).trim().toLowerCase() === "deleted user") return "مستخدم محذوف";
-  return String(value);
+  if (field.kind === "boolean") {
+    return Boolean(value) ? (lang === "ar" ? "نعم" : "Yes") : lang === "ar" ? "لا" : "No";
+  }
+  if (field.kind === "status") return adminValueLabel(value, lang);
+  if (Array.isArray(value)) return value.map((item) => adminValueLabel(item, lang)).join("، ");
+  return adminValueLabel(value, lang);
+}
+
+function csvEscape(value: unknown) {
+  return `"${String(value ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
 }

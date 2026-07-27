@@ -22,6 +22,7 @@ import { NotificationBroadcast } from "@/components/notification-broadcast";
 import { StaffManagement } from "@/components/staff-management";
 import { MonetizationConsole } from "@/components/monetization-console";
 import { ComplaintsConsole } from "@/components/complaints-console";
+import { PageGuide } from "@/components/page-guide";
 
 export function AdminConsole({ initialSection = "dashboard" }: { initialSection?: string }) {
   const [lang, setLang] = useState<Lang>("ar");
@@ -275,6 +276,8 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
             </button>
           </div>
         </header>
+
+        {allowed ? <PageGuide sectionId={section.id} lang={lang} /> : null}
 
         {!allowed ? (
           <section className="content-panel">
