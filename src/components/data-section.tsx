@@ -351,10 +351,19 @@ export function DataSection({
 
     const payload = (await response.json().catch(() => ({}))) as {
       error?: string;
+      warnings?: string[];
     };
     if (!response.ok) {
       throw new Error(payload.error ?? "action_failed");
     }
+    if (payload.warnings?.includes("email_send_failed")) {
+      setError(
+        lang === "ar"
+          ? "تم حفظ القرار وإرسال إشعار التطبيق، لكن تعذر إرسال البريد لأن مزود البريد غير مُعد أو رفض الرسالة."
+          : "The decision and app notification were saved, but email delivery failed because the email provider is not configured or rejected the message.",
+      );
+    }
+    return payload;
   }
 
   async function uploadAdBannerImage(file: File | null) {
