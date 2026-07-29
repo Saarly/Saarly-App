@@ -2682,21 +2682,22 @@ button:not(:disabled):active {
   }
 }
 
-/* Context help shown at the beginning of every admin page. */
+/* Context help shown at the beginning of every admin page. Only this guide card is centered. */
 .page-guide {
   display: inline-flex;
   align-items: flex-start;
   align-self: start;
-  justify-self: start;
+  justify-self: center;
   width: fit-content;
   max-width: min(920px, calc(100% - 40px));
   box-sizing: border-box;
   gap: 12px;
-  margin: 18px 20px 0;
+  margin: 18px auto 0;
   padding: 14px 16px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: color-mix(in srgb, var(--panel) 92%, var(--green) 8%);
+  text-align: start;
 }
 .page-guide > svg { flex: 0 0 auto; margin-top: 2px; color: var(--green); }
 .page-guide strong { display: block; margin-bottom: 4px; }
@@ -3267,3 +3268,108 @@ button:not(:disabled):active {
   line-height: 1.7;
 }
 .apply-tier-checkbox input { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 3px; accent-color: var(--green); }
+
+/* V12.3: complaint context is split by conversation stage without changing the global layout. */
+.complaint-origin h3 {
+  margin: 8px 0 0;
+  font-size: 1rem;
+}
+
+.complaint-context-loading {
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 13px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  text-align: center;
+}
+
+.complaint-context-sections {
+  display: grid;
+  gap: 14px;
+}
+
+.complaint-message-group {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-soft);
+  min-width: 0;
+}
+
+.complaint-message-group-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.complaint-message-group-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.complaint-message-group-head small {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.complaint-message-group-head > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding-inline: 8px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.complaint-message-group .complaint-message-list {
+  max-height: 300px;
+}
+
+.complaint-message-group-empty {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--muted);
+  text-align: center;
+  font-size: .86rem;
+}
+
+.complaint-message-group.customer-context {
+  border-color: color-mix(in srgb, #3b82f6 28%, var(--border));
+}
+
+.complaint-message-group.bot-context {
+  border-color: color-mix(in srgb, #8b5cf6 28%, var(--border));
+}
+
+.complaint-message-group.system-context {
+  border-color: color-mix(in srgb, #64748b 30%, var(--border));
+}
+
+.complaint-message-group.support-context {
+  border-color: color-mix(in srgb, #f59e0b 30%, var(--border));
+}
+
+.complaint-message-group.formal-context {
+  border-color: color-mix(in srgb, var(--green) 35%, var(--border));
+}
+
+@media (max-width: 700px) {
+  .complaint-message-group {
+    padding: 11px;
+  }
+
+  .complaint-message-group-head {
+    gap: 10px;
+  }
+}

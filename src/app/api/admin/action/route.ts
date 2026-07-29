@@ -2673,6 +2673,85 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: { stores: storesResult.data ?? [], productRows: productRowsResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
     }
 
+    const complaintContextId = url.searchParams.get("complaint_context");
+    if (complaintContextId) {
+      const complaintsSection = findSection("complaints");
+      if (!sectionIsAllowed(complaintsSection, profile)) return jsonError("permission_denied", 403);
+
+      const { data: complaint, error: complaintError } = await service
+        .from("support_complaints")
+        .select("id,admin_action")
+        .eq("id", complaintContextId)
+        .maybeSingle();
+      if (complaintError) return jsonError(complaintError.message, 400);
+      if (!complaint) return jsonError("complaint_not_found", 404);
+
+      const adminAction =
+        complaint.admin_action && typeof complaint.admin_action === "object" && !Array.isArray(complaint.admin_action)
+          ? (complaint.admin_action as AnyRow)
+          : {};
+      let conversationId = String(adminAction.conversation_id ?? "").trim();
+
+      if (!conversationId) {
+        const { data: linkedConversation, error: linkedConversationError } = await service
+          .from("chat_conversations")
+          .select("id")
+          .contains("metadata", { complaint_id: complaintContextId })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (linkedConversationError) return jsonError(linkedConversationError.message, 400);
+        conversationId = String(linkedConversation?.id ?? "").trim();
+      }
+
+      if (!conversationId) {
+        return NextResponse.json(
+          { data: { conversation_id: null, messages: [] } },
+          { headers: { "Cache-Control": "no-store, max-age=0" } },
+        );
+      }
+
+      const { data: contextMessages, error: contextMessagesError } = await service
+        .from("chat_messages")
+        .select("id,conversation_id,sender_type,sender_user_id,body,metadata,created_at")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true })
+        .limit(2000);
+      if (contextMessagesError) return jsonError(contextMessagesError.message, 400);
+
+      const senderIds = [
+        ...new Set(
+          (contextMessages ?? [])
+            .map((item: AnyRow) => String(item.sender_user_id ?? "").trim())
+            .filter(Boolean),
+        ),
+      ];
+      const senderNames = new Map<string, string>();
+      if (senderIds.length > 0) {
+        const { data: senders, error: sendersError } = await service
+          .from("users")
+          .select("id,full_name")
+          .in("id", senderIds);
+        if (sendersError) return jsonError(sendersError.message, 400);
+        for (const sender of senders ?? []) {
+          senderNames.set(String(sender.id), String(sender.full_name ?? ""));
+        }
+      }
+
+      const messages = (contextMessages ?? []).map((item: AnyRow) => ({
+        ...item,
+        sender_type: String(item.sender_type ?? ""),
+        sender_name: item.sender_user_id
+          ? senderNames.get(String(item.sender_user_id)) ?? null
+          : null,
+      }));
+
+      return NextResponse.json(
+        { data: { conversation_id: conversationId, messages } },
+        { headers: { "Cache-Control": "no-store, max-age=0" } },
+      );
+    }
+
     if (url.searchParams.get("complaints") === "1") {
       const complaintsSection = findSection("complaints");
       if (!sectionIsAllowed(complaintsSection, profile)) return jsonError("permission_denied", 403);
@@ -3092,11 +3171,35 @@ export async function POST(req: NextRequest) {
       const complaintId = requiredText(id, "complaint_id");
       const resolution = requiredText(body.payload?.resolution, "resolution");
       if (resolution.length < 3) throw new Error("resolution_required");
+      const { data: complaintBeforeResolve, error: complaintBeforeResolveError } = await service
+        .from("support_complaints")
+        .select("admin_action")
+        .eq("id", complaintId)
+        .single();
+      if (complaintBeforeResolveError) throw complaintBeforeResolveError;
+
+      const existingAdminAction =
+        complaintBeforeResolve.admin_action &&
+        typeof complaintBeforeResolve.admin_action === "object" &&
+        !Array.isArray(complaintBeforeResolve.admin_action)
+          ? (complaintBeforeResolve.admin_action as AnyRow)
+          : {};
+      const requestedAdminAction =
+        body.payload?.admin_action &&
+        typeof body.payload.admin_action === "object" &&
+        !Array.isArray(body.payload.admin_action)
+          ? (body.payload.admin_action as AnyRow)
+          : {};
+
       const { data, error } = await service.rpc("admin_resolve_support_complaint_as", {
         p_actor_id: auth.userId,
         p_complaint_id: complaintId,
         p_resolution: resolution.trim(),
-        p_admin_action: body.payload?.admin_action ?? { source: "admin_web" },
+        p_admin_action: {
+          ...existingAdminAction,
+          ...requestedAdminAction,
+          source: String(requestedAdminAction.source ?? "admin_web"),
+        },
       });
       if (error) throw error;
       return NextResponse.json({ data });

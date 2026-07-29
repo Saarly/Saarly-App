@@ -33,6 +33,10 @@ type ComplaintPayload = {
   agents: Row[];
   labels: SupportLabel[];
 };
+type ComplaintContextPayload = {
+  conversation_id: string | null;
+  messages: Row[];
+};
 
 const statusLabels: Record<string, { ar: string; en: string }> = {
   open: { ar: "مفتوحة", en: "Open" },
@@ -86,6 +90,22 @@ function rowLabels(row: Row): SupportLabel[] {
   return Array.isArray(row.labels) ? (row.labels as SupportLabel[]) : [];
 }
 
+function senderLabel(item: Row, lang: Lang) {
+  const name = sanitizeDisplayText(item.sender_name);
+  if (name) return friendlyName(name, lang);
+  const senderType = text(item.sender_type);
+  if (senderType === "user") return lang === "ar" ? "العميل" : "Customer";
+  if (senderType === "bot") return lang === "ar" ? "المساعد الآلي" : "Automated assistant";
+  if (senderType === "system") return lang === "ar" ? "النظام" : "System";
+  if (senderType === "support_agent") return lang === "ar" ? "موظف الدعم" : "Support agent";
+  if (senderType === "admin") return lang === "ar" ? "الإدارة" : "Administration";
+  return lang === "ar" ? "مرسل غير معروف" : "Unknown sender";
+}
+
+function isStaffMessage(item: Row) {
+  return ["admin", "support_agent"].includes(text(item.sender_type));
+}
+
 export function ComplaintsConsole({
   lang,
   profile,
@@ -109,6 +129,12 @@ export function ComplaintsConsole({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [context, setContext] = useState<ComplaintContextPayload>({
+    conversation_id: null,
+    messages: [],
+  });
+  const [contextLoading, setContextLoading] = useState(false);
+  const [contextError, setContextError] = useState<string | null>(null);
 
   const canChooseAgent = profile?.role === "admin" && data.agents.length > 0;
 
@@ -218,6 +244,121 @@ export function ComplaintsConsole({
   const selectedLabels = selected ? rowLabels(selected) : [];
   const closed = selected ? ["resolved", "closed"].includes(text(selected.status)) : false;
 
+  useEffect(() => {
+    const complaintId = text(selected?.id);
+    if (!complaintId) {
+      setContext({ conversation_id: null, messages: [] });
+      setContextError(null);
+      setContextLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setContext({ conversation_id: null, messages: [] });
+    setContextLoading(true);
+    setContextError(null);
+    void (async () => {
+      try {
+        const token = await accessToken();
+        const response = await fetch(
+          `/api/admin/action?complaint_context=${encodeURIComponent(complaintId)}`,
+          {
+            cache: "no-store",
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          },
+        );
+        const payload = (await response.json().catch(() => ({}))) as {
+          data?: ComplaintContextPayload;
+          error?: string;
+        };
+        if (!response.ok || !payload.data) {
+          throw new Error(payload.error ?? "complaint_context_load_failed");
+        }
+        setContext({
+          conversation_id: payload.data.conversation_id ?? null,
+          messages: payload.data.messages ?? [],
+        });
+      } catch (loadError) {
+        if (controller.signal.aborted) return;
+        setContext({ conversation_id: null, messages: [] });
+        setContextError(humanizeAdminError(loadError, lang));
+      } finally {
+        if (!controller.signal.aborted) setContextLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+    // accessToken is intentionally stable within this component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id, lang]);
+
+  const customerContextMessages = context.messages.filter(
+    (item) => text(item.sender_type) === "user",
+  );
+  const botContextMessages = context.messages.filter(
+    (item) => text(item.sender_type) === "bot",
+  );
+  const systemContextMessages = context.messages.filter(
+    (item) => text(item.sender_type) === "system",
+  );
+  const supportContextMessages = context.messages.filter((item) =>
+    ["support_agent", "admin"].includes(text(item.sender_type)),
+  );
+  const selectedAdminAction =
+    selected?.admin_action &&
+    typeof selected.admin_action === "object" &&
+    !Array.isArray(selected.admin_action)
+      ? (selected.admin_action as Row)
+      : {};
+  const convertedFromSupport = Boolean(
+    context.conversation_id ||
+      text(selectedAdminAction.conversation_id) ||
+      text(selectedAdminAction.source) === "support_conversation",
+  );
+
+  function renderMessageGroup({
+    title,
+    description,
+    items,
+    emptyText,
+    className,
+  }: {
+    title: string;
+    description: string;
+    items: Row[];
+    emptyText: string;
+    className: string;
+  }) {
+    return (
+      <section className={`complaint-message-group ${className}`}>
+        <div className="complaint-message-group-head">
+          <div>
+            <strong>{title}</strong>
+            <small>{description}</small>
+          </div>
+          <span>{items.length}</span>
+        </div>
+        {items.length === 0 ? (
+          <div className="complaint-message-group-empty">{emptyText}</div>
+        ) : (
+          <div className="complaint-message-list">
+            {items.map((item) => (
+              <article
+                className={isStaffMessage(item) ? "complaint-message staff" : "complaint-message customer"}
+                key={text(item.id)}
+              >
+                <strong>{senderLabel(item, lang)}</strong>
+                <p>{text(item.body)}</p>
+                <small>{formatCell(item.created_at, "date", lang)}</small>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   async function sendReply() {
     if (!selected || !reply.trim()) return;
     const body = reply.trim();
@@ -313,8 +454,8 @@ export function ComplaintsConsole({
           <h1>{lang === "ar" ? "الشكاوى الرسمية" : "Formal complaints"}</h1>
           <p>
             {lang === "ar"
-              ? "تابع الشكوى والمحادثة والتعيين والتصنيفات والحل من نفس المكان."
-              : "Track the complaint, conversation, assignment, labels, and resolution in one place."}
+              ? "راجع سياق العميل والبوت والدعم قبل التصعيد، وبعدها تابع رسائل الشكوى وإجراءات الحل بشكل منظم."
+              : "Review the customer, bot, and pre-escalation support context, then manage formal complaint messages and resolution actions in a clear structure."}
           </p>
         </div>
         <button className="soft-button" onClick={() => void load()} disabled={loading}>
@@ -539,23 +680,105 @@ export function ComplaintsConsole({
               </div>
 
               <article className="complaint-origin">
-                <strong>{lang === "ar" ? "نص الشكوى" : "Complaint details"}</strong>
-                <p>{text(selected.body)}</p>
+                <strong>{lang === "ar" ? "موضوع الشكوى" : "Complaint subject"}</strong>
+                <h3>{displayText(selected.title, lang)}</h3>
+                {contextLoading ? (
+                  <p>
+                    {lang === "ar"
+                      ? "بنجمع سياق المحادثة الأصلي عشان نعرض كل رسالة في القسم الصحيح بدل ما يظهر الكلام كله متجمع."
+                      : "Loading the original conversation so every message can be shown in the correct section instead of as one combined block."}
+                  </p>
+                ) : convertedFromSupport ? (
+                  <p>
+                    {lang === "ar"
+                      ? "الشكوى دي اتحولت من محادثة دعم. هتلاقي تحت رسائل العميل، ورسائل البوت، ورسائل النظام والتحويل، وردود الدعم قبل التصعيد، وبعدها رسائل الشكوى الرسمية؛ كل جزء منفصل ومرتب بالتاريخ."
+                      : "This complaint was converted from a support conversation. Customer messages, bot messages, system and transfer events, pre-escalation support replies, and formal complaint messages are shown below in separate chronological sections."}
+                  </p>
+                ) : (
+                  <p>{text(selected.body)}</p>
+                )}
               </article>
 
-              <div className="complaint-messages">
-                {selectedMessages.map((item) => {
-                  const mine = ["admin", "support_agent"].includes(text(item.sender_type));
-                  return (
-                    <article className={mine ? "complaint-message staff" : "complaint-message user"} key={text(item.id)}>
-                      <strong>
-                        {friendlyName(item.sender_name, lang) ||
-                          (mine ? (lang === "ar" ? "فريق الدعم" : "Support team") : (lang === "ar" ? "العميل" : "Customer"))}
-                      </strong>
-                      <p>{text(item.body)}</p>
-                      <small>{formatCell(item.created_at, "date", lang)}</small>
-                    </article>
-                  );
+              {contextError ? <div className="alert">{contextError}</div> : null}
+              {contextLoading ? (
+                <div className="complaint-context-loading">
+                  {lang === "ar" ? "جاري تحميل سياق المحادثة قبل الشكوى..." : "Loading the conversation context before the complaint..."}
+                </div>
+              ) : null}
+
+              <div className="complaint-context-sections">
+                {convertedFromSupport || contextLoading || contextError ? (
+                  <>
+                    {renderMessageGroup({
+                      title: lang === "ar" ? "رسائل العميل قبل الشكوى" : "Customer messages before the complaint",
+                      description:
+                        lang === "ar"
+                          ? "كل الرسائل اللي كتبها العميل في محادثة الدعم قبل تحويلها لشكوى."
+                          : "Messages sent by the customer in the support conversation before escalation.",
+                      items: customerContextMessages,
+                      emptyText:
+                        lang === "ar"
+                          ? "مفيش رسائل عميل محفوظة قبل الشكوى."
+                          : "No customer messages were saved before the complaint.",
+                      className: "customer-context",
+                    })}
+
+                    {renderMessageGroup({
+                      title: lang === "ar" ? "رسائل البوت" : "Bot messages",
+                      description:
+                        lang === "ar"
+                          ? "الردود اللي بعتها المساعد الآلي للعميل قبل ما المحادثة تتحول لموظف دعم."
+                          : "Replies sent by the automated assistant before the conversation was transferred to support.",
+                      items: botContextMessages,
+                      emptyText:
+                        lang === "ar"
+                          ? "مفيش رسائل بوت مرتبطة بالمحادثة."
+                          : "No bot messages are linked to this conversation.",
+                      className: "bot-context",
+                    })}
+
+                    {renderMessageGroup({
+                      title: lang === "ar" ? "رسائل النظام والتحويل" : "System and transfer messages",
+                      description:
+                        lang === "ar"
+                          ? "تنبيهات النظام اللي بتوضح مراحل المحادثة، زي طلب التحويل أو انتظار خدمة العملاء."
+                          : "System events that explain the conversation flow, such as transfer requests or waiting notices.",
+                      items: systemContextMessages,
+                      emptyText:
+                        lang === "ar"
+                          ? "مفيش رسائل نظام مرتبطة بالمحادثة."
+                          : "No system messages are linked to this conversation.",
+                      className: "system-context",
+                    })}
+
+                    {renderMessageGroup({
+                      title: lang === "ar" ? "ردود الدعم قبل تحويلها لشكوى" : "Support replies before escalation",
+                      description:
+                        lang === "ar"
+                          ? "الردود اللي كتبها موظفو الدعم في المحادثة العادية قبل إنشاء الشكوى الرسمية."
+                          : "Replies sent by support staff in the original support conversation before the formal complaint was created.",
+                      items: supportContextMessages,
+                      emptyText:
+                        lang === "ar"
+                          ? "مفيش ردود دعم محفوظة قبل تحويل المحادثة لشكوى."
+                          : "No support replies were saved before escalation.",
+                      className: "support-context",
+                    })}
+                  </>
+                ) : null}
+
+                {renderMessageGroup({
+                  title: lang === "ar" ? "رسائل الشكوى الرسمية" : "Formal complaint messages",
+                  description:
+                    lang === "ar"
+                      ? "كل الرسائل والإجراءات اللي اتسجلت بعد إنشاء الشكوى الرسمية."
+                      : "Messages and recorded actions added after the formal complaint was created.",
+                  items: selectedMessages,
+                  emptyText:
+                    lang === "ar"
+                      ? "لسه مفيش رسائل اتبعتت داخل الشكوى الرسمية."
+                      : "No messages have been sent in the formal complaint yet.",
+                  className: "formal-context",
                 })}
               </div>
 
