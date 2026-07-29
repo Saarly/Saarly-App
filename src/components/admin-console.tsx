@@ -24,6 +24,45 @@ import { MonetizationConsole } from "@/components/monetization-console";
 import { ComplaintsConsole } from "@/components/complaints-console";
 import { PageGuide } from "@/components/page-guide";
 
+const navigationGroups = [
+  {
+    title: { ar: "الرئيسية", en: "Main" },
+    sectionIds: ["dashboard"],
+  },
+  {
+    title: { ar: "إدارة المتاجر", en: "Store management" },
+    sectionIds: [
+      "merchant-approvals",
+      "branch-approvals",
+      "store-catalog",
+      "categories",
+      "cities",
+    ],
+  },
+  {
+    title: { ar: "إدارة المستخدمين", en: "User management" },
+    sectionIds: ["users", "staff"],
+  },
+  {
+    title: { ar: "التشغيل", en: "Operations" },
+    sectionIds: [
+      "orders",
+      "shipping-companies",
+      "payments",
+      "referrals",
+      "monetization",
+    ],
+  },
+  {
+    title: { ar: "التسويق والدعم", en: "Marketing and support" },
+    sectionIds: ["ads", "broadcast", "complaints", "support"],
+  },
+  {
+    title: { ar: "الذكاء الاصطناعي والبيانات", en: "AI and data" },
+    sectionIds: ["ai-reads", "knowledge", "reports", "content-moderation"],
+  },
+] as const;
+
 export function AdminConsole({ initialSection = "dashboard" }: { initialSection?: string }) {
   const [lang, setLang] = useState<Lang>("ar");
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -36,6 +75,17 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
 
   const section = useMemo(() => findSection(initialSection), [initialSection]);
   const navSections = useMemo(() => visibleSections(profile), [profile]);
+  const groupedNavigation = useMemo(() => {
+    const visibleById = new Map(navSections.map((item) => [item.id, item]));
+    return navigationGroups
+      .map((group) => ({
+        ...group,
+        sections: group.sectionIds
+          .map((sectionId) => visibleById.get(sectionId))
+          .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+      }))
+      .filter((group) => group.sections.length > 0);
+  }, [navSections]);
 
   async function loadProfile(currentSession: Session | null) {
     if (!currentSession?.user) {
@@ -219,16 +269,21 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
           </button>
         </div>
         <nav>
-          {navSections.map((navSection) => (
-            <Link
-              key={navSection.id}
-              href={navSection.href}
-              className={navSection.id === section.id ? "active" : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              <AdminIcon name={navSection.icon} />
-              <span>{tr(navSection.title, lang)}</span>
-            </Link>
+          {groupedNavigation.map((group) => (
+            <div className="sidebar-nav-group" key={group.title.en}>
+              <span className="sidebar-nav-heading">{tr(group.title, lang)}</span>
+              {group.sections.map((navSection) => (
+                <Link
+                  key={navSection.id}
+                  href={navSection.href}
+                  className={navSection.id === section.id ? "active" : undefined}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <AdminIcon name={navSection.icon} />
+                  <span>{tr(navSection.title, lang)}</span>
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
       </aside>

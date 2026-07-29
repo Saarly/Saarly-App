@@ -406,6 +406,12 @@ async function loadMonetizationData(service: SupabaseClient, from: string | null
     };
   });
 
+  const emailEvents = decorateMerchant(emailEventsResult.data, merchants, users).map((event): Row => ({
+    ...event,
+    channel: "email",
+    scheduled_for: event.next_attempt_at ?? event.created_at ?? null,
+  }));
+
   const succeededTransactions = transactions.filter((item) => ["succeeded", "paid"].includes(String(item.status)));
   const failedTransactions = transactions.filter((item) => ["failed", "cancelled", "refunded"].includes(String(item.status)));
   const approvedManual = manualRequests.filter((item) => item.status === "approved");
@@ -472,6 +478,7 @@ async function loadMonetizationData(service: SupabaseClient, from: string | null
     branches: decorateMerchant(branchesResult.data, merchants, users),
     reminderSettings: reminderSettingsResult.data,
     expirationEvents,
+    emailEvents,
     badges: badgesResult.data,
     audit: auditResult.data,
     commissionSettings: commissionSettingsResult.data[0] ?? null,
@@ -1232,6 +1239,39 @@ async function triggerEmailDispatcher(service: SupabaseClient, limit = 20) {
   return { triggered: true, result: data };
 }
 
+async function retryEmailEvent(service: SupabaseClient, actor: AdminActor, payload: Row) {
+  const eventId = id(payload.id);
+  if (!eventId) throw new Error("email_event_required");
+
+  const before = ((await service.from("admin_email_events").select("*").eq("id", eventId).maybeSingle()).data as Row | null) ?? null;
+  if (!before) throw new Error("email_event_not_found");
+  if (before.sent_at || before.status === "sent") throw new Error("email_already_sent");
+
+  const now = new Date().toISOString();
+  const { data, error } = await service
+    .from("admin_email_events")
+    .update({
+      status: "pending",
+      attempts: 0,
+      next_attempt_at: now,
+      locked_at: null,
+      locked_by: null,
+      failure_reason: null,
+      updated_at: now,
+    })
+    .eq("id", eventId)
+    .select("*")
+    .single();
+  if (error) throw error;
+
+  const dispatcher = await triggerEmailDispatcher(service, 20);
+  await writeAudit(service, actor.id, "retry_admin_email", "admin_email_events", eventId, before, {
+    ...(data as Row),
+    dispatcher,
+  });
+  return { event: data, dispatcher };
+}
+
 async function retryExpirationEmail(service: SupabaseClient, actor: AdminActor, payload: Row) {
   const eventId = id(payload.id);
   if (!eventId) throw new Error("expiration_event_required");
@@ -1333,6 +1373,7 @@ async function handleAction(service: SupabaseClient, actor: AdminActor, body: Ro
   if (action === "review_document") return reviewDocument(service, actor, payload);
   if (action === "set_badge") return setBadge(service, actor, payload);
   if (action === "settle_commissions") return settleCommissions(service, actor, payload);
+  if (action === "retry_email_event") return retryEmailEvent(service, actor, payload);
   if (action === "retry_expiration_email") return retryExpirationEmail(service, actor, payload);
   if (action === "retry_transaction") return paymentAdapterAction(service, actor, payload, "retry");
   if (action === "refund_transaction") return paymentAdapterAction(service, actor, payload, "refund");

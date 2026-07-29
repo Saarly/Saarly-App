@@ -48,6 +48,7 @@ type MonetizationData = {
   branches: Row[];
   reminderSettings: Row[];
   expirationEvents: Row[];
+  emailEvents: Row[];
   badges: Row[];
   audit: Row[];
   commissionSettings: Row | null;
@@ -406,6 +407,14 @@ const valueLabels: Record<string, { ar: string; en: string }> = {
   suspended: { ar: "موقوف", en: "Suspended" },
   succeeded: { ar: "ناجح", en: "Succeeded" },
   failed: { ar: "فشل", en: "Failed" },
+  dead: { ar: "توقف بعد تكرار الفشل", en: "Stopped after repeated failures" },
+  sent: { ar: "تم الإرسال", en: "Sent" },
+  sending: { ar: "جارٍ الإرسال", en: "Sending" },
+  merchant_approved: { ar: "قبول متجر", en: "Merchant approved" },
+  merchant_rejected: { ar: "رفض متجر", en: "Merchant rejected" },
+  branch_approved: { ar: "قبول فرع", en: "Branch approved" },
+  branch_rejected: { ar: "رفض فرع", en: "Branch rejected" },
+  email_provider_not_configured: { ar: "مزود البريد غير مُعدّ", en: "Email provider is not configured" },
   paid: { ar: "مدفوع", en: "Paid" },
   refunded: { ar: "تم الاسترداد", en: "Refunded" },
   not_configured: { ar: "لم تكتمل بياناتها", en: "Not set up" },
@@ -812,7 +821,8 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
       merchants: data.merchants.filter(match),
       documents: data.documents.filter(match),
       commissions: data.commissions.filter(match),
-      expirationEvents: data.expirationEvents.filter(match)
+      expirationEvents: data.expirationEvents.filter(match),
+      emailEvents: data.emailEvents.filter(match)
     };
   }, [data, query]);
 
@@ -1445,14 +1455,14 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
         <TabGuide
           lang={lang}
           title={lang === "ar" ? "المؤسسين والمتاجر" : "Founders and store controls"}
-          ar="من هنا تشغل أو توقف عد المؤسسين، وتحدد حسابات الاختبار، وتختار طريقة المحاسبة لكل متجر، وتتابع الفترة التجريبية والشارات. تحويل متجر إلى حساب اختبار يزيل رقم المؤسس ويعيد ترتيب أرقام المؤسسين تلقائيًا."
+          ar="من هنا تشغل أو توقف عد المؤسسين، وتحدد حسابات الاختبار، وتختار طريقة المحاسبة لكل متجر، وتتابع الفترة التجريبية والشارات. زر تغيير نهاية الفترة يحدد آخر يوم مجاني للمتجر فقط، ولا يغير الاشتراك أو رقم المؤسس. تحويل متجر إلى حساب اختبار يزيل رقم المؤسس ويعيد ترتيب أرقام المؤسسين تلقائيًا."
           en="Start or pause founder counting, mark test accounts, choose each store's billing method, and manage trials and badges. Marking a store as a test account removes its founder number and automatically closes numbering gaps."
           icon={<Sparkles size={20} />}
         />
         <div className="panel-title-row">
           <div>
             <h2>{lang === "ar" ? "المؤسسون وحسابات الاختبار" : "Founders and merchant settings"}</h2>
-            <p>{lang === "ar" ? "تعديل أي حالة حساسة يحتاج سببًا واضحًا، وكل حركة تظهر في سجل الإدارة." : "Sensitive changes require a reason and are audit logged."}</p>
+            <p>{lang === "ar" ? "تغيير نهاية الفترة يمد أو يقصر الفترة التجريبية المجانية للمتجر، وكل حركة حساسة تحتاج سببًا وتظهر في سجل الإدارة." : "Changing the trial end date extends or shortens the store's free trial. Sensitive changes are audit logged."}</p>
           </div>
           <button
             className={
@@ -1489,7 +1499,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
             ["billing_preference", lang === "ar" ? "طريقة المحاسبة" : "Billing"],
             [lang === "ar" ? "billing_plan_name_ar" : "billing_plan_name_en", lang === "ar" ? "باقة الاشتراك" : "Subscription plan"],
             ["founder_number", lang === "ar" ? "رقم المؤسس" : "Founder #"],
-            ["free_trial_ends_at", lang === "ar" ? "نهاية الفترة" : "Trial ends"],
+            ["free_trial_ends_at", lang === "ar" ? "نهاية الفترة التجريبية" : "Trial ends"],
             ["founder_badge_enabled", lang === "ar" ? "شارة مؤسس" : "Founder badge"],
             ["trusted_badge_enabled", lang === "ar" ? "شارة موثوق" : "Trusted badge"],
             ["is_test_account", lang === "ar" ? "حساب اختبار" : "Test account"]
@@ -1510,8 +1520,18 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
                 <BadgeCheck size={15} />
                 {Boolean(row.trusted_badge_enabled) ? (lang === "ar" ? "سحب شارة موثوق" : "Remove trusted badge") : (lang === "ar" ? "منح شارة موثوق" : "Grant trusted badge")}
               </button>
-              <button className="tiny-button" onClick={() => adjustTrial(row)}>
-                {lang === "ar" ? "تعديل الفترة" : "Adjust trial"}
+              <button
+                className="tiny-button"
+                title={lang === "ar" ? "تحديد أو تغيير آخر يوم في الفترة التجريبية المجانية" : "Set or change the last day of the free trial"}
+                onClick={() => adjustTrial(row)}
+              >
+                {row.free_trial_ends_at
+                  ? lang === "ar"
+                    ? "تغيير نهاية الفترة"
+                    : "Change trial end"
+                  : lang === "ar"
+                    ? "منح فترة تجريبية"
+                    : "Grant trial"}
               </button>
               <button className="tiny-button danger" disabled={Boolean(row.free_trial_stopped_at)} onClick={() => stopTrial(row)}>
                 {lang === "ar" ? "إيقاف الفترة" : "Stop trial"}
@@ -1766,24 +1786,25 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
         <article className="content-panel inner-panel">
           <h2>{lang === "ar" ? "تنبيهات الانتهاء والبريد" : "Expiration and email"}</h2>
           <DataTable
-            rows={filtered?.expirationEvents ?? []}
+            rows={filtered?.emailEvents ?? []}
             lang={lang}
             empty={l.noData}
             columns={[
               ["store_name", lang === "ar" ? "المتجر" : "Store"],
+              ["recipient_email", lang === "ar" ? "البريد المستلم" : "Recipient"],
               ["event_type", lang === "ar" ? "الحدث" : "Event"],
-              ["scheduled_for", lang === "ar" ? "الموعد" : "Scheduled"],
-              ["email_status", lang === "ar" ? "حالة البريد" : "Email status"],
-              ["email_attempts", lang === "ar" ? "المحاولات" : "Attempts"],
-              ["email_failure_reason", lang === "ar" ? "سبب الفشل" : "Failure reason"],
-              ["sent_at", lang === "ar" ? "تم الإرسال" : "Sent"],
-              ["channel", lang === "ar" ? "القناة" : "Channel"]
+              ["subject", lang === "ar" ? "العنوان" : "Subject"],
+              ["status", lang === "ar" ? "حالة البريد" : "Email status"],
+              ["attempts", lang === "ar" ? "المحاولات" : "Attempts"],
+              ["failure_reason", lang === "ar" ? "سبب الفشل" : "Failure reason"],
+              ["created_at", lang === "ar" ? "تاريخ الإنشاء" : "Created"],
+              ["sent_at", lang === "ar" ? "تم الإرسال" : "Sent"]
             ]}
             renderActions={(row) => (
               <button
                 className="tiny-button"
-                disabled={Boolean(row.sent_at) || row.email_status === "sending"}
-                onClick={() => void post("retry_expiration_email", { id: row.id })}
+                disabled={Boolean(row.sent_at) || row.status === "sending"}
+                onClick={() => void post("retry_email_event", { id: row.id })}
               >
                 {l.retry}
               </button>
@@ -1799,7 +1820,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
               ["subscriptions", lang === "ar" ? "الاشتراكات" : "Subscriptions", filtered?.subscriptions ?? []],
               ["commissions", lang === "ar" ? "العمولات" : "Commissions", filtered?.commissions ?? []],
               ["stores", lang === "ar" ? "المتاجر" : "Stores", filtered?.merchants ?? []],
-              ["emails", lang === "ar" ? "البريد" : "Emails", filtered?.expirationEvents ?? []]
+              ["emails", lang === "ar" ? "البريد" : "Emails", filtered?.emailEvents ?? []]
             ].map(([name, label, rows]) => (
               <button className="soft-button" key={String(name)} onClick={() => downloadCsv(String(name), rows as Row[])}>
                 <Download size={17} />
@@ -2044,7 +2065,7 @@ function rowsForTab(tab: string, data: MonetizationData) {
   if (tab === "methods") return [...data.manualMethods, ...data.paymentSettings];
   if (tab === "founders") return data.merchants;
   if (tab === "commissions") return [...data.commissions, ...data.settlements];
-  if (tab === "emails") return data.expirationEvents;
+  if (tab === "emails") return data.emailEvents;
   return [data.summary];
 }
 

@@ -75,6 +75,7 @@ export function DataSection({
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState<"all" | "merchant" | "buyer">("all");
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [reviewingDetails, setReviewingDetails] = useState<Row | null>(null);
@@ -93,6 +94,9 @@ export function DataSection({
     let result = rows.filter((row) =>
       rowMatches(row, section.searchKeys, query),
     );
+    if (section.id === "users" && userRoleFilter !== "all") {
+      result = result.filter((row) => String(row.role ?? "").toLowerCase() === userRoleFilter);
+    }
     if (section.id === "suspicious-matches") {
       result = result.filter((row) => {
         const confidence = Number(row.match_confidence);
@@ -117,7 +121,7 @@ export function DataSection({
       });
     }
     return result;
-  }, [query, rows, section.id, section.searchKeys]);
+  }, [query, rows, section.id, section.searchKeys, userRoleFilter]);
 
   const adCountries = useMemo(() => {
     return Array.from(
@@ -645,6 +649,24 @@ export function DataSection({
             placeholder={t("search", lang)}
           />
         </label>
+        {section.id === "users" ? (
+          <div className="role-filter" role="group" aria-label={lang === "ar" ? "فلترة المستخدمين" : "Filter users"}>
+            {[
+              ["all", lang === "ar" ? "الكل" : "All"],
+              ["merchant", lang === "ar" ? "المتاجر" : "Stores"],
+              ["buyer", lang === "ar" ? "العملاء" : "Buyers"],
+            ].map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className={userRoleFilter === value ? "active" : undefined}
+                onClick={() => setUserRoleFilter(value as "all" | "merchant" | "buyer")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <span className="toolbar-count">
           <SlidersHorizontal size={16} />
           {filteredRows.length} / {rows.length}

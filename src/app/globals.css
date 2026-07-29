@@ -398,6 +398,51 @@ button:not(:disabled):active {
   color: var(--text);
 }
 
+.sidebar-nav-group {
+  display: grid;
+  gap: 5px;
+}
+
+.sidebar-nav-group + .sidebar-nav-group {
+  margin-top: 12px;
+}
+
+.sidebar-nav-heading {
+  padding: 0 12px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+.role-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+}
+
+.role-filter button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 13px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.role-filter button.active {
+  background: rgba(133, 187, 100, 0.2);
+  color: var(--text);
+  font-weight: 700;
+}
+
 .main-area {
   min-width: 0;
   min-height: 100vh;

@@ -406,7 +406,7 @@ export const sections: SectionConfig[] = [
     source: "admin_ai_reading_log",
     sourceKind: "view",
     orderBy: "created_at",
-    title: { ar: "قراءات المساعد الذكي", en: "Smart assistant readings" },
+    title: { ar: "تحليلات المساعد الذكي", en: "Smart assistant analytics" },
     description: {
       ar: "مراجعة نتائج قراءة الصور والملفات وطلبات المستخدمين وحالات المعالجة.",
       en: "Review image and document readings, user requests, and processing status.",

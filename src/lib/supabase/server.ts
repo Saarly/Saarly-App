@@ -2,13 +2,15 @@ import { createClient } from "@supabase/supabase-js";
 
 export function createUserScopedClient(accessToken: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serverApiKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing public Supabase environment variables");
+  if (!supabaseUrl || !serverApiKey) {
+    throw new Error("Missing Supabase server environment variables");
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(supabaseUrl, serverApiKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false

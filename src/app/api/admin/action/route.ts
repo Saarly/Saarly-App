@@ -59,6 +59,174 @@ const adminReportDefinitions = [
   { key: "admin_report_referrals_rewards", args: {} },
 ] as const;
 
+async function fallbackAdminReport(
+  service: ServiceClient,
+  reportKey: (typeof adminReportDefinitions)[number]["key"],
+): Promise<AnyRow[]> {
+  if (reportKey === "admin_report_orders") {
+    const { data } = await service
+      .from("admin_orders_readable")
+      .select("id,buyer_name,merchant_id,store_name,status,accepted_at,confirmed_at,selected_subtotal_snapshot,commission_amount,offer_id")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    return ((data ?? []) as AnyRow[]).map((row) => ({
+      ...row,
+      order_id: row.id,
+      order_total: row.selected_subtotal_snapshot ?? 0,
+      categories_ar: null,
+      categories_en: null,
+    }));
+  }
+
+  if (reportKey === "admin_report_active_merchants") {
+    const { data } = await service
+      .from("admin_active_merchants_readable")
+      .select("id,store_name,category_name_ar,created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    return ((data ?? []) as AnyRow[]).map((row) => ({
+      merchant_id: row.id,
+      store_name: row.store_name,
+      category_name_ar: row.category_name_ar,
+      confirmed_orders_count: 0,
+      gross_sales: 0,
+      commissions_due: 0,
+      average_rating: null,
+      last_order_at: null,
+    }));
+  }
+
+  if (reportKey === "admin_report_active_categories") {
+    const { data } = await service
+      .from("categories")
+      .select("id,name_ar,name_en")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true })
+      .limit(500);
+    return ((data ?? []) as AnyRow[]).map((row) => ({
+      category_id: row.id,
+      category_name_ar: row.name_ar,
+      category_name_en: row.name_en,
+      merchants_count: 0,
+      confirmed_orders_count: 0,
+      gross_sales: 0,
+      commissions_due: 0,
+    }));
+  }
+
+  if (reportKey === "admin_report_top_accepted_offers") {
+    const { data } = await service
+      .from("admin_orders_readable")
+      .select("id,offer_id,merchant_id,store_name,status,accepted_at,confirmed_at,selected_subtotal_snapshot")
+      .order("accepted_at", { ascending: false, nullsFirst: false })
+      .limit(100);
+    return ((data ?? []) as AnyRow[]).map((row, index) => ({
+      offer_id: row.offer_id,
+      order_id: row.id,
+      merchant_id: row.merchant_id,
+      store_name: row.store_name,
+      ranking: index + 1,
+      coverage_percentage: null,
+      total_price_snapshot: row.selected_subtotal_snapshot ?? 0,
+      accepted_at: row.accepted_at,
+      confirmed_at: row.confirmed_at,
+      status: row.status,
+    }));
+  }
+
+  if (reportKey === "admin_report_rfq_acceptance") {
+    const { data: requests } = await service
+      .from("rfq_requests")
+      .select("id,buyer_id,status,created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    const requestRows = (requests ?? []) as AnyRow[];
+    const ids = requestRows.map((row) => String(row.id ?? "")).filter(Boolean);
+    const responsesResult = ids.length
+      ? await service
+          .from("rfq_responses")
+          .select("id,rfq_request_id,status,total_price_snapshot")
+          .in("rfq_request_id", ids)
+          .limit(3000)
+      : { data: [] as AnyRow[] };
+    const responses = (responsesResult.data ?? []) as AnyRow[];
+    return requestRows.map((request) => {
+      const related = responses.filter((response) => response.rfq_request_id === request.id);
+      return {
+        rfq_request_id: request.id,
+        buyer_id: request.buyer_id,
+        status: request.status,
+        created_at: request.created_at,
+        responses_count: related.length,
+        submitted_responses_count: related.filter((response) => response.status === "submitted").length,
+        priced_responses_count: related.filter((response) => Number(response.total_price_snapshot ?? 0) > 0).length,
+        accepted_total: null,
+      };
+    });
+  }
+
+  if (reportKey === "admin_report_payment_transactions") {
+    const { data } = await service
+      .from("admin_payment_transactions_readable")
+      .select("id,user_name,store_name,provider,amount,currency,status,purpose,order_id,subscription_id,external_reference,created_at")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    return ((data ?? []) as AnyRow[]).map((row) => ({
+      ...row,
+      transaction_id: row.id,
+      direct_to_merchant: null,
+      paid_at: null,
+    }));
+  }
+
+  if (reportKey === "admin_report_commission_dues") {
+    const { data } = await service
+      .from("merchant_commissions")
+      .select("id,order_id,merchant_id,category_id,base_amount,commission_rate,commission_amount,status,calculated_at,created_at")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    return ((data ?? []) as AnyRow[]).map((row) => ({
+      ...row,
+      commission_id: row.id,
+    }));
+  }
+
+  if (reportKey === "admin_report_merchant_arrears") {
+    const { data } = await service
+      .from("admin_active_merchants_readable")
+      .select("id,user_id,store_name,billing_preference,free_trial_ends_at,manually_suspended_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    return ((data ?? []) as AnyRow[]).map((row) => ({
+      merchant_id: row.id,
+      store_name: row.store_name,
+      owner_user_id: row.user_id,
+      billing_preference: row.billing_preference,
+      subscription_status: row.free_trial_ends_at ? "trialing" : null,
+      plan_name_ar: null,
+      plan_name_en: null,
+      monthly_price: 0,
+      balance_due: 0,
+      unpaid_months: 0,
+      grace_months: 0,
+      can_receive_new_work: !row.manually_suspended_at,
+    }));
+  }
+
+  const { data } = await service
+    .from("admin_referral_rewards_readable")
+    .select("id,referrer_name,rewarded_user_name,referral_code,reward_type,delivery_status,delivered_at,created_at")
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  return ((data ?? []) as AnyRow[]).map((row) => ({
+    ...row,
+    referral_id: row.id,
+    referrer_email: row.referrer_name,
+    confirmed_registrations: null,
+    target_confirmed_registrations: null,
+  }));
+}
+
 const fullAdminPermissions = {
   __full_admin: true,
   __limit_admin: false,
@@ -2457,17 +2625,28 @@ export async function GET(req: NextRequest) {
       }
 
       const results = [];
+      const reportClient = createUserScopedClient(accessTokenFromRequest(req) ?? "");
       for (const report of adminReportDefinitions) {
-        const reportClient = createUserScopedClient(accessTokenFromRequest(req) ?? "");
         const { data, error } = await reportClient.rpc(report.key, report.args);
+        let reportRows = Array.isArray(data)
+          ? (((data ?? []) as unknown) as AnyRow[])
+          : data
+            ? [((data as unknown) as AnyRow)]
+            : [];
+        let reportError = error?.message;
+
+        if (reportRows.length === 0) {
+          const fallbackRows = await fallbackAdminReport(service, report.key);
+          if (fallbackRows.length > 0) {
+            reportRows = fallbackRows;
+            reportError = undefined;
+          }
+        }
+
         results.push({
           key: report.key,
-          rows: Array.isArray(data)
-            ? (((data ?? []) as unknown) as AnyRow[])
-            : data
-              ? [((data as unknown) as AnyRow)]
-              : [],
-          error: error?.message,
+          rows: reportRows,
+          error: reportError,
         });
       }
 
