@@ -567,7 +567,7 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
                 <h2>{lang === "ar" ? "تحويل المحادثة إلى شكوى" : "Convert conversation to complaint"}</h2>
                 <p>{safeName(selected.customer_name, lang)}</p>
               </div>
-              <button className="icon-only" onClick={() => setComplaintOpen(false)} aria-label={lang === "ar" ? "إغلاق" : "Close"}>
+              <button className="modal-close-button" onClick={() => setComplaintOpen(false)} aria-label={lang === "ar" ? "إغلاق" : "Close"}>
                 <X size={18} />
               </button>
             </div>
@@ -625,10 +625,7 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
                 </select>
               </label>
             </div>
-            <div className="modal-actions">
-              <button className="ghost-button" onClick={() => setComplaintOpen(false)}>
-                {lang === "ar" ? "إلغاء" : "Cancel"}
-              </button>
+            <div className="modal-actions modal-actions-save-only">
               <button className="primary-button" onClick={() => void convertToComplaint()} disabled={busy === "complaint"}>
                 {busy === "complaint" ? (lang === "ar" ? "جارٍ التحويل" : "Converting") : (lang === "ar" ? "إنشاء الشكوى" : "Create complaint")}
               </button>

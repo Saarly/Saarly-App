@@ -295,7 +295,6 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
           </button>
           <div>
             <strong>{tr(section.title, lang)}</strong>
-            <span>{t("readOnly", lang)}</span>
           </div>
           <div className="topbar-actions">
             <button className="soft-button" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { BellRing, CheckCircle2, RefreshCw, Search, Send } from "lucide-react";
+import { BellRing, CheckCircle2, RefreshCw, Save, Search, Send, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
@@ -39,6 +39,39 @@ type RecentNotification = {
   push_error: string | null;
   created_at: string;
 };
+type NotificationTemplate = {
+  id: string;
+  name: string;
+  audience: Audience;
+  title_ar: string;
+  title_en: string;
+  body_ar: string;
+  body_en: string;
+  destination_id: string;
+  deep_link: string;
+  target_country_ar: string | null;
+  target_governorate_ar: string | null;
+  target_city_ar: string | null;
+  user_ids: string[] | null;
+  updated_at: string;
+};
+
+function sanitizeArabicNotificationText(value: string) {
+  return value
+    .normalize("NFKC")
+    .replace(/[\u0610-\u061A\u0640\u064B-\u065F\u0670\u06D6-\u06ED]/g, "")
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trimStart();
+}
+
+function sanitizeNotificationDisplay(value: string | null | undefined, arabic: boolean) {
+  const text = String(value ?? "");
+  return arabic
+    ? sanitizeArabicNotificationText(text).trim()
+    : text.normalize("NFKC").replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").replace(/\s+/g, " ").trim();
+}
+
 type LocationRow = {
   country_ar: string | null;
   country_en?: string | null;
@@ -115,14 +148,6 @@ const destinationOptions: DestinationOption[] = [
     hintEn: "Opens buyer favorites and price alerts.",
   },
   {
-    id: "buyer_referrals",
-    deepLink: "saarly://buyer/referrals",
-    ar: "دعوة الأصدقاء",
-    en: "Invite friends",
-    hintAr: "يفتح الدعوات والمكافآت للعملاء.",
-    hintEn: "Opens referrals and rewards for buyers.",
-  },
-  {
     id: "merchant_requests",
     deepLink: "saarly://merchant/requests",
     ar: "طلبات المتجر",
@@ -179,6 +204,14 @@ const destinationOptions: DestinationOption[] = [
     hintEn: "Opens account settings and policies.",
   },
   {
+    id: "buyer_referrals",
+    deepLink: "saarly://buyer/referrals",
+    ar: "دعوة الأصدقاء",
+    en: "Invite friends",
+    hintAr: "يفتح الدعوات والمكافآت للعملاء.",
+    hintEn: "Opens referrals and rewards for buyers.",
+  },
+  {
     id: "custom",
     deepLink: "",
     ar: "وجهة مخصصة",
@@ -219,6 +252,10 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userQuery, setUserQuery] = useState("");
   const [recent, setRecent] = useState<RecentNotification[]>([]);
+  const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [sending, setSending] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -356,10 +393,78 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     });
     const payload = (await response.json().catch(() => ({}))) as {
       error?: string;
-      data?: { inserted_count?: number; requested_recipients?: number };
+      data?: any;
     };
     if (!response.ok) throw new Error(payload.error ?? "send_failed");
     return payload.data;
+  }
+
+  async function loadTemplates() {
+    try {
+      const data = await postAdminAction({ action: "list_notification_templates" });
+      setTemplates((Array.isArray(data) ? data : []) as NotificationTemplate[]);
+    } catch (templateError) {
+      setError(humanizeAdminError(templateError, lang));
+    }
+  }
+
+  function applyTemplate(template: NotificationTemplate) {
+    setActiveTemplateId(template.id);
+    setTemplateName(template.name);
+    setAudience(template.audience);
+    setTitleAr(sanitizeArabicNotificationText(template.title_ar));
+    setTitleEn(template.title_en ?? "");
+    setBodyAr(sanitizeArabicNotificationText(template.body_ar));
+    setBodyEn(template.body_en ?? "");
+    setDestinationId(template.destination_id || "buyer_orders");
+    setDeepLink(template.deep_link || "saarly://buyer/orders");
+    setTargetCountry(template.target_country_ar ?? "");
+    setTargetGovernorate(template.target_governorate_ar ?? "");
+    setTargetCity(template.target_city_ar ?? "");
+    setSelectedUsers(Array.isArray(template.user_ids) ? template.user_ids : []);
+    setMessage(lang === "ar" ? `تم تحميل القالب: ${template.name}` : `Template loaded: ${template.name}`);
+  }
+
+  async function saveTemplate() {
+    const name = templateName.trim() || window.prompt(lang === "ar" ? "اكتب اسمًا واضحًا للقالب" : "Enter a clear template name")?.trim();
+    if (!name) return;
+    if (!titleAr.trim() || !bodyAr.trim()) {
+      setError(lang === "ar" ? "اكتب عنوان الإشعار ونصه أولًا." : "Enter the notification title and body first.");
+      return;
+    }
+    setSavingTemplate(true);
+    setError(null);
+    try {
+      const data = await postAdminAction({
+        action: "save_notification_template",
+        payload: {
+          template_id: activeTemplateId,
+          name, audience, user_ids: selectedUsers,
+          title_ar: sanitizeArabicNotificationText(titleAr),
+          title_en: titleEn, body_ar: sanitizeArabicNotificationText(bodyAr), body_en: bodyEn,
+          destination_id: destinationId, deep_link: deepLink,
+          target_country_ar: targetCountry || null,
+          target_governorate_ar: targetGovernorate || null,
+          target_city_ar: targetCity || null,
+        },
+      });
+      setActiveTemplateId(data?.id ?? activeTemplateId);
+      setTemplateName(name);
+      setMessage(lang === "ar" ? "تم حفظ قالب الإشعار بكل إعداداته." : "Notification template saved with all settings.");
+      await loadTemplates();
+    } catch (templateError) {
+      setError(humanizeAdminError(templateError, lang));
+    } finally { setSavingTemplate(false); }
+  }
+
+  async function deleteTemplate(template: NotificationTemplate) {
+    if (!window.confirm(lang === "ar" ? `حذف قالب «${template.name}»؟` : `Delete “${template.name}” template?`)) return;
+    try {
+      await postAdminAction({ action: "delete_notification_template", id: template.id });
+      if (activeTemplateId === template.id) { setActiveTemplateId(null); setTemplateName(""); }
+      setMessage(lang === "ar" ? "تم حذف القالب." : "Template deleted.");
+      await loadTemplates();
+    } catch (templateError) { setError(humanizeAdminError(templateError, lang)); }
   }
 
   async function sendNotification(event: FormEvent) {
@@ -374,10 +479,10 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
         payload: {
           audience,
           user_ids: selectedUsers,
-          title_ar: titleAr,
-          title_en: titleEn || titleAr,
-          body_ar: bodyAr,
-          body_en: bodyEn || bodyAr,
+          title_ar: sanitizeArabicNotificationText(titleAr).trim(),
+          title_en: titleEn.trim() || sanitizeArabicNotificationText(titleAr).trim(),
+          body_ar: sanitizeArabicNotificationText(bodyAr).trim(),
+          body_en: bodyEn.trim() || sanitizeArabicNotificationText(bodyAr).trim(),
           deep_link: deepLink,
           target_country_ar: targetCountry || null,
           target_governorate_ar: targetGovernorate || null,
@@ -416,6 +521,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     void loadUsers();
     void loadRecent();
     void loadLocations();
+    void loadTemplates();
   }, []);
 
   return (
@@ -448,6 +554,33 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
           <CheckCircle2 size={18} /> {message}
         </div>
       ) : null}
+
+      <div className="notification-template-panel">
+        <div className="template-panel-head">
+          <div>
+            <strong>{lang === "ar" ? "قوالب الإشعارات المحفوظة" : "Saved notification templates"}</strong>
+            <p className="muted">{lang === "ar" ? "احفظ النص والجمهور والموقع والوجهة، ثم حمّله بضغطة واحدة لاحقًا." : "Save the message, audience, location, and destination, then load it later with one click."}</p>
+          </div>
+          <div className="template-save-controls">
+            <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder={lang === "ar" ? "اسم القالب" : "Template name"} maxLength={100} />
+            <button type="button" className="soft-button" onClick={() => void saveTemplate()} disabled={savingTemplate}>
+              <Save size={17} /> {savingTemplate ? t("loading", lang) : lang === "ar" ? "حفظ القالب" : "Save template"}
+            </button>
+          </div>
+        </div>
+        <div className="saved-template-list">
+          {templates.length === 0 ? <span className="muted">{lang === "ar" ? "لا توجد قوالب محفوظة بعد." : "No saved templates yet."}</span> : null}
+          {templates.map((template) => (
+            <div className={activeTemplateId === template.id ? "saved-template-card active" : "saved-template-card"} key={template.id}>
+              <button type="button" className="template-load-button" onClick={() => applyTemplate(template)}>
+                <strong>{template.name}</strong>
+                <span>{template.audience === "buyers" ? (lang === "ar" ? "العملاء" : "Buyers") : template.audience === "merchants" ? (lang === "ar" ? "المتاجر" : "Stores") : template.audience === "specific" ? (lang === "ar" ? "محددون" : "Specific") : (lang === "ar" ? "الجميع" : "All")}</span>
+              </button>
+              <button type="button" className="icon-danger-button" onClick={() => void deleteTemplate(template)} aria-label={lang === "ar" ? "حذف القالب" : "Delete template"}><Trash2 size={16} /></button>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="broadcast-grid">
         <form className="broadcast-form" onSubmit={sendNotification}>
@@ -588,7 +721,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               {lang === "ar" ? "العنوان بالعربي" : "Arabic title"}
               <input
                 value={titleAr}
-                onChange={(event) => setTitleAr(event.target.value)}
+                onChange={(event) => setTitleAr(sanitizeArabicNotificationText(event.target.value))}
                 required
                 maxLength={90}
               />
@@ -608,7 +741,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
               {lang === "ar" ? "النص بالعربي" : "Arabic body"}
               <textarea
                 value={bodyAr}
-                onChange={(event) => setBodyAr(event.target.value)}
+                onChange={(event) => setBodyAr(sanitizeArabicNotificationText(event.target.value))}
                 required
                 maxLength={240}
               />
@@ -701,7 +834,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
             ) : null}
             {recent.map((notification) => (
               <div key={notification.id}>
-                <strong>{lang === "ar" ? notification.title_ar || "إشعار سابق" : notification.title_en || "Previous notification"}</strong>
+                <strong>{lang === "ar" ? sanitizeNotificationDisplay(notification.title_ar || "إشعار سابق", true) : sanitizeNotificationDisplay(notification.title_en || "Previous notification", false)}</strong>
                 <span>{friendlyPushResult(notification.push_status, notification.push_error, lang)}</span>
               </div>
             ))}

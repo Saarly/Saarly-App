@@ -7,6 +7,7 @@ import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
 import { adminValueLabel, localizedValue } from "@/lib/admin/format";
+import { downloadExcel } from "@/lib/admin/excel";
 
 type Row = Record<string, unknown>;
 type ReportResult = {
@@ -250,21 +251,27 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
     setVisibleLimit(10);
   }
 
-  function exportCsv() {
-    const fields = definition.fields.filter((field) => result.rows.some((row) => hasValue(row[field.key])));
-    const lines = [
-      fields.map((field) => csvEscape(field.label[lang])).join(","),
-      ...result.rows.map((row) =>
-        fields.map((field) => csvEscape(formatValue(field, localizedValue(row, field.key, lang), row, lang))).join(","),
-      ),
-    ];
-    const blob = new Blob(["\uFEFF", lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${definition.key}.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  function exportExcel() {
+    const fields = definition.fields.filter((field) =>
+      result.rows.some((row) => hasValue(localizedValue(row, field.key, lang))),
+    );
+    downloadExcel({
+      filename: definition.key,
+      sheetName: definition.title[lang],
+      rtl: lang === "ar",
+      rows: result.rows,
+      columns: fields.map((field) => ({
+        key: field.key,
+        label: field.label[lang],
+        value: (row: Row) =>
+          formatValue(
+            field,
+            localizedValue(row, field.key, lang),
+            row,
+            lang,
+          ),
+      })),
+    });
   }
 
   return (
@@ -320,7 +327,7 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
           <strong>{filteredRows.length.toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}</strong>
           <span>{lang === "ar" ? "نتيجة مطابقة" : "matching results"}</span>
         </div>
-        <button className="soft-button" onClick={exportCsv} disabled={result.rows.length === 0}>
+        <button className="soft-button" onClick={exportExcel} disabled={result.rows.length === 0}>
           <Download size={17} />
           {lang === "ar" ? "تنزيل التقرير كامل" : "Download full report"}
         </button>
@@ -416,6 +423,3 @@ function formatValue(field: FieldDefinition, value: unknown, row: Row, lang: Lan
   return adminValueLabel(value, lang);
 }
 
-function csvEscape(value: unknown) {
-  return `"${String(value ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
-}

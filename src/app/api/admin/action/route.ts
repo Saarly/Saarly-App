@@ -520,6 +520,10 @@ function actionRequiresServiceRole(action: string) {
     "create_admin_staff",
     "update_staff_permissions",
     "set_staff_active",
+    "remove_admin_staff_access",
+    "list_notification_templates",
+    "save_notification_template",
+    "delete_notification_template",
     "set_user_password",
     "delete_user_account",
     "block_user",
@@ -764,10 +768,11 @@ function permissionKeyFor(action: string, table?: string) {
   if (
     action === "create_admin_staff" ||
     action === "update_staff_permissions" ||
-    action === "set_staff_active"
+    action === "set_staff_active" ||
+    action === "remove_admin_staff_access"
   )
     return "staff";
-  if (action === "send_admin_notification") return "broadcast";
+  if (["send_admin_notification", "list_notification_templates", "save_notification_template", "delete_notification_template"].includes(action)) return "broadcast";
   if (["upsert_support_label", "set_support_labels", "convert_support_to_complaint", "assign_support_conversation_admin"].includes(action)) return "support_chats";
   if (["set_merchant_badges", "set_merchant_trial"].includes(action)) return "monetization";
   if (["assign_complaint_admin", "send_complaint_message_admin", "resolve_complaint_admin", "set_complaint_status_admin", "set_support_complaint_labels"].includes(action)) return "complaints";
@@ -1577,6 +1582,65 @@ async function resolveNotificationRecipients(
   return Array.from(matched);
 }
 
+function sanitizeNotificationText(value: unknown, arabic = false) {
+  let text = String(value ?? "").normalize("NFKC");
+  text = text.replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "");
+  if (arabic) {
+    text = text.replace(/[\u0610-\u061A\u0640\u064B-\u065F\u0670\u06D6-\u06ED]/g, "");
+  }
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function notificationTemplateValues(payload: AnyRow | undefined) {
+  const audience = ["all", "buyers", "merchants", "specific"].includes(String(payload?.audience))
+    ? String(payload?.audience)
+    : "all";
+  return {
+    name: requiredText(payload?.name, "template_name").slice(0, 100),
+    audience,
+    title_ar: sanitizeNotificationText(payload?.title_ar, true),
+    title_en: sanitizeNotificationText(payload?.title_en),
+    body_ar: sanitizeNotificationText(payload?.body_ar, true),
+    body_en: sanitizeNotificationText(payload?.body_en),
+    destination_id: String(payload?.destination_id ?? "buyer_orders").trim() || "buyer_orders",
+    deep_link: String(payload?.deep_link ?? "saarly://buyer/orders").trim() || "saarly://buyer/orders",
+    target_country_ar: sanitizeNotificationText(payload?.target_country_ar, true) || null,
+    target_governorate_ar: sanitizeNotificationText(payload?.target_governorate_ar, true) || null,
+    target_city_ar: sanitizeNotificationText(payload?.target_city_ar, true) || null,
+    user_ids: Array.isArray(payload?.user_ids) ? payload?.user_ids.map(String).filter(Boolean).slice(0, 500) : [],
+  };
+}
+
+async function listNotificationTemplates(service: ServiceClient) {
+  const { data, error } = await service
+    .from("admin_notification_templates")
+    .select("id,name,audience,title_ar,title_en,body_ar,body_en,destination_id,deep_link,target_country_ar,target_governorate_ar,target_city_ar,user_ids,created_at,updated_at")
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+async function saveNotificationTemplate(service: ServiceClient, actorId: string, payload: AnyRow | undefined) {
+  const values = { ...notificationTemplateValues(payload), created_by: actorId, updated_at: new Date().toISOString() };
+  if (!values.title_ar || !values.body_ar) throw new Error("template_content_required");
+  const templateId = String(payload?.template_id ?? "").trim();
+  let query = templateId
+    ? service.from("admin_notification_templates").update(values).eq("id", templateId)
+    : service.from("admin_notification_templates").upsert(values, { onConflict: "name" });
+  const { data, error } = await query.select("*").single();
+  if (error) throw new Error(error.message);
+  await writeAudit(service, actorId, "save_notification_template", "admin_notification_templates", String(data.id), null, data as AnyRow);
+  return data;
+}
+
+async function deleteNotificationTemplate(service: ServiceClient, actorId: string, id: string) {
+  const before = await getBefore(service, "admin_notification_templates", id);
+  const { error } = await service.from("admin_notification_templates").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  await writeAudit(service, actorId, "delete_notification_template", "admin_notification_templates", id, before, null);
+  return { id, deleted: true };
+}
+
 async function sendAdminNotification(
   service: DbClient,
   auditClient: ServiceClient,
@@ -1588,10 +1652,10 @@ async function sendAdminNotification(
     throw new Error("no_recipients_found");
   }
 
-  const titleAr = requiredText(payload?.title_ar, "title_ar");
-  const titleEn = String(payload?.title_en ?? titleAr).trim() || titleAr;
-  const bodyAr = requiredText(payload?.body_ar, "body_ar");
-  const bodyEn = String(payload?.body_en ?? bodyAr).trim() || bodyAr;
+  const titleAr = requiredText(sanitizeNotificationText(payload?.title_ar, true), "title_ar");
+  const titleEn = sanitizeNotificationText(payload?.title_en ?? titleAr) || titleAr;
+  const bodyAr = requiredText(sanitizeNotificationText(payload?.body_ar, true), "body_ar");
+  const bodyEn = sanitizeNotificationText(payload?.body_en ?? bodyAr) || bodyAr;
   const deepLink =
     String(payload?.deep_link ?? "saarly://buyer/notifications").trim() ||
     "saarly://buyer/notifications";
@@ -2462,6 +2526,59 @@ async function setStaffActive(
   return { id: targetUserId, is_active: enabled };
 }
 
+async function removeAdminStaffAccess(
+  service: ServiceClient,
+  actorId: string,
+  targetUserId: string,
+) {
+  if (actorId === targetUserId) throw new Error("cannot_remove_your_own_admin_access");
+
+  const before = await getBefore(service, "users", targetUserId);
+  const { data: merchantRows, error: merchantError } = await service
+    .from("merchants")
+    .select("id")
+    .eq("user_id", targetUserId)
+    .limit(1);
+  if (merchantError) throw new Error(merchantError.message);
+  const fallbackRole = (merchantRows?.length ?? 0) > 0 ? "merchant" : "buyer";
+
+  const { error: staffDeleteError } = await service
+    .from("admin_staff_profiles")
+    .delete()
+    .eq("user_id", targetUserId);
+  if (staffDeleteError) throw new Error(staffDeleteError.message);
+  const { error: supportDeleteError } = await service
+    .from("support_agents")
+    .delete()
+    .eq("user_id", targetUserId);
+  if (supportDeleteError) throw new Error(supportDeleteError.message);
+
+  if (before) {
+    const { error: userError } = await service
+      .from("users")
+      .update({ role: fallbackRole, is_blocked: false, updated_at: new Date().toISOString() })
+      .eq("id", targetUserId);
+    if (userError) throw new Error(userError.message);
+  }
+
+  const authLookup = await service.auth.admin.getUserById(targetUserId);
+  if (!authLookup.error && authLookup.data.user) {
+    const { error: authError } = await service.auth.admin.updateUserById(targetUserId, {
+      ban_duration: "none",
+      app_metadata: { ...(authLookup.data.user.app_metadata ?? {}), role: fallbackRole },
+    });
+    if (authError) throw new Error(authError.message);
+  }
+
+  await writeAudit(service, actorId, "remove_admin_staff_access", "users", targetUserId, before, {
+    id: targetUserId,
+    fallback_role: fallbackRole,
+    admin_access_removed: true,
+    normal_account_preserved: true,
+  });
+  return { id: targetUserId, fallback_role: fallbackRole, admin_access_removed: true };
+}
+
 async function getAdminProfile(service: ServiceClient, auth: AdminAuth) {
   const { data: userRow, error: userError } = await service
     .from("users")
@@ -2766,6 +2883,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: result });
     } catch (staffError) {
       return jsonError(serviceActionErrorMessage(staffError), 400);
+    }
+  }
+
+  if (action === "remove_admin_staff_access") {
+    try {
+      const userId = requiredText(id, "user_id");
+      const result = await removeAdminStaffAccess(service, auth.userId, userId);
+      return NextResponse.json({ data: result });
+    } catch (staffError) {
+      return jsonError(serviceActionErrorMessage(staffError), 400);
+    }
+  }
+
+  if (action === "list_notification_templates") {
+    try {
+      return NextResponse.json({ data: await listNotificationTemplates(service) });
+    } catch (templateError) {
+      return jsonError(serviceActionErrorMessage(templateError), 400);
+    }
+  }
+
+  if (action === "save_notification_template") {
+    try {
+      return NextResponse.json({ data: await saveNotificationTemplate(service, auth.userId, body.payload) });
+    } catch (templateError) {
+      return jsonError(serviceActionErrorMessage(templateError), 400);
+    }
+  }
+
+  if (action === "delete_notification_template") {
+    try {
+      const templateId = requiredText(id, "template_id");
+      return NextResponse.json({ data: await deleteNotificationTemplate(service, auth.userId, templateId) });
+    } catch (templateError) {
+      return jsonError(serviceActionErrorMessage(templateError), 400);
     }
   }
 

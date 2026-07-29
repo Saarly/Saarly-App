@@ -89,7 +89,6 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
     <section className="content-panel">
       <div className="section-head">
         <div>
-          <span className="eyebrow">{t("connected", lang)}</span>
           <h1>{lang === "ar" ? "لوحة التحكم" : "Dashboard"}</h1>
           <p>{lang === "ar" ? "نظرة سريعة على ما يحتاج للانتباه اليوم." : "A quick view of what needs attention today."}</p>
         </div>

@@ -23,11 +23,13 @@ import {
   X
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { downloadExcel } from "@/lib/admin/excel";
 import type { Lang } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
 import { adminValueLabel } from "@/lib/admin/format";
 
 type Row = Record<string, unknown>;
+type FounderTrialTier = { from: string; to: string; days: string };
 
 type MonetizationData = {
   actorTime: string;
@@ -597,23 +599,68 @@ function isActiveStatus(status: unknown) {
   return ["active", "trialing", "approved", "succeeded", "paid"].includes(String(status));
 }
 
-function csvEscape(value: unknown) {
-  return `"${cell(value, "en").replace(/"/g, '""')}"`;
+const excelColumnLabels: Record<string, { ar: string; en: string }> = {
+  id: { ar: "المعرّف", en: "ID" },
+  store_name: { ar: "المتجر", en: "Store" },
+  merchant_email: { ar: "بريد المتجر", en: "Store email" },
+  branch_name: { ar: "الفرع", en: "Branch" },
+  manager_name: { ar: "المسؤول", en: "Manager" },
+  buyer_name: { ar: "المشتري", en: "Buyer" },
+  status: { ar: "الحالة", en: "Status" },
+  payment_status: { ar: "حالة الدفع", en: "Payment status" },
+  amount: { ar: "المبلغ", en: "Amount" },
+  base_amount: { ar: "المبلغ الأساسي", en: "Base amount" },
+  final_amount: { ar: "المبلغ النهائي", en: "Final amount" },
+  currency: { ar: "العملة", en: "Currency" },
+  billing_preference: { ar: "طريقة المحاسبة", en: "Billing method" },
+  billing_plan_name_ar: { ar: "باقة الاشتراك", en: "Subscription plan" },
+  billing_plan_name_en: { ar: "باقة الاشتراك", en: "Subscription plan" },
+  founder_number: { ar: "رقم المتجر", en: "Store number" },
+  free_trial_ends_at: { ar: "نهاية الفترة المجانية", en: "Free trial ends" },
+  founder_badge_enabled: { ar: "شارة المؤسس", en: "Founder badge" },
+  trusted_badge_enabled: { ar: "شارة موثوق", en: "Trusted badge" },
+  is_test_account: { ar: "حساب اختبار", en: "Test account" },
+  created_at: { ar: "تاريخ الإنشاء", en: "Created" },
+  updated_at: { ar: "آخر تحديث", en: "Last updated" },
+  starts_at: { ar: "تاريخ البداية", en: "Starts" },
+  ends_at: { ar: "تاريخ النهاية", en: "Ends" },
+  period_ends_at: { ar: "نهاية الفترة", en: "Period ends" },
+  recipient_email: { ar: "البريد المستلم", en: "Recipient email" },
+  subject: { ar: "عنوان الرسالة", en: "Subject" },
+  event_type: { ar: "نوع الحدث", en: "Event type" },
+  attempts: { ar: "المحاولات", en: "Attempts" },
+  failure_reason: { ar: "سبب الفشل", en: "Failure reason" },
+  sent_at: { ar: "تاريخ الإرسال", en: "Sent at" },
+  code: { ar: "الكود", en: "Code" },
+  name_ar: { ar: "الاسم بالعربية", en: "Arabic name" },
+  name_en: { ar: "الاسم بالإنجليزية", en: "English name" },
+  provider: { ar: "مزود الخدمة", en: "Provider" },
+  is_active: { ar: "مفعّل", en: "Active" },
+  is_enabled: { ar: "مفعّل", en: "Enabled" },
+  rate: { ar: "النسبة", en: "Rate" },
+  commission_amount: { ar: "قيمة العمولة", en: "Commission amount" },
+  settlement_status: { ar: "حالة التسوية", en: "Settlement status" },
+  message: { ar: "ملاحظة", en: "Note" },
+};
+
+function excelColumnLabel(key: string, lang: Lang) {
+  return excelColumnLabels[key]?.[lang] ?? (lang === "ar" ? key.replace(/_/g, " ") : prettifyCode(key));
 }
 
-function downloadCsv(name: string, rows: Row[]) {
-  const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row)))).slice(0, 30);
-  const content = [
-    columns.join(","),
-    ...rows.map((row) => columns.map((column) => csvEscape(row[column])).join(","))
-  ].join("\n");
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `${name}.csv`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+function downloadExcelRows(name: string, rows: Row[], lang: Lang) {
+  const safeRows: Row[] = rows.length ? rows : [{ message: lang === "ar" ? "لا توجد بيانات في هذا التقرير" : "No data in this report" }];
+  const columns = Array.from(new Set(safeRows.flatMap((row) => Object.keys(row)))).slice(0, 30);
+  downloadExcel({
+    filename: name,
+    sheetName: name,
+    rtl: lang === "ar",
+    rows: safeRows,
+    columns: columns.map((key) => ({
+      key,
+      label: excelColumnLabel(key, lang),
+      value: (row: Row) => displayValue(key, row, lang),
+    })),
+  });
 }
 
 function planDraftFrom(row: Row): DraftPlan {
@@ -734,6 +781,11 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
     useState<BillingEditorState | null>(null);
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
   const [documentPreviewMerchantId, setDocumentPreviewMerchantId] = useState<string | null>(null);
+  const [founderTrialTiers, setFounderTrialTiers] = useState<FounderTrialTier[]>([
+    { from: "1", to: "100", days: "180" },
+    { from: "101", to: "", days: "60" },
+  ]);
+  const [applyFounderTiersToExisting, setApplyFounderTiersToExisting] = useState(false);
 
   const l = labels[lang];
 
@@ -759,6 +811,16 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
       const payload = (await response.json().catch(() => ({}))) as { data?: MonetizationData; error?: string };
       if (!response.ok || !payload.data) throw new Error(payload.error ?? "load_failed");
       setData(payload.data);
+      const monetizationFlag = payload.data.flags.find((flag) => flag.key === "monetization_enabled");
+      const configuration = monetizationFlag?.configuration && typeof monetizationFlag.configuration === "object" && !Array.isArray(monetizationFlag.configuration)
+        ? monetizationFlag.configuration as Record<string, unknown>
+        : {};
+      const rawTiers = Array.isArray(configuration.founder_trial_tiers) ? configuration.founder_trial_tiers : [];
+      const parsedTiers = rawTiers.map((tier) => {
+        const row = tier && typeof tier === "object" && !Array.isArray(tier) ? tier as Record<string, unknown> : {};
+        return { from: String(row.from ?? ""), to: row.to === null || row.to === undefined ? "" : String(row.to), days: String(row.days ?? "") };
+      }).filter((tier) => tier.from && tier.days);
+      if (parsedTiers.length) setFounderTrialTiers(parsedTiers);
       const settings = payload.data.commissionSettings;
       const rawCategoryRates =
         settings?.category_rates &&
@@ -997,7 +1059,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           onChange={(event) => setQuery(event.target.value)}
           placeholder={lang === "ar" ? "بحث داخل القسم الحالي" : "Search current data"}
         />
-        <button className="soft-button" onClick={() => filtered && downloadCsv(`saarly-${tab}`, rowsForTab(tab, filtered))}>
+        <button className="soft-button" onClick={() => filtered && downloadExcelRows(`saarly-${tab}`, rowsForTab(tab, filtered), lang)}>
           <Download size={17} />
           {l.export}
         </button>
@@ -1036,7 +1098,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
                 <p>{asString(billingEditor.merchant.store_name)}</p>
               </div>
               <button
-                className="icon-only"
+                className="modal-close-button"
                 onClick={() => setBillingEditor(null)}
                 aria-label={lang === "ar" ? "إغلاق" : "Close"}
               >
@@ -1112,13 +1174,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
                 }
               />
             </label>
-            <div className="modal-actions">
-              <button
-                className="ghost-button"
-                onClick={() => setBillingEditor(null)}
-              >
-                {lang === "ar" ? "إلغاء" : "Cancel"}
-              </button>
+            <div className="modal-actions modal-actions-save-only">
               <button
                 className="primary-button"
                 disabled={busy === "update_merchant"}
@@ -1505,6 +1561,42 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
     );
   }
 
+  function updateFounderTrialTier(index: number, field: keyof FounderTrialTier, value: string) {
+    setFounderTrialTiers((current) => current.map((tier, tierIndex) => tierIndex === index ? { ...tier, [field]: value.replace(/[^0-9]/g, "") } : tier));
+  }
+
+  async function saveFounderTrialTiers() {
+    const normalized = founderTrialTiers.map((tier) => ({
+      from: Number(tier.from),
+      to: tier.to ? Number(tier.to) : null,
+      days: Number(tier.days),
+    })).sort((left, right) => left.from - right.from);
+    if (!normalized.length || normalized.some((tier) => !Number.isInteger(tier.from) || tier.from < 1 || !Number.isInteger(tier.days) || tier.days < 0 || (tier.to !== null && (!Number.isInteger(tier.to) || tier.to < tier.from)))) {
+      setError(lang === "ar" ? "راجع أرقام البداية والنهاية وعدد الأيام." : "Check the range start, end, and number of days.");
+      return;
+    }
+    for (let index = 0; index < normalized.length - 1; index += 1) {
+      const current = normalized[index];
+      const next = normalized[index + 1];
+      if (current.to === null || current.to >= next.from) {
+        setError(lang === "ar" ? "النطاقات متداخلة. يجب أن ينتهي كل نطاق قبل بداية النطاق التالي." : "Ranges overlap. Each range must end before the next range starts.");
+        return;
+      }
+    }
+    if (normalized.slice(0, -1).some((tier) => tier.to === null)) {
+      setError(lang === "ar" ? "النطاق المفتوح يجب أن يكون آخر نطاق فقط." : "Only the final range may have no end number.");
+      return;
+    }
+    await post("set_feature_flag", {
+      key: "monetization_enabled",
+      enabled: flagEnabled("monetization_enabled"),
+      configuration: { founder_trial_tiers: normalized },
+      apply_existing_founder_tiers: applyFounderTiersToExisting,
+    }, applyFounderTiersToExisting
+      ? (lang === "ar" ? "تم حفظ النطاقات وتطبيقها على المتاجر المرقمة الحالية." : "Ranges saved and applied to current numbered stores.")
+      : (lang === "ar" ? "تم حفظ مدد الفترة المجانية حسب رقم المتجر." : "Free-trial ranges saved."));
+  }
+
   function renderFoundersAndMerchants() {
     return (
       <article className="content-panel inner-panel">
@@ -1515,6 +1607,37 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           en="Start or pause founder counting, mark test accounts, choose each store's billing method, and manage trials and badges. Marking a store as a test account removes its founder number and automatically closes numbering gaps."
           icon={<Sparkles size={20} />}
         />
+        <section className="founder-trial-tier-card">
+          <div className="panel-title-row">
+            <div>
+              <h2>{lang === "ar" ? "الفترة المجانية حسب رقم المتجر" : "Free trial by store number"}</h2>
+              <p>{lang === "ar" ? "حدد من رقم متجر إلى رقم متجر وعدد الأيام المجانية. تترك خانة «إلى» فارغة في آخر نطاق ليشمل كل الأرقام التالية. هذا لا يغيّر فترة السماح بعد انتهاء الاشتراك." : "Set the store-number range and free days. Leave the final “To” field empty to include all later numbers. This is separate from the post-subscription grace period."}</p>
+            </div>
+            <button type="button" className="primary-button compact" onClick={() => void saveFounderTrialTiers()} disabled={busy === "set_feature_flag"}>
+              <Save size={17} /> {lang === "ar" ? "حفظ النطاقات" : "Save ranges"}
+            </button>
+          </div>
+          <div className="founder-tier-list">
+            {founderTrialTiers.map((tier, index) => (
+              <div className="founder-tier-row" key={`${index}-${tier.from}`}>
+                <label>{lang === "ar" ? "من رقم" : "From"}<input inputMode="numeric" value={tier.from} onChange={(event) => updateFounderTrialTier(index, "from", event.target.value)} /></label>
+                <label>{lang === "ar" ? "إلى رقم" : "To"}<input inputMode="numeric" value={tier.to} onChange={(event) => updateFounderTrialTier(index, "to", event.target.value)} placeholder={lang === "ar" ? "بدون نهاية" : "No limit"} /></label>
+                <label>{lang === "ar" ? "الأيام المجانية" : "Free days"}<input inputMode="numeric" value={tier.days} onChange={(event) => updateFounderTrialTier(index, "days", event.target.value)} /></label>
+                <button type="button" className="tiny-button danger" disabled={founderTrialTiers.length === 1} onClick={() => setFounderTrialTiers((current) => current.filter((_, tierIndex) => tierIndex !== index))}>{lang === "ar" ? "حذف" : "Remove"}</button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="soft-button compact" onClick={() => setFounderTrialTiers((current) => {
+            const last = current[current.length - 1];
+            const nextFrom = last?.to ? String(Number(last.to) + 1) : "";
+            return [...current, { from: nextFrom, to: "", days: "60" }];
+          })}>{lang === "ar" ? "إضافة نطاق" : "Add range"}</button>
+          <label className="apply-tier-checkbox">
+            <input type="checkbox" checked={applyFounderTiersToExisting} onChange={(event) => setApplyFounderTiersToExisting(event.target.checked)} />
+            <span>{lang === "ar" ? "تطبيق القواعد الجديدة على المتاجر المرقمة الحالية أيضًا، مع الاحتفاظ بأي تمديد يدوي أطول." : "Also apply the new rules to current numbered stores while preserving any longer manual extension."}</span>
+          </label>
+        </section>
+
         <div className="panel-title-row">
           <div>
             <h2>{lang === "ar" ? "المؤسسون وحسابات الاختبار" : "Founders and merchant settings"}</h2>
@@ -1860,7 +1983,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
               ["stores", lang === "ar" ? "المتاجر" : "Stores", filtered?.merchants ?? []],
               ["emails", lang === "ar" ? "البريد" : "Emails", filtered?.emailEvents ?? []]
             ].map(([name, label, rows]) => (
-              <button className="soft-button" key={String(name)} onClick={() => downloadCsv(String(name), rows as Row[])}>
+              <button className="soft-button" key={String(name)} onClick={() => downloadExcelRows(String(name), rows as Row[], lang)}>
                 <Download size={17} />
                 {String(label)}
               </button>
@@ -2125,9 +2248,8 @@ function FilePreviewModal({
             <h2>{preview.title}</h2>
             <p>{preview.subtitle}</p>
           </div>
-          <button className="tiny-button" onClick={onClose}>
-            <X size={15} />
-            {l.close}
+          <button className="modal-close-button" onClick={onClose} aria-label={l.close}>
+            <X size={20} />
           </button>
         </div>
         <div className="proof-preview-frame">
@@ -2146,9 +2268,7 @@ function FilePreviewModal({
             <ExternalLink size={17} />
             {l.openFile}
           </a>
-          <button className="primary-button compact" onClick={onClose}>
-            {l.close}
-          </button>
+
         </div>
       </div>
     </div>
@@ -2179,9 +2299,8 @@ function StoreDocumentsModal({
             <h2>{lang === "ar" ? "مستندات المتجر" : "Store documents"}</h2>
             <p>{preview.storeName}</p>
           </div>
-          <button className="tiny-button" onClick={onClose}>
-            <X size={15} />
-            {l.close}
+          <button className="modal-close-button" onClick={onClose} aria-label={l.close}>
+            <X size={20} />
           </button>
         </div>
 

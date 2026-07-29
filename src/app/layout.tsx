@@ -11,7 +11,8 @@ const tajawal = Tajawal({
 
 export const metadata: Metadata = {
   title: "لوحة إدارة سعرلي",
-  description: "لوحة إدارة عمليات سعرلي والدعم والمدفوعات والإعدادات."
+  description: "لوحة إدارة عمليات سعرلي والدعم والمدفوعات والإعدادات.",
+  icons: { icon: "/favicon.png", shortcut: "/favicon.png", apple: "/favicon.png" }
 };
 
 export const viewport: Viewport = {

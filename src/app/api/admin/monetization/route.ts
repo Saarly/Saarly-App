@@ -1413,7 +1413,14 @@ async function handleAction(service: SupabaseClient, actor: AdminActor, body: Ro
 
   if (action === "set_feature_flag") {
     const key = text(payload.key);
-    return setFlag(service, actor, key, boolValue(payload.enabled, false), isRecord(payload.configuration) ? payload.configuration : null);
+    const flag = await setFlag(service, actor, key, boolValue(payload.enabled, false), isRecord(payload.configuration) ? payload.configuration : null);
+    let applied_count = 0;
+    if (key === "monetization_enabled" && payload.apply_existing_founder_tiers === true) {
+      const { data, error } = await service.rpc("admin_apply_founder_trial_tiers_as", { p_actor_id: actor.id });
+      if (error) throw error;
+      applied_count = Number(data ?? 0);
+    }
+    return { flag, applied_count };
   }
   if (action === "configure_commissions") {
     return configureCommissions(service, actor, payload);

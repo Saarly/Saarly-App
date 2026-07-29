@@ -334,8 +334,8 @@ export const sections: SectionConfig[] = [
     orderBy: "created_at",
     title: { ar: "الطلبات", en: "Orders" },
     description: {
-      ar: "متابعة حالات الطلبات والتأكيد والدفع والقيم المالية المرتبطة بها.",
-      en: "Track order status, confirmation, payment, and related amounts.",
+      ar: "متابعة حالة كل طلب، وما إذا كان يحتاج دفعًا داخل التطبيق، وقيمة المنتجات المختارة قبل التوصيل والخصومات.",
+      en: "Track each order, whether in-app payment is needed, and the selected product value before delivery and discounts.",
     },
     searchKeys: ["buyer_name", "buyer_mobile", "store_name", "status_ar"],
     allowedRoles: ["admin", "support_agent"],
@@ -350,12 +350,12 @@ export const sections: SectionConfig[] = [
       },
       {
         key: "payment_status",
-        label: { ar: "الدفع", en: "Payment" },
+        label: { ar: "حالة الدفع داخل التطبيق", en: "In-app payment status" },
         tone: "status",
       },
       {
         key: "selected_subtotal_snapshot",
-        label: { ar: "المجموع الفرعي", en: "Subtotal" },
+        label: { ar: "قيمة المنتجات المختارة", en: "Selected products value" },
         tone: "money",
       },
       { key: "created_at", label: { ar: "التاريخ", en: "Date" }, tone: "date" },

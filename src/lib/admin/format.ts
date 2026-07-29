@@ -42,7 +42,7 @@ const labels: Record<string, Localized> = {
   refunded: { ar: "تم الاسترداد", en: "Refunded" },
   due: { ar: "مستحق", en: "Due" },
   overdue: { ar: "متأخر", en: "Overdue" },
-  not_required: { ar: "غير مطلوب", en: "Not required" },
+  not_required: { ar: "لا يحتاج دفعًا داخل التطبيق", en: "No in-app payment required" },
   awaiting_confirmation: { ar: "بانتظار تأكيد المتجر", en: "Waiting for store confirmation" },
   expired_unconfirmed: { ar: "انتهى بدون تأكيد", en: "Expired without confirmation" },
   expired: { ar: "منتهي", en: "Expired" },

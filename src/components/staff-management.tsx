@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, KeyRound, Plus, RefreshCw, Save, ShieldCheck, UserCog } from "lucide-react";
+import { CheckCircle2, KeyRound, Plus, RefreshCw, Save, ShieldCheck, Trash2, UserCog, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
@@ -264,6 +264,25 @@ export function StaffManagement({ lang }: { lang: Lang }) {
     }
   }
 
+  async function removeStaffAccess(row: StaffRow) {
+    const confirmed = window.confirm(
+      lang === "ar"
+        ? `هل تريد حذف صلاحيات ${row.full_name || row.primary_email} من لوحة الإدارة؟ لن يتم حذف حسابه كمستخدم أو متجر.`
+        : `Remove ${row.full_name || row.primary_email} from the admin dashboard? Their normal buyer or store account will not be deleted.`,
+    );
+    if (!confirmed) return;
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await postAdminAction({ action: "remove_admin_staff_access", id: row.id });
+      setMessage(lang === "ar" ? "تم حذف صلاحيات لوحة الإدارة مع الاحتفاظ بالحساب العادي." : "Admin access removed while preserving the normal account.");
+      await loadStaff();
+    } catch (removeError) {
+      setError(normalizeError(removeError, lang));
+    } finally { setSaving(false); }
+  }
+
   async function setPassword(row: StaffRow) {
     if (row.is_deleted) { setError(lang === "ar" ? "لا يوجد حساب دخول لهذا المستخدم المحذوف." : "This deleted user no longer has an authentication account."); return; }
     const password = window.prompt(lang === "ar" ? "أدخل كلمة مرور جديدة لهذا الحساب" : "Enter a new password for this account");
@@ -419,6 +438,10 @@ export function StaffManagement({ lang }: { lang: Lang }) {
                   <button className="tiny-button" type="button" onClick={() => void toggleStaffActive(row)} disabled={saving}>
                     {row.staff_is_active && !row.is_blocked ? (lang === "ar" ? "تعطيل" : "Disable") : lang === "ar" ? "تفعيل" : "Enable"}
                   </button>
+                  <button className="tiny-button danger" type="button" onClick={() => void removeStaffAccess(row)} disabled={saving}>
+                    <Trash2 size={14} />
+                    {lang === "ar" ? "حذف الصلاحية" : "Remove access"}
+                  </button>
                 </div>
               </article>
             ))}
@@ -429,6 +452,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
       {editing ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card staff-edit-modal">
+            <button type="button" className="modal-close-button" onClick={() => setEditing(null)} aria-label={lang === "ar" ? "إغلاق" : "Close"}><X size={20} /></button>
             <h2>{lang === "ar" ? "تعديل الرتبة والصلاحيات" : "Edit rank and permissions"}</h2>
             <label>
               {lang === "ar" ? "اسم الرتبة" : "Rank name"}
@@ -456,10 +480,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
               disabled={editAccessLevel === "full_admin"}
               onToggle={toggleEditPermission}
             />
-            <div className="modal-actions">
-              <button className="ghost-button" onClick={() => setEditing(null)}>
-                {t("cancel", lang)}
-              </button>
+            <div className="modal-actions modal-actions-save-only">
               <button className="primary-button" onClick={() => void saveEdit()} disabled={saving}>
                 {t("save", lang)}
               </button>
@@ -584,6 +605,10 @@ function normalizeError(error: unknown, lang: Lang) {
     cannot_limit_your_own_admin_account: {
       ar: "لا يمكنك تقليل صلاحيات حسابك الحالي من هنا.",
       en: "You cannot limit your current admin account here."
+    },
+    cannot_remove_your_own_admin_access: {
+      ar: "لا يمكنك حذف صلاحيات حسابك الحالي من هنا.",
+      en: "You cannot remove your current admin access here."
     }
   };
   return labels[message]?.[lang] ?? humanizeAdminError(message, lang);

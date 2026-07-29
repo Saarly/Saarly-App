@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
@@ -612,7 +613,6 @@ export function DataSection({
     <section className="content-panel">
       <div className="section-head">
         <div>
-          <span className="eyebrow">{t("connected", lang)}</span>
           <h1>{tr(section.title, lang)}</h1>
           <p>{tr(section.description, lang)}</p>
         </div>
@@ -1094,6 +1094,7 @@ export function DataSection({
       {editing ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card">
+            <button type="button" className="modal-close-button" onClick={() => setEditing(null)} aria-label={lang === "ar" ? "إغلاق" : "Close"}><X size={20} /></button>
             <h2>
               {editing === "new"
                 ? lang === "ar"
@@ -1360,10 +1361,7 @@ export function DataSection({
                 </>
               )}
             </div>
-            <div className="modal-actions">
-              <button className="ghost-button" onClick={() => setEditing(null)}>
-                {t("cancel", lang)}
-              </button>
+            <div className="modal-actions modal-actions-save-only">
               <button
                 className="primary-button"
                 onClick={() => void saveEdit()}
@@ -2447,8 +2445,8 @@ function fieldLabel(field: string, lang: Lang, section?: SectionConfig) {
     batches_count: { ar: "عدد الدفعات", en: "Batches count" },
     buyer_name: { ar: "اسم العميل", en: "Buyer name" },
     buyer_mobile: { ar: "رقم العميل", en: "Buyer mobile" },
-    payment_status: { ar: "حالة الدفع", en: "Payment status" },
-    selected_subtotal_snapshot: { ar: "المجموع الفرعي", en: "Subtotal" },
+    payment_status: { ar: "حالة الدفع داخل التطبيق", en: "In-app payment status" },
+    selected_subtotal_snapshot: { ar: "قيمة المنتجات المختارة", en: "Selected products value" },
     user_name: { ar: "اسم المستخدم", en: "User name" },
     amount: { ar: "المبلغ", en: "Amount" },
     reporter_name: { ar: "مقدم الشكوى", en: "Reporter" },
@@ -2750,6 +2748,7 @@ function ReviewDetailsModal({
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-card review-modal" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="modal-close-button" onClick={onClose} aria-label={lang === "ar" ? "إغلاق" : "Close"}><X size={20} /></button>
         <h2>{lang === "ar" ? "مراجعة بيانات ومستندات الطلب" : "Review application details and documents"}</h2>
         <p className="muted">
           {lang === "ar"
@@ -2796,9 +2795,7 @@ function ReviewDetailsModal({
             })}
           </div>
         )}
-        <div className="modal-actions">
-          <button className="ghost-button" onClick={onClose}>{lang === "ar" ? "إغلاق" : "Close"}</button>
-        </div>
+
       </div>
     </div>
   );
