@@ -1223,20 +1223,28 @@ async function settleCommissions(service: SupabaseClient, actor: AdminActor, pay
   return settlement;
 }
 
-async function triggerEmailDispatcher(service: SupabaseClient, limit = 20) {
-  const dispatchSecret = process.env.EMAIL_DISPATCH_SECRET?.trim();
-  if (!dispatchSecret) {
-    return { triggered: false, reason: "email_dispatch_secret_not_configured" };
+async function triggerEmailDispatcher(service: SupabaseClient, limit = 50) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("service_role_not_configured");
   }
 
-  const { data, error } = await service.functions.invoke("process-admin-email-events", {
-    body: { limit },
-    headers: { "x-saarly-dispatch-secret": dispatchSecret },
+  const response = await fetch(`${supabaseUrl.replace(/\/+$/, "")}/functions/v1/process-admin-email-events`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: serviceRoleKey,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ limit: Math.max(1, Math.min(limit, 50)) }),
   });
-  if (error) {
-    return { triggered: false, reason: error.message };
+  const result = (await response.json().catch(() => ({}))) as Row;
+  if (!response.ok || result.ok !== true) {
+    throw new Error(text(result.error, `email_dispatch_http_${response.status}`));
   }
-  return { triggered: true, result: data };
+  return result;
 }
 
 async function retryEmailEvent(service: SupabaseClient, actor: AdminActor, payload: Row) {
@@ -1264,12 +1272,17 @@ async function retryEmailEvent(service: SupabaseClient, actor: AdminActor, paylo
     .single();
   if (error) throw error;
 
-  const dispatcher = await triggerEmailDispatcher(service, 20);
+  const dispatcher = await triggerEmailDispatcher(service, 50);
+  const finalEvent = ((await service
+    .from("admin_email_events")
+    .select("*")
+    .eq("id", eventId)
+    .maybeSingle()).data as Row | null) ?? (data as Row);
   await writeAudit(service, actor.id, "retry_admin_email", "admin_email_events", eventId, before, {
-    ...(data as Row),
+    ...finalEvent,
     dispatcher,
   });
-  return { event: data, dispatcher };
+  return { event: finalEvent, dispatcher };
 }
 
 async function retryExpirationEmail(service: SupabaseClient, actor: AdminActor, payload: Row) {
@@ -1315,12 +1328,17 @@ async function retryExpirationEmail(service: SupabaseClient, actor: AdminActor, 
     .neq("status", "sent");
   if (emailResetError) throw emailResetError;
 
-  const dispatcher = await triggerEmailDispatcher(service, 20);
+  const dispatcher = await triggerEmailDispatcher(service, 50);
+  const finalEvent = ((await service
+    .from("billing_expiration_events")
+    .select("*")
+    .eq("id", eventId)
+    .maybeSingle()).data as Row | null) ?? (data as Row);
   await writeAudit(service, actor.id, "retry_billing_email", "billing_expiration_events", eventId, before, {
-    ...(data as Row),
+    ...finalEvent,
     dispatcher,
   });
-  return { event: data, dispatcher };
+  return { event: finalEvent, dispatcher };
 }
 
 async function paymentAdapterAction(service: SupabaseClient, actor: AdminActor, payload: Row, kind: "retry" | "refund") {

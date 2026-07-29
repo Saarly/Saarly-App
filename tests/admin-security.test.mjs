@@ -49,9 +49,11 @@ test("manual payment plan cannot change after review starts", () => {
   assert.doesNotMatch(block, /\[[\"']submitted[\"'],\s*[\"']under_review[\"']\]/);
 });
 
-test("email retry invokes the real dispatcher", () => {
+test("email retry invokes the real dispatcher with the server-only service role", () => {
   assert.match(monetizationRoute, /process-admin-email-events/);
-  assert.match(monetizationRoute, /EMAIL_DISPATCH_SECRET/);
+  assert.match(monetizationRoute, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(monetizationRoute, /Authorization: `Bearer \$\{serviceRoleKey\}`/);
+  assert.doesNotMatch(monetizationRoute, /email_dispatch_secret_not_configured/);
 });
 
 test("runtime packages are pinned", () => {

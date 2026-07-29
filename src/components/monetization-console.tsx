@@ -771,9 +771,35 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
         },
         body: JSON.stringify({ action, payload })
       });
-      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      const result = (await response.json().catch(() => ({}))) as {
+        data?: { event?: Row; dispatcher?: Row };
+        error?: string;
+      };
       if (!response.ok) throw new Error(result.error ?? "action_failed");
-      setMessage(successMessage);
+
+      if (action === "retry_email_event" || action === "retry_expiration_email") {
+        const event = result.data?.event;
+        const status = asString(event?.status ?? event?.delivery_status);
+        const failureReason = asString(event?.failure_reason ?? event?.last_error);
+        if (status === "sent" || Boolean(event?.sent_at) || Boolean(event?.email_sent_at)) {
+          setMessage(lang === "ar" ? "تم إرسال البريد بنجاح." : "Email sent successfully.");
+        } else if (status === "failed" || status === "dead") {
+          const readableReason = displayValue("failure_reason", { failure_reason: failureReason }, lang);
+          setError(
+            lang === "ar"
+              ? `تمت إعادة المحاولة لكن فشل الإرسال: ${readableReason || "سبب غير معروف"}`
+              : `The retry ran, but delivery failed: ${readableReason || "Unknown reason"}`,
+          );
+        } else {
+          setError(
+            lang === "ar"
+              ? "تمت إعادة الرسالة للطابور، لكن عامل الإرسال لم يعالجها بعد. راجع إعداد تشغيل البريد."
+              : "The message returned to the queue, but the email worker did not process it yet.",
+          );
+        }
+      } else {
+        setMessage(successMessage);
+      }
       await load();
       return true;
     } catch (actionError) {
@@ -1803,10 +1829,12 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
             renderActions={(row) => (
               <button
                 className="tiny-button"
-                disabled={Boolean(row.sent_at) || row.status === "sending"}
+                disabled={Boolean(row.sent_at) || row.status === "sending" || busy === "retry_email_event"}
                 onClick={() => void post("retry_email_event", { id: row.id })}
               >
-                {l.retry}
+                {busy === "retry_email_event"
+                  ? lang === "ar" ? "جارٍ الإرسال" : "Sending"
+                  : l.retry}
               </button>
             )}
           />
@@ -2273,14 +2301,14 @@ function DataTable({
         <tbody>
           {rows.map((row, index) => (
             <tr key={asString(row.id) || String(index)}>
-              {columns.map(([key]) => (
-                <td key={key}>
+              {columns.map(([key, label]) => (
+                <td key={key} data-label={label}>
                   <span className={isActiveStatus(row[key]) ? "cell-status active" : key === "status" ? "cell-status" : undefined}>
                     {displayValue(key, row, lang)}
                   </span>
                 </td>
               ))}
-              {renderActions ? <td><div className="row-actions">{renderActions(row)}</div></td> : null}
+              {renderActions ? <td data-label={lang === "ar" ? "إجراءات" : "Actions"} className="mobile-actions-cell"><div className="row-actions">{renderActions(row)}</div></td> : null}
             </tr>
           ))}
         </tbody>

@@ -1055,6 +1055,7 @@ export function DataSection({
                   {(section.columns ?? []).map((column) => (
                     <td
                       key={column.key}
+                      data-label={tr(column.label, lang)}
                       className={
                         column.tone ? `cell-${column.tone}` : undefined
                       }
@@ -1069,7 +1070,7 @@ export function DataSection({
                     </td>
                   ))}
                   {section.actions?.length ? (
-                    <td>
+                    <td data-label={lang === "ar" ? "إجراءات" : "Actions"} className="mobile-actions-cell">
                       <div className="row-actions">
                         {section.actions.filter((action) => actionShouldShow(action, row)).map((action) => (
                           <button

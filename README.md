@@ -35,11 +35,13 @@ Add the deployed Vercel URL and local URL to Supabase Auth redirect URLs:
 - `support_agent` sees allowed support sections based on `support_agents.permissions`.
 - Sensitive writes go through `/api/admin/action`, which verifies the signed-in user is an admin before using the service role key.
 
-## Optional Supabase Migration
+## Database status
 
-Apply:
+The required production database upgrades for this delivered version are already applied. Do not run bundled SQL or migrations again merely when deploying this Admin Web package.
 
-`F:\Workspace\01_Clients\saarly\Saarly-App\supabase\migrations\20260715120000_saarly_admin_web_readable_views.sql`
+## V9 notes
 
-It adds extra readable views for Admin Web without changing existing app behavior.
+- Shared admin tables become readable mobile cards below 820px, without horizontal table scrolling.
+- Desktop tables remain unchanged.
+- Email retry invokes `process-admin-email-events` from the protected server route using the existing Vercel `SUPABASE_SERVICE_ROLE_KEY`.
 
