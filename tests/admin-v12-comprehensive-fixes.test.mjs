@@ -57,6 +57,13 @@ test('all report exports use real xlsx files instead of CSV', () => {
   assert.match(read('src/lib/admin/excel.ts'), /spreadsheetml\.sheet/);
 });
 
+test('xlsx Blob uses concrete ArrayBuffer parts for TypeScript 6 compatibility', () => {
+  const excel = read('src/lib/admin/excel.ts');
+  assert.match(excel, /const blobParts: BlobPart\[\]/);
+  assert.match(excel, /const buffer = new ArrayBuffer\(part\.byteLength\)/);
+  assert.doesNotMatch(excel, /new Blob\(\[\.\.\.localParts/);
+});
+
 test('modals use a fixed top-left close icon and save-only action rows', () => {
   assert.match(css, /\.modal-close-button[\s\S]*left:\s*14px/);
   assert.match(staff, /modal-close-button/);

@@ -182,7 +182,13 @@ function zip(entries: ZipEntry[]) {
   endView.setUint32(16, offset, true);
   endView.setUint16(20, 0, true);
 
-  return new Blob([...localParts, ...centralParts, end], {
+  const blobParts: BlobPart[] = [...localParts, ...centralParts, end].map((part) => {
+    const buffer = new ArrayBuffer(part.byteLength);
+    new Uint8Array(buffer).set(part);
+    return buffer;
+  });
+
+  return new Blob(blobParts, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
 }

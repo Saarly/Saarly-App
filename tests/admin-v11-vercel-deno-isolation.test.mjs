@@ -19,6 +19,6 @@ test('Supabase edge function remains preserved for Supabase deployment', () => {
   assert.match(functionSource, /Deno\.serve/);
 });
 
-test('V12 package version is recorded', () => {
-  assert.equal(packageJson.version, '0.1.6');
+test('V12.1 package version is recorded', () => {
+  assert.equal(packageJson.version, '0.1.7');
 });
