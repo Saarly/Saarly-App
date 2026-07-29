@@ -3159,19 +3159,87 @@ button:not(:disabled):active {
 .founder-tier-row input { min-width: 0; }
 
 @media (min-width: 1181px) {
-  html, body { height: 100%; overflow: hidden; }
-  .admin-shell { height: 100dvh; min-height: 0; overflow: hidden; }
-  .main-area { height: 100dvh; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  /* Keep the original page direction and sidebar side. Only the scrollbars are mirrored. */
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
 
-  html[dir="rtl"] .sidebar { direction: ltr; }
-  html[dir="rtl"] .sidebar > * { direction: rtl; }
-  html[dir="rtl"] .main-area { direction: ltr; }
-  html[dir="rtl"] .main-area > * { direction: rtl; }
+  .admin-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
 
-  html[dir="ltr"] .sidebar { direction: rtl; }
-  html[dir="ltr"] .sidebar > * { direction: ltr; }
-  html[dir="ltr"] .main-area { direction: rtl; }
-  html[dir="ltr"] .main-area > * { direction: ltr; }
+  .main-area {
+    height: 100dvh;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    grid-template-rows: auto auto auto;
+  }
+
+  /* Arabic: sidebar remains on the right. Its scrollbar is on the far right,
+     while the page scrollbar stays directly beside it on the left. */
+  html[dir="rtl"] .sidebar {
+    right: 0;
+    left: auto;
+    border-right: 0;
+    border-left: 1px solid var(--border);
+    direction: ltr;
+  }
+
+  html[dir="rtl"] .sidebar > * {
+    direction: rtl;
+  }
+
+  html[dir="rtl"] .main-area {
+    margin-right: 280px;
+    margin-left: 0;
+    direction: ltr;
+  }
+
+  html[dir="rtl"] .main-area > * {
+    direction: rtl;
+  }
+
+  /* English: sidebar remains on the left. Its scrollbar is on the far left,
+     while the page scrollbar stays directly beside it on the right. */
+  html[dir="ltr"] .sidebar {
+    left: 0;
+    right: auto;
+    border-left: 0;
+    border-right: 1px solid var(--border);
+    direction: rtl;
+  }
+
+  html[dir="ltr"] .sidebar > * {
+    direction: ltr;
+  }
+
+  html[dir="ltr"] .main-area {
+    margin-left: 280px;
+    margin-right: 0;
+    direction: rtl;
+  }
+
+  html[dir="ltr"] .main-area > * {
+    direction: ltr;
+  }
+
+  /* Restore the monetization tabs to their established layout and prevent
+     the scroll-shell direction trick from collapsing or clipping them. */
+  .monetization-tabs {
+    min-height: 62px;
+    align-items: stretch;
+  }
+
+  .monetization-tabs button {
+    flex: 0 0 auto;
+  }
 }
 
 @media (max-width: 820px) {

@@ -75,11 +75,19 @@ test('light theme secondary text has stronger contrast', () => {
   assert.match(css, /:root:not\(\[data-theme="dark"\]\)[\s\S]*--muted:\s*#4f574d/);
 });
 
-test('desktop page and sidebar scrollbars are adjacent in both directions', () => {
-  assert.match(css, /html\[dir="rtl"\] \.sidebar \{ direction: ltr; \}/);
-  assert.match(css, /html\[dir="rtl"\] \.main-area \{ direction: ltr; \}/);
-  assert.match(css, /html\[dir="ltr"\] \.sidebar \{ direction: rtl; \}/);
-  assert.match(css, /html\[dir="ltr"\] \.main-area \{ direction: rtl; \}/);
+test('desktop layout keeps Arabic RTL and English LTR while mirroring only scrollbar sides', () => {
+  assert.match(css, /html\[dir="rtl"\] \.sidebar \{[\s\S]*right:\s*0;[\s\S]*left:\s*auto;[\s\S]*direction:\s*ltr;/);
+  assert.match(css, /html\[dir="rtl"\] \.main-area \{[\s\S]*margin-right:\s*280px;[\s\S]*margin-left:\s*0;[\s\S]*direction:\s*ltr;/);
+  assert.match(css, /html\[dir="ltr"\] \.sidebar \{[\s\S]*left:\s*0;[\s\S]*right:\s*auto;[\s\S]*direction:\s*rtl;/);
+  assert.match(css, /html\[dir="ltr"\] \.main-area \{[\s\S]*margin-left:\s*280px;[\s\S]*margin-right:\s*0;[\s\S]*direction:\s*rtl;/);
+  assert.match(css, /html\[dir="rtl"\] \.main-area > \* \{[\s\S]*direction:\s*rtl;/);
+  assert.match(css, /html\[dir="ltr"\] \.main-area > \* \{[\s\S]*direction:\s*ltr;/);
+});
+
+test('monetization tabs keep their established desktop size and do not collapse inside the scroll shell', () => {
+  assert.match(css, /\.monetization-tabs \{[\s\S]*min-height:\s*62px;[\s\S]*align-items:\s*stretch;/);
+  assert.match(css, /\.monetization-tabs button \{[\s\S]*flex:\s*0 0 auto;/);
+  assert.match(monetization, /<div className="monetization-tabs">/);
 });
 
 test('founder free-trial ranges are editable and persisted', () => {
