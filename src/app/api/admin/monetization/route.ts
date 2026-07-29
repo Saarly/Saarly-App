@@ -1223,7 +1223,7 @@ async function settleCommissions(service: SupabaseClient, actor: AdminActor, pay
   return settlement;
 }
 
-async function triggerEmailDispatcher(service: SupabaseClient, limit = 50) {
+async function triggerEmailDispatcher(service: SupabaseClient, limit = 50, eventId = "") {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!supabaseUrl || !serviceRoleKey) {
@@ -1238,7 +1238,7 @@ async function triggerEmailDispatcher(service: SupabaseClient, limit = 50) {
       apikey: serviceRoleKey,
       "content-type": "application/json",
     },
-    body: JSON.stringify({ limit: Math.max(1, Math.min(limit, 50)) }),
+    body: JSON.stringify({ limit: Math.max(1, Math.min(limit, 50)), event_id: eventId || undefined }),
   });
   const result = (await response.json().catch(() => ({}))) as Row;
   if (!response.ok || result.ok !== true) {
@@ -1272,7 +1272,36 @@ async function retryEmailEvent(service: SupabaseClient, actor: AdminActor, paylo
     .single();
   if (error) throw error;
 
-  const dispatcher = await triggerEmailDispatcher(service, 50);
+  let dispatcher: Row;
+  try {
+    dispatcher = await triggerEmailDispatcher(service, 50, eventId);
+  } catch (dispatchError) {
+    const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
+    await service
+      .from("admin_email_events")
+      .update({
+        status: "failed",
+        failure_reason: `email_dispatch_unreachable:${reason}`,
+        locked_at: null,
+        locked_by: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", eventId);
+    throw new Error(`email_dispatch_unreachable:${reason}`);
+  }
+  if (dispatcher.target_processed === false) {
+    await service
+      .from("admin_email_events")
+      .update({
+        status: "failed",
+        failure_reason: "email_target_not_processed",
+        locked_at: null,
+        locked_by: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", eventId);
+  }
+
   const finalEvent = ((await service
     .from("admin_email_events")
     .select("*")
@@ -1328,7 +1357,23 @@ async function retryExpirationEmail(service: SupabaseClient, actor: AdminActor, 
     .neq("status", "sent");
   if (emailResetError) throw emailResetError;
 
-  const dispatcher = await triggerEmailDispatcher(service, 50);
+  let dispatcher: Row;
+  try {
+    dispatcher = await triggerEmailDispatcher(service, 50, eventId);
+  } catch (dispatchError) {
+    const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
+    await service
+      .from("admin_email_events")
+      .update({
+        status: "failed",
+        failure_reason: `email_dispatch_unreachable:${reason}`,
+        locked_at: null,
+        locked_by: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", eventId);
+    throw new Error(`email_dispatch_unreachable:${reason}`);
+  }
   const finalEvent = ((await service
     .from("billing_expiration_events")
     .select("*")

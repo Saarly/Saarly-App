@@ -45,3 +45,10 @@ The required production database upgrades for this delivered version are already
 - Desktop tables remain unchanged.
 - Email retry invokes `process-admin-email-events` from the protected server route using the existing Vercel `SUPABASE_SERVICE_ROLE_KEY`.
 
+
+
+## V10 notes
+
+- Email history is rendered as complete responsive cards on desktop and mobile, so the monetization email section never needs horizontal scrolling.
+- Retrying an email targets only the selected event and invokes the live Supabase email worker immediately.
+- The Hostinger SMTP worker auto-detects SMTP configuration and reports the exact missing setting or authentication error instead of the old generic provider message.

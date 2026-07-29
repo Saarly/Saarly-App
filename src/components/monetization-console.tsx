@@ -448,6 +448,36 @@ const valueLabels: Record<string, { ar: string; en: string }> = {
 
 function displayValue(key: string, row: Row, lang: Lang) {
   const value = row[key];
+  if (key === "failure_reason" && typeof value === "string") {
+    const reason = value.trim();
+    if (reason.startsWith("smtp_missing:")) {
+      const missing = reason.slice("smtp_missing:".length).split(",").filter(Boolean).join(", ");
+      return lang === "ar"
+        ? `إعداد SMTP ناقص داخل Supabase: ${missing || "غير محدد"}`
+        : `Missing Supabase SMTP setting: ${missing || "unknown"}`;
+    }
+    if (reason.startsWith("resend_missing:")) {
+      const missing = reason.slice("resend_missing:".length).split(",").filter(Boolean).join(", ");
+      return lang === "ar"
+        ? `إعداد Resend ناقص: ${missing || "غير محدد"}`
+        : `Missing Resend setting: ${missing || "unknown"}`;
+    }
+    if (/535|authentication failed|invalid login|bad credentials|EAUTH/i.test(reason)) {
+      return lang === "ar"
+        ? "بيانات تسجيل دخول بريد Hostinger غير صحيحة أو رفضها خادم البريد"
+        : "Hostinger SMTP rejected the mailbox credentials";
+    }
+    if (reason.startsWith("email_dispatch_unreachable")) {
+      return lang === "ar"
+        ? "تعذر تشغيل عامل البريد من لوحة الأدمن"
+        : "The admin panel could not reach the email worker";
+    }
+    if (reason === "email_target_not_processed") {
+      return lang === "ar"
+        ? "عامل البريد لم يلتقط الرسالة المحددة"
+        : "The worker did not claim the selected message";
+    }
+  }
   if (key.includes("amount") || key === "base_amount" || key === "final_amount") {
     return money(value, row.currency, lang);
   }
@@ -1811,32 +1841,12 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
         />
         <article className="content-panel inner-panel">
           <h2>{lang === "ar" ? "تنبيهات الانتهاء والبريد" : "Expiration and email"}</h2>
-          <DataTable
+          <EmailEventCards
             rows={filtered?.emailEvents ?? []}
             lang={lang}
             empty={l.noData}
-            columns={[
-              ["store_name", lang === "ar" ? "المتجر" : "Store"],
-              ["recipient_email", lang === "ar" ? "البريد المستلم" : "Recipient"],
-              ["event_type", lang === "ar" ? "الحدث" : "Event"],
-              ["subject", lang === "ar" ? "العنوان" : "Subject"],
-              ["status", lang === "ar" ? "حالة البريد" : "Email status"],
-              ["attempts", lang === "ar" ? "المحاولات" : "Attempts"],
-              ["failure_reason", lang === "ar" ? "سبب الفشل" : "Failure reason"],
-              ["created_at", lang === "ar" ? "تاريخ الإنشاء" : "Created"],
-              ["sent_at", lang === "ar" ? "تم الإرسال" : "Sent"]
-            ]}
-            renderActions={(row) => (
-              <button
-                className="tiny-button"
-                disabled={Boolean(row.sent_at) || row.status === "sending" || busy === "retry_email_event"}
-                onClick={() => void post("retry_email_event", { id: row.id })}
-              >
-                {busy === "retry_email_event"
-                  ? lang === "ar" ? "جارٍ الإرسال" : "Sending"
-                  : l.retry}
-              </button>
-            )}
+            busy={busy === "retry_email_event"}
+            onRetry={(row) => void post("retry_email_event", { id: row.id })}
           />
         </article>
         <article className="content-panel inner-panel">
@@ -2268,6 +2278,94 @@ function DocumentFilesSection({
         <div className="empty-state compact">{empty}</div>
       )}
     </section>
+  );
+}
+
+function EmailEventCards({
+  rows,
+  lang,
+  empty,
+  busy,
+  onRetry,
+}: {
+  rows: Row[];
+  lang: Lang;
+  empty: string;
+  busy: boolean;
+  onRetry: (row: Row) => void;
+}) {
+  if (!rows.length) return <div className="empty-state">{empty}</div>;
+
+  const labels = {
+    recipient: lang === "ar" ? "البريد المستلم" : "Recipient",
+    event: lang === "ar" ? "الحدث" : "Event",
+    subject: lang === "ar" ? "عنوان الرسالة" : "Subject",
+    status: lang === "ar" ? "حالة البريد" : "Email status",
+    attempts: lang === "ar" ? "المحاولات" : "Attempts",
+    failure: lang === "ar" ? "سبب الفشل" : "Failure reason",
+    created: lang === "ar" ? "تاريخ الإنشاء" : "Created",
+    sent: lang === "ar" ? "تاريخ الإرسال" : "Sent",
+    retry: lang === "ar" ? "إعادة الإرسال" : "Retry delivery",
+    sending: lang === "ar" ? "جارٍ الإرسال..." : "Sending...",
+  };
+
+  return (
+    <div className="email-event-list">
+      {rows.map((row, index) => {
+        const rowId = asString(row.id) || String(index);
+        const status = asString(row.status);
+        const sent = Boolean(row.sent_at) || status === "sent";
+        const disabled = sent || status === "sending" || busy;
+        return (
+          <article className="email-event-card" key={rowId}>
+            <header className="email-event-card-head">
+              <div>
+                <span className="email-event-store">{displayValue("store_name", row, lang)}</span>
+                <strong>{displayValue("subject", row, lang)}</strong>
+              </div>
+              <span className={isActiveStatus(status) ? "cell-status active" : "cell-status"}>
+                {displayValue("status", row, lang)}
+              </span>
+            </header>
+
+            <div className="email-event-fields">
+              <EmailField label={labels.recipient} value={displayValue("recipient_email", row, lang)} wide />
+              <EmailField label={labels.event} value={displayValue("event_type", row, lang)} />
+              <EmailField label={labels.attempts} value={displayValue("attempts", row, lang)} />
+              <EmailField label={labels.created} value={displayValue("created_at", row, lang)} />
+              <EmailField label={labels.sent} value={displayValue("sent_at", row, lang)} />
+              <EmailField label={labels.failure} value={displayValue("failure_reason", row, lang)} wide danger={status === "failed" || status === "dead"} />
+            </div>
+
+            <div className="email-event-card-actions">
+              <button className="tiny-button" disabled={disabled} onClick={() => onRetry(row)}>
+                <RefreshCw size={15} />
+                {busy ? labels.sending : labels.retry}
+              </button>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function EmailField({
+  label,
+  value,
+  wide = false,
+  danger = false,
+}: {
+  label: string;
+  value: ReactNode;
+  wide?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <div className={`email-event-field${wide ? " wide" : ""}${danger ? " danger" : ""}`}>
+      <small>{label}</small>
+      <span>{value}</span>
+    </div>
   );
 }
 

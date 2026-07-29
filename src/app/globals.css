@@ -2956,3 +2956,90 @@ button:not(:disabled):active {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* V10: email history is always rendered as complete cards, because the monetization column is too narrow for nine table columns even on desktop. */
+.email-event-list {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+.email-event-card {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.email-event-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+.email-event-card-head > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.email-event-card-head strong,
+.email-event-card-head span,
+.email-event-field span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.email-event-store {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+.email-event-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.email-event-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 11px;
+  border-radius: 9px;
+  background: var(--panel-soft);
+}
+.email-event-field.wide {
+  grid-column: 1 / -1;
+}
+.email-event-field small {
+  color: var(--muted);
+  font-weight: 800;
+}
+.email-event-field.danger span {
+  color: var(--danger);
+}
+.email-event-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.email-event-card-actions .tiny-button {
+  min-width: 150px;
+}
+@media (max-width: 620px) {
+  .email-event-card-head {
+    display: grid;
+  }
+  .email-event-fields {
+    grid-template-columns: 1fr;
+  }
+  .email-event-field.wide {
+    grid-column: auto;
+  }
+  .email-event-card-actions,
+  .email-event-card-actions .tiny-button {
+    width: 100%;
+  }
+}

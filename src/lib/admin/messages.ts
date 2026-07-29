@@ -132,6 +132,32 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "Your session ended. Sign in again.";
   }
 
+
+  if (message.includes("smtp_missing:")) {
+    const missing = raw.split(":").slice(1).join(":");
+    return lang === "ar"
+      ? `إعداد SMTP غير مكتمل داخل أسرار Supabase: ${missing}`
+      : `SMTP configuration is missing in Supabase secrets: ${missing}`;
+  }
+
+  if (message.includes("email_dispatch_unreachable")) {
+    return lang === "ar"
+      ? "لوحة الإدارة لم تستطع الوصول إلى عامل إرسال البريد. تم حفظ السبب داخل سجل الرسالة للمراجعة."
+      : "The admin panel could not reach the email worker. The reason was saved on the email event.";
+  }
+
+  if (message.includes("email_target_not_processed")) {
+    return lang === "ar"
+      ? "عامل البريد اشتغل لكنه لم يلتقط الرسالة المطلوبة. حاول مرة أخرى بعد تحديث الصفحة."
+      : "The email worker ran but did not claim the selected message. Refresh and retry.";
+  }
+
+  if (message.includes("invalid login") || message.includes("535") || message.includes("authentication failed")) {
+    return lang === "ar"
+      ? "خادم Hostinger رفض تسجيل دخول البريد. راجع كلمة مرور صندوق info@saarly.app داخل SMTP_PASS."
+      : "Hostinger rejected the mailbox login. Review the info@saarly.app mailbox password in SMTP_PASS.";
+  }
+
   if (message.includes("action_failed") || message.includes("load_failed")) {
     return lang === "ar"
       ? "تعذر إتمام العملية. حدّث الصفحة ثم حاول مرة أخرى."
