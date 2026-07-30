@@ -7,7 +7,7 @@ const componentDir = new URL("../src/components/", import.meta.url);
 const componentNames = (await readdir(componentDir)).filter((name) => name.endsWith(".tsx"));
 const componentSources = await Promise.all(componentNames.map((name) => read(`../src/components/${name}`)));
 const allComponents = componentSources.join("\n");
-const [loginCard, adminConsole, layout, dataSection, reportsPanel, formatSource, messages, actionRoute, monetizationRoute] = await Promise.all([
+const [loginCard, adminConsole, layout, dataSection, reportsPanel, formatSource, messages, actionRoute, monetizationRoute, languageHelper] = await Promise.all([
   read("../src/components/login-card.tsx"),
   read("../src/components/admin-console.tsx"),
   read("../src/app/layout.tsx"),
@@ -17,6 +17,7 @@ const [loginCard, adminConsole, layout, dataSection, reportsPanel, formatSource,
   read("../src/lib/admin/messages.ts"),
   read("../src/app/api/admin/action/route.ts"),
   read("../src/app/api/admin/monetization/route.ts"),
+  read("../src/lib/admin/language.ts"),
 ]);
 
 test("login errors are localized instead of exposing provider messages", () => {
@@ -30,10 +31,24 @@ test("login errors are localized instead of exposing provider messages", () => {
 test("page metadata and navigation controls follow the selected language", () => {
   assert.match(layout, /title:\s*"لوحة إدارة سعرلي"/);
   assert.doesNotMatch(layout, /feature flags/i);
-  assert.match(adminConsole, /document\.title = lang === "ar"/);
+  assert.match(adminConsole, /const pageTitle = lang === "ar"/);
+  assert.match(adminConsole, /document\.head\.querySelectorAll\("title"\)/);
+  assert.match(adminConsole, /extraTitleTag\.remove\(\)/);
+  assert.match(adminConsole, /document\.title = pageTitle/);
+  assert.doesNotMatch(adminConsole, /<title>\{pageTitle\}<\/title>/);
+  assert.match(adminConsole, /new MutationObserver\(applyDocumentState\)/);
+  assert.match(adminConsole, /headObserver\.observe\(document\.head/);
   assert.match(adminConsole, /\? "الإنجليزية" : "Arabic"/);
   assert.match(adminConsole, /\? "فتح القائمة" : "Open menu"/);
   assert.match(adminConsole, /\? "مدير"[\s\S]*?: "Administrator"/);
+});
+
+test("login page honors an explicit URL language before stored admin language", () => {
+  assert.match(languageHelper, /new URLSearchParams/);
+  assert.match(languageHelper, /params\.get\("lang"\)/);
+  assert.match(languageHelper, /return "ar"/);
+  assert.match(adminConsole, /resolveInitialAdminLanguage\(window\.location\.search, savedLang\)/);
+  assert.doesNotMatch(adminConsole, /if \(savedLang === "ar" \|\| savedLang === "en"\) setLang\(savedLang\)/);
 });
 
 test("known operational values have bilingual display labels", () => {
