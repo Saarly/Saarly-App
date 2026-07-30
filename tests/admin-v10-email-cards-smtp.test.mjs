@@ -20,9 +20,16 @@ test("email retry targets the selected event and saves a specific failure", () =
   assert.match(route, /email_target_not_processed/);
 });
 
-test("email worker prefers configured SMTP and reports exact missing secrets", () => {
-  assert.match(worker, /return "smtp"/);
+test("email worker uses the configured SMTP path with safe UTF-8 sender headers", () => {
+  assert.match(worker, /SMTP_HOST/);
+  assert.match(worker, /SMTP_USER/);
+  assert.match(worker, /SMTP_PASS/);
   assert.match(worker, /smtp_missing:/);
-  assert.match(worker, /has_smtp_pass/);
-  assert.match(worker, /targetEventId/);
+  assert.match(worker, /nodemailer@/);
+  assert.match(worker, /name:\s*senderName\(\)/);
+  assert.match(worker, /address:\s*fromAddress/);
+  assert.match(worker, /Saarly \| سعرلي/);
+  assert.match(worker, /utf8_sender_headers/);
+  assert.match(worker, /event_id/);
+  assert.doesNotMatch(worker, /RESEND_API_KEY|api\.resend\.com/);
 });
