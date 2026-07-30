@@ -16,9 +16,11 @@ const [actionRoute, sections, dataSection, supportConsole, complaintsConsole, mo
   read("../src/app/api/admin/monetization/route.ts"),
 ]);
 
-test("merchant and branch decisions do not require a duplicate document-approval workflow", () => {
-  assert.doesNotMatch(actionRoute, /required_documents_must_be_approved_first/);
-  assert.doesNotMatch(actionRoute, /missingApprovalDocuments/);
+test("merchant and branch final approval requires all current required documents to be approved", () => {
+  assert.match(actionRoute, /required_documents_must_be_approved_first/);
+  assert.match(actionRoute, /rejected_documents_must_be_replaced_first/);
+  assert.match(actionRoute, /assertApprovalDocumentsReady/);
+  assert.match(dataSection, /finalApprovalBlockReason/);
   assert.match(dataSection, /owner_id_back_image_url/);
   assert.match(dataSection, /manager_id_back_image_url/);
 });

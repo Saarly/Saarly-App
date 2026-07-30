@@ -122,6 +122,20 @@ function subscriptionOperationLabel(operation: SubscriptionOperation, locale: Lo
   return locale === "ar" ? "اشتراك جديد" : "new subscription";
 }
 
+function approvalDocumentKindLabel(kind: unknown, locale: Locale) {
+  const key = text(kind);
+  const labels: Record<string, { ar: string; en: string }> = {
+    store_front: { ar: "صورة واجهة المتجر", en: "storefront photo" },
+    store_owner_id_front: { ar: "بطاقة صاحب المتجر - الوجه الأمامي", en: "store owner ID - front" },
+    store_owner_id_back: { ar: "بطاقة صاحب المتجر - الوجه الخلفي", en: "store owner ID - back" },
+    branch_front: { ar: "صورة واجهة الفرع", en: "branch storefront photo" },
+    branch_manager_id_front: { ar: "بطاقة مدير الفرع - الوجه الأمامي", en: "branch manager ID - front" },
+    branch_manager_id_back: { ar: "بطاقة مدير الفرع - الوجه الخلفي", en: "branch manager ID - back" },
+    commercial_register: { ar: "السجل التجاري", en: "commercial register" },
+  };
+  return labels[key]?.[locale] ?? (locale === "ar" ? "المستند" : "document");
+}
+
 function planName(plan: Row | null, request: Row | null, locale: Locale) {
   const snapshot = row(request?.plan_snapshot);
   const ar =
@@ -551,6 +565,89 @@ function subscriptionDecisionEmail(
 
 function result(warnings: string[]): DecisionEventResult {
   return { warnings };
+}
+
+export async function dispatchApprovalDocumentRejectionEvents(
+  service: SupabaseClient,
+  input: { documentId: string; reason: string; reviewedAt?: string },
+): Promise<DecisionEventResult> {
+  const { data: document, error: documentError } = await service
+    .from("merchant_documents")
+    .select("id,merchant_id,branch_id,kind,status,rejection_reason,reviewed_at")
+    .eq("id", input.documentId)
+    .maybeSingle();
+  if (documentError) throw documentError;
+  const documentRow = (document ?? null) as Row | null;
+  if (!documentRow) return result(["document_not_found"]);
+
+  const merchantId = text(documentRow.merchant_id);
+  const merchant = merchantId ? await fetchMerchant(service, merchantId) : null;
+  const owner = await ownerUserForMerchant(service, merchant);
+  const ownerUserId = text(owner?.id) || text(merchant?.user_id) || null;
+  const locale = localeFromUser(owner);
+  const storeName = text(merchant?.store_name) || (locale === "ar" ? "المتجر" : "Store");
+  const branchId = text(documentRow.branch_id);
+  let branchName = "";
+  if (branchId) {
+    const { data: branch, error: branchError } = await service
+      .from("branches")
+      .select("name")
+      .eq("id", branchId)
+      .maybeSingle();
+    if (branchError) throw branchError;
+    branchName = text((branch as Row | null)?.name);
+  }
+
+  const kind = text(documentRow.kind);
+  const documentLabel = approvalDocumentKindLabel(kind, locale);
+  const reasonText = text(input.reason) || text(documentRow.rejection_reason) || (locale === "ar" ? "لم يتم تحديد سبب واضح." : "No clear reason was provided.");
+  const reviewedAt = input.reviewedAt || text(documentRow.reviewed_at) || new Date().toISOString();
+  const eventType = branchId ? "branch_document_rejected" : "merchant_document_rejected";
+  const targetLabel = branchId && branchName
+    ? (locale === "ar" ? `فرع «${branchName}» التابع لمتجر «${storeName}»` : `the “${branchName}” branch for “${storeName}”`)
+    : (locale === "ar" ? `متجر «${storeName}»` : `“${storeName}”`);
+  const subject = locale === "ar"
+    ? `مطلوب استبدال ${documentLabel}`
+    : `${documentLabel} must be replaced`;
+  const lines = locale === "ar"
+    ? [
+        `تم رفض ${documentLabel} الخاص بـ${targetLabel}.`,
+        `سبب الرفض: ${reasonText}`,
+        "يرجى رفع ملف بديل واضح وصحيح من شاشة متابعة طلب المتجر، ثم انتظار مراجعته من الإدارة.",
+        `تاريخ المراجعة: ${formatDate(reviewedAt, locale)}.`,
+      ]
+    : [
+        `The ${documentLabel} for ${targetLabel} was rejected.`,
+        `Reason: ${reasonText}`,
+        "Please upload a clear and valid replacement from the store application status screen, then wait for the admin review.",
+        `Review date: ${formatDate(reviewedAt, locale)}.`,
+      ];
+
+  const emailResult = await sendDecisionEmail(service, {
+    eventType,
+    targetTable: "merchant_documents",
+    targetId: input.documentId,
+    merchantId: merchantId || null,
+    userId: ownerUserId,
+    recipientUserId: ownerUserId,
+    recipientEmail: cleanEmail(owner?.primary_email),
+    idempotencyKey: `admin:${eventType}:${input.documentId}`,
+    message: { subject, text: lines.join("\n"), html: htmlFromLines(lines) },
+    payload: {
+      decision: "rejected",
+      document_id: input.documentId,
+      document_kind: kind,
+      document_label: documentLabel,
+      store_name: storeName,
+      branch_id: branchId || null,
+      branch_name: branchName || null,
+      reason: reasonText,
+      reviewed_at: reviewedAt,
+    },
+  });
+  const warnings: string[] = [];
+  if (emailResult.status === "failed") warnings.push("email_send_failed");
+  return { emailEventId: emailResult.id, emailStatus: emailResult.status, warnings };
 }
 
 export async function dispatchMerchantDecisionEvents(

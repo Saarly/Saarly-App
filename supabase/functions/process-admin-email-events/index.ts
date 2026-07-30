@@ -112,6 +112,7 @@ function emailCopy(event: Row, lang: Lang): EmailCopy {
   const store = value(payload, "store_name", "merchant_name") || tr(lang, "متجرك", "your store");
   const branch = value(payload, "branch_name", "entity_name") || tr(lang, "الفرع", "the branch");
   const reason = value(payload, "reason", "rejection_reason");
+  const documentLabel = value(payload, "document_label") || tr(lang, "المستند", "document");
   const end = formatDate(value(payload, "period_ends_at", "ends_at", "expires_at"), lang);
   const day = value(payload, "days_remaining", "reminder_day");
   let title = "";
@@ -155,6 +156,22 @@ function emailCopy(event: Row, lang: Lang): EmailCopy {
       button = tr(lang, "مراجعة بيانات الفرع", "Review branch details");
       icon = "!";
       break;
+    case "merchant_document_rejected":
+    case "branch_document_rejected": {
+      const branchDocument = eventType === "branch_document_rejected";
+      title = tr(lang, `مطلوب استبدال ${documentLabel}`, `${documentLabel} must be replaced`);
+      lead = branchDocument
+        ? tr(lang, `تم رفض ${documentLabel} الخاص بفرع «${branch}» في متجر «${store}».`, `The ${documentLabel} for the “${branch}” branch at “${store}” was rejected.`)
+        : tr(lang, `تم رفض ${documentLabel} الخاص بمتجر «${store}».`, `The ${documentLabel} for “${store}” was rejected.`);
+      body = [
+        reason ? tr(lang, `سبب الرفض: ${reason}`, `Reason: ${reason}`) : "",
+        tr(lang, "لازم تستبدل الملف المرفوض بملف واضح وصحيح من شاشة متابعة طلب المتجر، وبعدها تستنى مراجعة الإدارة من جديد.", "Replace the rejected file with a clear and valid file from the store application status screen, then wait for a new admin review."),
+      ];
+      button = tr(lang, "مراجعة طلب المتجر", "Review store application");
+      url = merchantUrl();
+      icon = "!";
+      break;
+    }
     case "subscription_approved":
     case "subscription_renewal_approved": {
       const renewal = eventType.includes("renewal");

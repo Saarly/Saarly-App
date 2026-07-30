@@ -5,6 +5,7 @@ import {
 } from "@/lib/supabase/server";
 import { findSection, sectionIsAllowed } from "@/lib/admin/sections";
 import {
+  dispatchApprovalDocumentRejectionEvents,
   dispatchBranchDecisionEvents,
   dispatchMerchantDecisionEvents,
 } from "@/lib/admin/decision-events";
@@ -2723,6 +2724,72 @@ async function reviewApprovalDocument(
   return data;
 }
 
+const merchantRequiredDocumentKinds = [
+  "store_front",
+  "store_owner_id_front",
+  "store_owner_id_back",
+] as const;
+
+const branchRequiredDocumentKinds = [
+  "branch_front",
+  "branch_manager_id_front",
+  "branch_manager_id_back",
+] as const;
+
+async function assertApprovalDocumentsReady(
+  service: ServiceClient,
+  scope: "merchant" | "branch",
+  targetId: string,
+) {
+  let merchantId = targetId;
+  let branchId: string | null = null;
+  let requiredKinds: string[] = [...merchantRequiredDocumentKinds];
+
+  if (scope === "branch") {
+    const { data: branch, error: branchError } = await service
+      .from("branches")
+      .select("id,merchant_id,uses_parent_commercial_register")
+      .eq("id", targetId)
+      .maybeSingle();
+    if (branchError) throw new Error(branchError.message);
+    if (!branch) throw new Error("branch_not_found");
+    merchantId = requiredText(branch.merchant_id, "merchant_id");
+    branchId = targetId;
+    requiredKinds = [...branchRequiredDocumentKinds];
+    if (branch.uses_parent_commercial_register === false) {
+      requiredKinds.push("commercial_register");
+    }
+  }
+
+  let query = service
+    .from("merchant_documents")
+    .select("id,kind,status,rejection_reason")
+    .eq("merchant_id", merchantId)
+    .is("superseded_by", null);
+  query = branchId ? query.eq("branch_id", branchId) : query.is("branch_id", null);
+  const { data: documents, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const current = (documents ?? []) as AnyRow[];
+  const approvedKinds = new Set(
+    current
+      .filter((document) => String(document.status ?? "") === "approved")
+      .map((document) => String(document.kind ?? "")),
+  );
+  const missing = requiredKinds.filter((kind) => !approvedKinds.has(kind));
+  if (missing.length > 0) {
+    throw new Error(`required_documents_must_be_approved_first:${missing.join(",")}`);
+  }
+
+  const rejected = current
+    .filter((document) => String(document.status ?? "") === "rejected")
+    .map((document) => String(document.kind ?? ""))
+    .filter(Boolean);
+  if (rejected.length > 0) {
+    throw new Error(`rejected_documents_must_be_replaced_first:${rejected.join(",")}`);
+  }
+}
+
 async function getAdminProfile(service: ServiceClient, auth: AdminAuth) {
   const { data: userRow, error: userError } = await service
     .from("users")
@@ -3169,7 +3236,24 @@ export async function POST(req: NextRequest) {
         reason,
         expectedScope,
       );
-      return NextResponse.json({ data: result });
+      const warnings: string[] = [];
+      if (!approved) {
+        try {
+          const eventResult = await dispatchApprovalDocumentRejectionEvents(service, {
+            documentId,
+            reason: reason ?? "",
+            reviewedAt: new Date().toISOString(),
+          });
+          warnings.push(...eventResult.warnings);
+        } catch (eventError) {
+          const warning = eventError instanceof Error
+            ? eventError.message
+            : "document_rejection_email_failed";
+          warnings.push(warning);
+          console.error("Document rejection email failed after the review was saved:", eventError);
+        }
+      }
+      return NextResponse.json({ data: result, warnings });
     } catch (documentError) {
       return jsonError(serviceActionErrorMessage(documentError), 400);
     }
@@ -3752,6 +3836,13 @@ export async function POST(req: NextRequest) {
   if (action === "approve_merchant" || action === "reject_merchant") {
     const approved = action === "approve_merchant";
     const reason = approved ? null : String(values.rejection_reason ?? "").trim();
+    if (approved) {
+      try {
+        await assertApprovalDocumentsReady(service, "merchant", targetId);
+      } catch (documentReadinessError) {
+        return jsonError(serviceActionErrorMessage(documentReadinessError), 400);
+      }
+    }
     const { data, error } = await service.rpc("admin_review_merchant_registration_as", {
       p_actor_id: auth.userId,
       p_merchant_id: targetId,
@@ -3790,6 +3881,13 @@ export async function POST(req: NextRequest) {
   if (action === "approve_branch" || action === "reject_branch") {
     const approved = action === "approve_branch";
     const reason = approved ? null : String(values.rejection_reason ?? "").trim();
+    if (approved) {
+      try {
+        await assertApprovalDocumentsReady(service, "branch", targetId);
+      } catch (documentReadinessError) {
+        return jsonError(serviceActionErrorMessage(documentReadinessError), 400);
+      }
+    }
     const { data, error } = await service.rpc("admin_review_branch_as", {
       p_actor_id: auth.userId,
       p_branch_id: targetId,

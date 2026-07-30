@@ -1132,6 +1132,8 @@ export function DataSection({
                           <button
                             key={action}
                             className="tiny-button"
+                            disabled={Boolean(finalApprovalBlockReason(action, row, lang))}
+                            title={finalApprovalBlockReason(action, row, lang)}
                             onClick={() => void runRowAction(action, row)}
                           >
                             {actionLabel(action, lang, row)}
@@ -2484,6 +2486,38 @@ function fieldLabel(field: string, lang: Lang, section?: SectionConfig) {
   return labels[field]?.[lang] ?? (lang === "ar" ? "معلومة إضافية" : field.split("_").join(" "));
 }
 
+function finalApprovalBlockReason(action: string, row: Row, lang: Lang) {
+  if (action !== "approve_merchant" && action !== "approve_branch") return "";
+  const documents = Array.isArray(row.approval_documents)
+    ? (row.approval_documents as Row[])
+    : [];
+  const requiredKinds = action === "approve_merchant"
+    ? ["store_front", "store_owner_id_front", "store_owner_id_back"]
+    : [
+        "branch_front",
+        "branch_manager_id_front",
+        "branch_manager_id_back",
+        ...(row.uses_parent_commercial_register === false ? ["commercial_register"] : []),
+      ];
+  const approvedKinds = new Set(
+    documents
+      .filter((document) => String(document.status ?? "") === "approved")
+      .map((document) => String(document.kind ?? "")),
+  );
+  const hasRejected = documents.some((document) => String(document.status ?? "") === "rejected");
+  if (hasRejected) {
+    return lang === "ar"
+      ? "لا يمكن قبول الطلب قبل استبدال كل ملف مرفوض وقبول البديل."
+      : "Replace and approve every rejected file before approving the application.";
+  }
+  if (requiredKinds.some((kind) => !approvedKinds.has(kind))) {
+    return lang === "ar"
+      ? "راجع واقبل كل الملفات المطلوبة الأول."
+      : "Review and approve all required files first.";
+  }
+  return "";
+}
+
 function actionShouldShow(action: string, row: Row) {
   if (row.is_deleted === true) {
     return false;
@@ -2564,7 +2598,7 @@ function ReviewDetailsModal({
         fallbackBucket: "commercial-registers",
         ar: row.uses_parent_commercial_register === false ? "السجل التجاري المستقل للفرع" : "السجل التجاري للمتجر الرئيسي",
         en: row.uses_parent_commercial_register === false ? "Branch commercial register" : "Main store commercial register",
-        optional: true,
+        optional: row.uses_parent_commercial_register !== false,
       },
     ];
   }, [row, section.id]);

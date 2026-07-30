@@ -158,6 +158,29 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "Hostinger rejected the mailbox login. Review the info@saarly.app mailbox password in SMTP_PASS.";
   }
 
+  if (message.includes("required_documents_must_be_approved_first")) {
+    const kinds = raw.split(":").slice(1).join(":").split(",").filter(Boolean);
+    const labels: Record<string, { ar: string; en: string }> = {
+      store_front: { ar: "صورة واجهة المتجر", en: "storefront photo" },
+      store_owner_id_front: { ar: "بطاقة صاحب المتجر - الوجه الأمامي", en: "store owner ID - front" },
+      store_owner_id_back: { ar: "بطاقة صاحب المتجر - الوجه الخلفي", en: "store owner ID - back" },
+      branch_front: { ar: "صورة واجهة الفرع", en: "branch storefront photo" },
+      branch_manager_id_front: { ar: "بطاقة مدير الفرع - الوجه الأمامي", en: "branch manager ID - front" },
+      branch_manager_id_back: { ar: "بطاقة مدير الفرع - الوجه الخلفي", en: "branch manager ID - back" },
+      commercial_register: { ar: "السجل التجاري", en: "commercial register" },
+    };
+    const names = kinds.map((kind) => labels[kind]?.[lang] ?? kind).join(lang === "ar" ? "، " : ", ");
+    return lang === "ar"
+      ? `لا يمكن قبول الطلب قبل قبول كل الملفات المطلوبة${names ? `: ${names}` : "."}`
+      : `The application cannot be approved until all required files are approved${names ? `: ${names}` : "."}`;
+  }
+
+  if (message.includes("rejected_documents_must_be_replaced_first")) {
+    return lang === "ar"
+      ? "لا يمكن قبول الطلب وفيه ملف مرفوض. لازم صاحب المتجر يرفع بديل ويتراجع ويتقبل الأول."
+      : "The application cannot be approved while a file is rejected. The store owner must upload a replacement and have it approved first.";
+  }
+
   if (message.includes("document_not_uploaded")) {
     return lang === "ar"
       ? "الملف ده مش مرفوع، لذلك لا يمكن قبوله أو رفضه."
