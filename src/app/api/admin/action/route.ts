@@ -2781,6 +2781,47 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: { conversations: conversationsResult.data ?? [], labels: labelsResult.data ?? [], agents: agentsResult.data ?? [], merchants: merchantsResult.data ?? [], orders: ordersResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
     }
 
+    const shippingCompanyId = url.searchParams.get("shipping_company_id");
+    if (shippingCompanyId) {
+      const shippingSection = findSection("shipping-companies");
+      if (!sectionIsAllowed(shippingSection, profile)) {
+        return jsonError("permission_denied", 403);
+      }
+
+      const [companyResult, batchesResult] = await Promise.all([
+        service
+          .from("admin_merchant_shipping_companies_readable")
+          .select("*")
+          .eq("id", shippingCompanyId)
+          .maybeSingle(),
+        service
+          .from("merchant_shipping_batches")
+          .select("id,merchant_id,shipping_company_id,min_weight_kg,max_weight_kg,price,created_at,updated_at")
+          .eq("shipping_company_id", shippingCompanyId)
+          .order("min_weight_kg", { ascending: true }),
+      ]);
+      if (companyResult.error) return jsonError(companyResult.error.message, 400);
+      if (!companyResult.data) return jsonError("shipping_company_not_found", 404);
+      if (batchesResult.error) return jsonError(batchesResult.error.message, 400);
+
+      const baseCompany = await service
+        .from("merchant_shipping_companies")
+        .select("id,merchant_id,name,is_active,created_at,updated_at")
+        .eq("id", shippingCompanyId)
+        .maybeSingle();
+      if (baseCompany.error) return jsonError(baseCompany.error.message, 400);
+
+      return NextResponse.json(
+        {
+          data: {
+            company: { ...companyResult.data, ...(baseCompany.data ?? {}) },
+            batches: batchesResult.data ?? [],
+          },
+        },
+        { headers: { "Cache-Control": "no-store, max-age=0" } },
+      );
+    }
+
     const sectionId = url.searchParams.get("section");
     if (sectionId) {
       const section = findSection(sectionId);
@@ -2820,7 +2861,7 @@ export async function GET(req: NextRequest) {
         return jsonError("permission_denied", 403);
       }
 
-      const results = [];
+      const results: Array<{ key: string; rows: AnyRow[]; error?: string }> = [];
       const reportClient = createUserScopedClient(accessTokenFromRequest(req) ?? "");
       for (const report of adminReportDefinitions) {
         const { data, error } = await reportClient.rpc(report.key, report.args);

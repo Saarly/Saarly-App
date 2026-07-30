@@ -139,6 +139,21 @@ function splitLegacyStoragePath(value: string) {
   return bucket && path ? { bucket, path } : null;
 }
 
+const knownStorageBuckets = new Set([
+  "banners",
+  "commercial-registers",
+  "invoices",
+  "merchant-documents",
+  "merchant-ids",
+  "merchant-imports",
+  "merchant-payment-proofs",
+  "product-images",
+  "product-imports",
+  "quote-uploads",
+  "storefront-photos",
+  "voice-recordings",
+]);
+
 function inferredDocumentBucket(kind: unknown) {
   const safeKind = text(kind);
   if (safeKind === "store_front" || safeKind === "branch_front") return "storefront-photos";
@@ -656,7 +671,9 @@ async function signedStorageLink(service: SupabaseClient, table: string, recordI
 
   let bucket = text(data.proof_storage_bucket ?? data.storage_bucket);
   let path = text(data.proof_storage_path ?? data.storage_path);
-  if (!bucket || !path) return jsonError("file_not_available", 404);
+  if (!path) {
+    return jsonError(table === "manual_payment_requests" ? "proof_not_uploaded" : "file_not_available", 404);
+  }
 
   if (isHttpUrl(path)) {
     try {
@@ -664,24 +681,71 @@ async function signedStorageLink(service: SupabaseClient, table: string, recordI
       if (url.hostname === "example.com" || url.hostname.endsWith(".example.com")) {
         return jsonError("legacy_file_placeholder", 404);
       }
+      const storageMatch = url.pathname.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/i);
+      if (!storageMatch) {
+        return NextResponse.json({ data: { url: path, expiresInSeconds: null } });
+      }
+      bucket = decodeURIComponent(storageMatch[1]);
+      path = decodeURIComponent(storageMatch[2]);
     } catch {
       return jsonError("file_not_available", 404);
     }
-    return NextResponse.json({ data: { url: path, expiresInSeconds: null } });
   }
 
-  const legacy = bucket === "legacy-url" ? splitLegacyStoragePath(path) : null;
-  if (legacy) {
-    bucket = legacy.bucket;
-    path = legacy.path;
-  } else if (bucket === "legacy-url" && table === "merchant_documents") {
+  const storageUri = path.startsWith("storage://") ? splitLegacyStoragePath(path) : null;
+  if (storageUri) {
+    bucket = storageUri.bucket;
+    path = storageUri.path;
+  } else if (bucket === "legacy-url") {
+    const legacy = splitLegacyStoragePath(path);
+    if (legacy && knownStorageBuckets.has(legacy.bucket)) {
+      bucket = legacy.bucket;
+      path = legacy.path;
+    } else {
+      bucket = table === "manual_payment_requests"
+        ? "merchant-payment-proofs"
+        : inferredDocumentBucket(data.kind);
+    }
+  }
+
+  if (!bucket && table === "manual_payment_requests") {
+    bucket = "merchant-payment-proofs";
+  }
+  if (!bucket && table === "merchant_documents") {
     bucket = inferredDocumentBucket(data.kind);
   }
 
-  const { data: signed, error: signedError } = await service.storage.from(bucket).createSignedUrl(path, 60 * 5);
-  if (signedError || !signed?.signedUrl) return jsonError("signed_link_failed", 400);
+  path = path.replace(/^\/+/, "");
+  if (bucket && path.toLowerCase().startsWith(`${bucket.toLowerCase()}/`)) {
+    path = path.slice(bucket.length + 1);
+  }
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Keep the original path when it contains a literal percent sign.
+  }
 
-  return NextResponse.json({ data: { url: signed.signedUrl, expiresInSeconds: 60 * 5 } });
+  if (!bucket || !path) {
+    return jsonError(table === "manual_payment_requests" ? "proof_not_uploaded" : "file_not_available", 404);
+  }
+
+  const { data: signed, error: signedError } = await service.storage.from(bucket).createSignedUrl(path, 60 * 10);
+  if (signedError || !signed?.signedUrl) {
+    const message = String(signedError?.message ?? "");
+    if (/not found|does not exist|object not found/i.test(message)) {
+      return jsonError(table === "manual_payment_requests" ? "proof_file_missing" : "file_not_available", 404);
+    }
+    return jsonError("signed_link_failed", 400);
+  }
+
+  return NextResponse.json({
+    data: {
+      url: signed.signedUrl,
+      expiresInSeconds: 60 * 10,
+      mimeType: text(data.proof_mime_type ?? data.mime_type),
+      sizeBytes: data.proof_size_bytes ?? data.file_size_bytes ?? null,
+    },
+  });
 }
 
 async function setFlag(service: SupabaseClient, actor: AdminActor, key: string, enabled: boolean, configuration: Row | null) {
@@ -1404,7 +1468,7 @@ async function settleCommissions(service: SupabaseClient, actor: AdminActor, pay
   return settlement;
 }
 
-async function triggerEmailDispatcher(service: SupabaseClient, limit = 50, eventId = "") {
+async function triggerEmailDispatcher(limit = 50, eventId = "") {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!supabaseUrl || !serviceRoleKey) {
@@ -1455,7 +1519,7 @@ async function retryEmailEvent(service: SupabaseClient, actor: AdminActor, paylo
 
   let dispatcher: Row;
   try {
-    dispatcher = await triggerEmailDispatcher(service, 50, eventId);
+    dispatcher = await triggerEmailDispatcher(50, eventId);
   } catch (dispatchError) {
     const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
     await service
@@ -1540,7 +1604,7 @@ async function retryExpirationEmail(service: SupabaseClient, actor: AdminActor, 
 
   let dispatcher: Row;
   try {
-    dispatcher = await triggerEmailDispatcher(service, 50, eventId);
+    dispatcher = await triggerEmailDispatcher(50, eventId);
   } catch (dispatchError) {
     const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
     await service

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowUpRight, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
@@ -31,7 +31,7 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -55,12 +55,11 @@ export function DashboardPanel({ lang }: { lang: Lang }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [lang]);
 
   useEffect(() => {
     void loadDashboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadDashboard]);
 
   const quickSections = useMemo(
     () =>

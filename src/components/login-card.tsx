@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
+import { AdminImage } from "@/components/admin-image";
 
 const loginPageStyle = {
   minHeight: "100svh",
@@ -176,7 +177,7 @@ export function LoginCard({ lang }: { lang: Lang }) {
   return (
     <main className="login-page" style={loginPageStyle}>
       <section className="login-card" style={loginCardStyle}>
-        <img
+        <AdminImage
           className="brand-logo brand-logo-large"
           src="/saarly-logo.png"
           alt={text("logoAlt", lang)}

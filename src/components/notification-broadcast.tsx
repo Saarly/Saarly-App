@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BellRing, CheckCircle2, RefreshCw, Save, Search, Send, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
@@ -343,7 +343,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     }
   }
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     const { data, error: usersError } = await supabase
       .from("admin_users_readable")
@@ -353,9 +353,9 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     setUsers((data ?? []) as UserOption[]);
     setError(usersError ? humanizeAdminError(usersError.message, lang) : null);
     setLoadingUsers(false);
-  }
+  }, [lang]);
 
-  async function loadRecent() {
+  const loadRecent = useCallback(async () => {
     const { data } = await supabase
       .from("notifications")
       .select(
@@ -365,9 +365,9 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
       .order("created_at", { ascending: false })
       .limit(12);
     setRecent((data ?? []) as RecentNotification[]);
-  }
+  }, []);
 
-  async function loadLocations() {
+  const loadLocations = useCallback(async () => {
     const { data } = await supabase
       .from("cities")
       .select("country_ar,country_en,governorate_ar,governorate_en,name_ar,name_en,is_active")
@@ -376,9 +376,9 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
       .order("name_ar", { ascending: true })
       .limit(1000);
     setLocationRows((data ?? []) as LocationRow[]);
-  }
+  }, []);
 
-  async function postAdminAction(body: Record<string, unknown>) {
+  const postAdminAction = useCallback(async (body: Record<string, unknown>) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     if (!token) throw new Error("auth_required");
@@ -397,16 +397,16 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     };
     if (!response.ok) throw new Error(payload.error ?? "send_failed");
     return payload.data;
-  }
+  }, []);
 
-  async function loadTemplates() {
+  const loadTemplates = useCallback(async () => {
     try {
       const data = await postAdminAction({ action: "list_notification_templates" });
       setTemplates((Array.isArray(data) ? data : []) as NotificationTemplate[]);
     } catch (templateError) {
       setError(humanizeAdminError(templateError, lang));
     }
-  }
+  }, [lang, postAdminAction]);
 
   function applyTemplate(template: NotificationTemplate) {
     setActiveTemplateId(template.id);
@@ -522,7 +522,7 @@ export function NotificationBroadcast({ lang }: { lang: Lang }) {
     void loadRecent();
     void loadLocations();
     void loadTemplates();
-  }, []);
+  }, [loadLocations, loadRecent, loadTemplates, loadUsers]);
 
   return (
     <section className="content-panel broadcast-panel">

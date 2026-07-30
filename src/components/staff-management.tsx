@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, KeyRound, Plus, RefreshCw, Save, ShieldCheck, Trash2, UserCog, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
@@ -117,7 +117,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
 
   const activeCount = useMemo(() => staff.filter((row) => row.staff_is_active && !row.is_blocked).length, [staff]);
 
-  async function loadStaff() {
+  const loadStaff = useCallback(async () => {
     setLoading(true);
     setError(null);
     const { data, error: loadError } = await supabase
@@ -127,7 +127,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
     setStaff((data ?? []) as StaffRow[]);
     setError(loadError ? normalizeError(new Error(loadError.message.includes("admin_staff_readable") ? "admin_staff_sql_not_applied" : loadError.message), lang) : null);
     setLoading(false);
-  }
+  }, [lang]);
 
   async function postAdminAction(body: Record<string, unknown>) {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -312,7 +312,7 @@ export function StaffManagement({ lang }: { lang: Lang }) {
 
   useEffect(() => {
     void loadStaff();
-  }, []);
+  }, [loadStaff]);
 
   return (
     <section className="content-panel">

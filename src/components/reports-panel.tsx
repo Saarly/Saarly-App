@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, RefreshCw, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
@@ -196,7 +196,7 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
   const [visibleLimit, setVisibleLimit] = useState(10);
   const [loading, setLoading] = useState(true);
 
-  async function loadReports() {
+  const loadReports = useCallback(async () => {
     setLoading(true);
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
@@ -227,12 +227,11 @@ export function ReportsPanel({ lang }: { lang: Lang }) {
       }),
     );
     setLoading(false);
-  }
+  }, [lang]);
 
   useEffect(() => {
     void loadReports();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadReports]);
 
   const definition = reports.find((item) => item.key === selectedKey) ?? reports[0];
   const result = results.find((item) => item.key === selectedKey) ?? { key: selectedKey, rows: [] };

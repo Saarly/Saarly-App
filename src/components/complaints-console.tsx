@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Filter,
@@ -138,13 +138,13 @@ export function ComplaintsConsole({
 
   const canChooseAgent = profile?.role === "admin" && data.agents.length > 0;
 
-  async function accessToken() {
+  const accessToken = useCallback(async () => {
     const { data: session } = await supabase.auth.getSession();
     if (!session.session?.access_token) throw new Error("auth_required");
     return session.session.access_token;
-  }
+  }, []);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -178,7 +178,7 @@ export function ComplaintsConsole({
     } finally {
       setLoading(false);
     }
-  }
+  }, [accessToken, lang]);
 
   async function action(actionName: string, id: string, payload: Row = {}) {
     setBusy(actionName);
@@ -209,8 +209,7 @@ export function ComplaintsConsole({
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -289,9 +288,7 @@ export function ComplaintsConsole({
     })();
 
     return () => controller.abort();
-    // accessToken is intentionally stable within this component.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected?.id, lang]);
+  }, [accessToken, selected?.id, lang]);
 
   const customerContextMessages = context.messages.filter(
     (item) => text(item.sender_type) === "user",

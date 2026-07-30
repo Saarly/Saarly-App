@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -30,6 +31,8 @@ import {
   rowMatches,
 } from "@/lib/admin/format";
 import { humanizeAdminError } from "@/lib/admin/messages";
+import { AdminImage } from "@/components/admin-image";
+import { compressUiImage } from "@/lib/admin/image-compression";
 
 type Row = Record<string, unknown>;
 const DEFAULT_COUNTRY_AR = "مصر";
@@ -206,7 +209,7 @@ export function DataSection({
     return grouped;
   }, [filteredRows]);
 
-  async function loadRows() {
+  const loadRows = useCallback(async () => {
     if (!section.source) return;
     setLoading(true);
     setError(null);
@@ -234,9 +237,9 @@ export function DataSection({
     setRows((payload.data ?? []) as Row[]);
     setError(response.ok ? null : humanizeAdminError(payload.error ?? "load_failed", lang));
     setLoading(false);
-  }
+  }, [lang, section.id, section.source]);
 
-  async function loadLocationOptions() {
+  const loadLocationOptions = useCallback(async () => {
     const { data } = await supabase
       .from("cities")
       .select("country_ar,country_en,governorate_ar,governorate_en,name_ar,name_en")
@@ -245,15 +248,14 @@ export function DataSection({
       .order("name_ar", { ascending: true })
       .limit(500);
     setLocationRows((data ?? []) as Row[]);
-  }
+  }, []);
 
   useEffect(() => {
     void loadRows();
     if (section.id === "ads") {
       void loadLocationOptions();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section.id]);
+  }, [loadLocationOptions, loadRows, section.id]);
 
   useEffect(() => {
     if (section.id !== "ads") return;
@@ -364,8 +366,8 @@ export function DataSection({
     if (payload.warnings?.includes("email_send_failed")) {
       setError(
         lang === "ar"
-          ? "تم حفظ القرار وإرسال إشعار التطبيق، لكن تعذر إرسال البريد لأن مزود البريد غير مُعد أو رفض الرسالة."
-          : "The decision and app notification were saved, but email delivery failed because the email provider is not configured or rejected the message.",
+          ? "تم حفظ القرار وإرسال إشعار التطبيق، لكن تعذر إرسال البريد تلقائيًا. راجع تبويب البريد والتقارير لمعرفة السبب الدقيق وإعادة المحاولة."
+          : "The decision and app notification were saved, but the automatic email was not sent. Check Emails and reports for the exact reason and retry option.",
       );
     }
     return payload;
@@ -376,13 +378,15 @@ export function DataSection({
     setUploadingAdImage(true);
     setError(null);
     try {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-      const path = `ads/${Date.now()}-${safeName || "banner.jpg"}`;
+      const { file: optimizedFile } = await compressUiImage(file, { maxSide: 1920, quality: 0.84, fallbackName: "banner" });
+      const safeName = optimizedFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+      const path = `ads/${Date.now()}-${safeName || "banner.webp"}`;
       const { error: uploadError } = await supabase.storage
         .from("banners")
-        .upload(path, file, {
+        .upload(path, optimizedFile, {
           upsert: false,
-          contentType: file.type || undefined,
+          contentType: optimizedFile.type || undefined,
+          cacheControl: "31536000",
         });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from("banners").getPublicUrl(path);
@@ -990,10 +994,13 @@ export function DataSection({
                       key={rowIdFor(section, row) || JSON.stringify(row)}
                     >
                       {String(row.image_url ?? "").trim() ? (
-                        <img
+                        <AdminImage
                           className="ad-admin-thumb"
                           src={String(row.image_url ?? "").trim()}
                           alt={adAdminName(row, lang)}
+                          width={360}
+                          height={220}
+                          sizes="180px"
                         />
                       ) : (
                         <div className="ad-admin-thumb empty">
@@ -1220,10 +1227,13 @@ export function DataSection({
                           </span>
                         </div>
                         {String(formValues[field] ?? "").trim() ? (
-                          <img
+                          <AdminImage
                             className="ad-banner-preview"
                             src={String(formValues[field] ?? "").trim()}
                             alt={fieldLabel(field, lang, section)}
+                            width={960}
+                            height={360}
+                            sizes="(max-width: 768px) 100vw, 720px"
                           />
                         ) : null}
                       </>
@@ -1857,112 +1867,6 @@ function CategoryEditorV2({
   );
 }
 
-function CategoryEditor({
-  lang,
-  rows,
-  editing,
-  formValues,
-  setFormValues,
-}: {
-  lang: Lang;
-  rows: Row[];
-  editing: Row | "new" | null;
-  formValues: Record<string, string | boolean>;
-  setFormValues: Dispatch<SetStateAction<Record<string, string | boolean>>>;
-}) {
-  const currentId =
-    editing && editing !== "new" ? String(editing.id ?? "") : "";
-  const roots = rows.filter(
-    (row) => !row.parent_id && String(row.id ?? "") !== currentId,
-  );
-
-  return (
-    <>
-      <label>
-        {lang === "ar" ? "اسم القسم" : "Category name"}
-        <input
-          dir="auto"
-          value={String(formValues.name_ar ?? "")}
-          onChange={(event) =>
-            setFormValues((current) => ({
-              ...current,
-              name_ar: event.target.value,
-            }))
-          }
-        />
-      </label>
-      {lang === "en" ? (
-        <label>
-          English category name
-          <input
-            dir="auto"
-            value={String(formValues.name_en ?? "")}
-            onChange={(event) =>
-              setFormValues((current) => ({
-                ...current,
-                name_en: event.target.value,
-              }))
-            }
-          />
-        </label>
-      ) : null}
-      <label>
-        {lang === "ar" ? "نوع القسم" : "Category type"}
-        <select
-          value={String(formValues.parent_id ?? "")}
-          onChange={(event) =>
-            setFormValues((current) => ({
-              ...current,
-              parent_id: event.target.value,
-            }))
-          }
-        >
-          <option value="">
-            {lang === "ar" ? "قسم رئيسي" : "Main category"}
-          </option>
-          {roots.map((row) => (
-            <option value={String(row.id)} key={String(row.id)}>
-              {String(
-                (lang === "ar" ? row.name_ar : row.name_en) ??
-                  row.name_ar ??
-                  "-",
-              )}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        {lang === "ar" ? "الترتيب" : "Order"}
-        <input
-          dir="ltr"
-          type="number"
-          min="0"
-          value={String(formValues.display_order ?? "0")}
-          onChange={(event) =>
-            setFormValues((current) => ({
-              ...current,
-              display_order: event.target.value,
-            }))
-          }
-        />
-      </label>
-      <label className="checkbox-field">
-        <input
-          type="checkbox"
-          checked={Boolean(formValues.is_active)}
-          onChange={(event) =>
-            setFormValues((current) => ({
-              ...current,
-              is_active: event.target.checked,
-            }))
-          }
-        />
-        <span>{lang === "ar" ? "مفعل" : "Active"}</span>
-      </label>
-    </>
-  );
-}
-
 function CityEditorV2({
   lang,
   rows,
@@ -2299,104 +2203,6 @@ function CityEditorV2({
           </span>
         </label>
       ) : null}
-    </>
-  );
-}
-
-function CityEditor({
-  lang,
-  rows,
-  formValues,
-  setFormValues,
-}: {
-  lang: Lang;
-  rows: Row[];
-  formValues: Record<string, string | boolean>;
-  setFormValues: Dispatch<SetStateAction<Record<string, string | boolean>>>;
-}) {
-  const governorates = Array.from(
-    new Set(
-      rows.map((row) => String(row.governorate_ar ?? "")).filter(Boolean),
-    ),
-  ).sort();
-
-  return (
-    <>
-      <label>
-        {lang === "ar" ? "المحافظة" : "Governorate"}
-        <input
-          list="governorates-list"
-          dir="auto"
-          value={String(formValues.governorate_ar ?? "")}
-          onChange={(event) =>
-            setFormValues((current) => ({
-              ...current,
-              governorate_ar: event.target.value,
-            }))
-          }
-        />
-        <datalist id="governorates-list">
-          {governorates.map((governorate) => (
-            <option value={governorate} key={governorate} />
-          ))}
-        </datalist>
-      </label>
-      <label>
-        {lang === "ar" ? "اسم المدينة" : "City name"}
-        <input
-          dir="auto"
-          value={String(formValues.name_ar ?? "")}
-          onChange={(event) =>
-            setFormValues((current) => ({
-              ...current,
-              name_ar: event.target.value,
-            }))
-          }
-        />
-      </label>
-      {lang === "en" ? (
-        <>
-          <label>
-            English governorate name
-            <input
-              dir="auto"
-              value={String(formValues.governorate_en ?? "")}
-              onChange={(event) =>
-                setFormValues((current) => ({
-                  ...current,
-                  governorate_en: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label>
-            English city name
-            <input
-              dir="auto"
-              value={String(formValues.name_en ?? "")}
-              onChange={(event) =>
-                setFormValues((current) => ({
-                  ...current,
-                  name_en: event.target.value,
-                }))
-              }
-            />
-          </label>
-        </>
-      ) : null}
-      <label className="checkbox-field">
-        <input
-          type="checkbox"
-          checked={Boolean(formValues.is_active)}
-          onChange={(event) =>
-            setFormValues((current) => ({
-              ...current,
-              is_active: event.target.checked,
-            }))
-          }
-        />
-        <span>{lang === "ar" ? "مفعلة" : "Active"}</span>
-      </label>
     </>
   );
 }
@@ -2777,7 +2583,7 @@ function ReviewDetailsModal({
                   <strong>{label}</strong>
                   {url ? (
                     <a href={url} target="_blank" rel="noreferrer">
-                      <img src={url} alt={label} />
+                      <AdminImage src={url} alt={label} width={720} height={520} sizes="(max-width: 768px) 100vw, 360px" preserveOriginal />
                       <span>{lang === "ar" ? "فتح بالحجم الكامل" : "Open full size"}</span>
                     </a>
                   ) : (
@@ -2848,34 +2654,3 @@ function reviewDetailItems(sectionId: string, row: Row, lang: Lang) {
     { key: "updated", label: lang === "ar" ? "آخر تحديث" : "Last updated", value: String(date(row.updated_at)) },
   ];
 }
-
-function shouldShowDetailValue(key: string, value: unknown, row: Row) {
-  if (detailHiddenFields.has(key) || key === "id" || key.endsWith("_id") || key.endsWith("_url")) {
-    return false;
-  }
-  if (key.endsWith("_en") && row[key.replace(/_en$/, "_ar")] !== null && row[key.replace(/_en$/, "_ar")] !== undefined) {
-    return false;
-  }
-  if ((key === "approval_status" && row.approval_status_ar) || (key === "status" && row.status_ar)) {
-    return false;
-  }
-  if (value === null || value === undefined || value === "") {
-    return false;
-  }
-  return typeof value !== "object";
-}
-
-function textLooksBroken(text: string) {
-  return text.includes("\uFFFD");
-}
-
-const detailHiddenFields = new Set([
-  "auth_user_id",
-  "owner_user_id",
-  "created_by",
-  "updated_by",
-  "deleted_at",
-  "metadata",
-  "raw_user_meta_data",
-  "raw_app_meta_data",
-]);

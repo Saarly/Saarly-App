@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Filter,
@@ -162,13 +162,13 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
   const [complaintDraft, setComplaintDraft] = useState<ComplaintDraft>(emptyComplaint);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  async function accessToken() {
+  const accessToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session?.access_token) throw new Error("auth_required");
     return data.session.access_token;
-  }
+  }, []);
 
-  async function postAction(body: Record<string, unknown>) {
+  const postAction = useCallback(async (body: Record<string, unknown>) => {
     const token = await accessToken();
     const response = await fetch("/api/admin/action", {
       method: "POST",
@@ -177,9 +177,9 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
     });
     const result = (await response.json().catch(() => ({}))) as { error?: string };
     if (!response.ok) throw new Error(result.error ?? "action_failed");
-  }
+  }, [accessToken]);
 
-  async function loadConversations() {
+  const loadConversations = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -200,9 +200,9 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
     } finally {
       setLoading(false);
     }
-  }
+  }, [accessToken, lang]);
 
-  async function loadMessages(conversationId: string) {
+  const loadMessages = useCallback(async (conversationId: string) => {
     const { data, error: loadError } = await supabase.rpc("admin_support_conversation_messages", {
       p_conversation_id: conversationId,
     });
@@ -213,7 +213,7 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
     setMessages((data ?? []) as Message[]);
     await supabase.rpc("mark_support_conversation_read", { p_conversation_id: conversationId });
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
-  }
+  }, [lang]);
 
   async function run(name: string, task: () => Promise<void>) {
     setBusy(name);
@@ -335,8 +335,7 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
     return () => {
       void supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadConversations]);
 
   useEffect(() => {
     if (!selected) return;
@@ -352,8 +351,7 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
     return () => {
       void supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected?.id]);
+  }, [loadMessages, selected?.id]);
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();

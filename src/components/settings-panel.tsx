@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CreditCard, ImageUp, Plus, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
 import { adminValueLabel } from "@/lib/admin/format";
+import { AdminImage } from "@/components/admin-image";
+import { compressUiImage } from "@/lib/admin/image-compression";
 
 type Flag = {
   key: string;
@@ -200,7 +202,7 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
   const [error, setError] = useState<string | null>(null);
   const [savingKeys, setSavingKeys] = useState<string[]>([]);
 
-  async function loadSettings() {
+  const loadSettings = useCallback(async () => {
     setError(null);
 
     const [flagResult, providerResult, planResult, priceStatsResult, priceLogsResult] = await Promise.all([
@@ -237,7 +239,7 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
 
     const firstError = flagResult.error ?? providerResult.error ?? planResult.error ?? priceStatsResult.error ?? priceLogsResult.error;
     setError(firstError ? humanizeAdminError(firstError.message, lang) : null);
-  }
+  }, [lang]);
 
   async function postAction(body: Record<string, unknown>) {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -449,13 +451,14 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
     setSavingKey(key, true);
     setError(null);
     try {
-      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const { file: optimizedFile } = await compressUiImage(file, { maxSide: 1920, quality: 0.84, fallbackName: `${audience}-referral` });
+      const extension = optimizedFile.name.split(".").pop()?.toLowerCase() || "webp";
       const safeName = `${audience}-${Date.now()}.${extension}`;
       const path = `referrals/${safeName}`;
-      const { error: uploadError } = await supabase.storage.from("banners").upload(path, file, {
-        cacheControl: "3600",
+      const { error: uploadError } = await supabase.storage.from("banners").upload(path, optimizedFile, {
+        cacheControl: "31536000",
         upsert: true,
-        contentType: file.type || undefined
+        contentType: optimizedFile.type || undefined
       });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from("banners").getPublicUrl(path);
@@ -473,8 +476,7 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
 
   useEffect(() => {
     void loadSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadSettings]);
 
   return (
     <section className="content-panel">
@@ -906,7 +908,7 @@ function ReferralBannerField({
           />
         </span>
       </div>
-      {value.trim() ? <img className="referral-banner-preview" src={value.trim()} alt={title} /> : null}
+      {value.trim() ? <AdminImage className="referral-banner-preview" src={value.trim()} alt={title} width={1280} height={480} sizes="(max-width: 768px) 100vw, 720px" /> : null}
     </label>
   );
 }

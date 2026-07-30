@@ -101,11 +101,6 @@ function staleSending(value: unknown) {
   return Date.now() - date.getTime() > 10 * 60 * 1000;
 }
 
-function decisionWord(decision: Decision, locale: Locale) {
-  if (decision === "approved") return locale === "ar" ? "قبول" : "approval";
-  return locale === "ar" ? "رفض" : "rejection";
-}
-
 function statusLabel(status: unknown, locale: Locale) {
   const value = text(status).toLowerCase();
   const labels: Record<string, { ar: string; en: string }> = {
@@ -334,65 +329,32 @@ async function ensureEmailEvent(service: SupabaseClient, input: EmailEventInput)
   throw error;
 }
 
-async function claimEmailEvent(service: SupabaseClient, eventId: string) {
-  const { data: current, error: currentError } = await service
-    .from("admin_email_events")
-    .select("id,status,attempts")
-    .eq("id", eventId)
-    .maybeSingle();
-  if (currentError) throw currentError;
-
-  const currentRow = (current ?? null) as Row | null;
-  const currentStatus = text(currentRow?.status);
-  if (currentStatus !== "pending" && currentStatus !== "failed") return null;
-
-  const attempts = Number(currentRow?.attempts ?? 0);
-  const { data, error } = await service
-    .from("admin_email_events")
-    .update({
-      status: "sending",
-      attempts: attempts + 1,
-      last_attempt_at: new Date().toISOString(),
-      failure_reason: null,
-    })
-    .eq("id", eventId)
-    .in("status", ["pending", "failed"])
-    .select("*")
-    .maybeSingle();
-  if (error) throw error;
-  return (data ?? null) as Row | null;
-}
-
-async function sendEmailThroughProvider(event: Row) {
-  const apiKey = process.env.RESEND_API_KEY || process.env.SAARLY_EMAIL_API_KEY;
-  const from =
-    process.env.RESEND_FROM_EMAIL ||
-    process.env.SAARLY_EMAIL_FROM ||
-    "Saarly <support@saarly.app>";
-
-  if (!apiKey) {
-    throw new Error("email_provider_not_configured");
+async function triggerEmailDispatcher(eventId: string) {
+  const supabaseUrl = text(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL).replace(/\/+$/, "");
+  const serviceRoleKey = text(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("email_dispatch_configuration_missing");
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
+  const response = await fetch(`${supabaseUrl}/functions/v1/process-admin-email-events`, {
     method: "POST",
+    cache: "no-store",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: serviceRoleKey,
       "Content-Type": "application/json",
-      "Idempotency-Key": text(event.idempotency_key) || text(event.id),
     },
-    body: JSON.stringify({
-      from,
-      to: text(event.recipient_email),
-      subject: text(event.subject),
-      text: text(event.body_text),
-      html: text(event.body_html),
-    }),
+    body: JSON.stringify({ event_id: eventId }),
   });
-
+  const payload = (await response.json().catch(() => ({}))) as Row;
   if (!response.ok) {
-    const details = await response.text().catch(() => "");
-    throw new Error(`email_provider_failed:${response.status}:${details.slice(0, 240)}`);
+    throw new Error(`email_dispatch_unreachable:${response.status}:${text(payload.error, "unknown_error")}`);
+  }
+  const results = Array.isArray(payload.results) ? payload.results : [];
+  const target = results.find((item) => row(item)?.id === eventId);
+  const targetRow = row(target);
+  if (payload.target_processed === false || (targetRow && targetRow.success === false)) {
+    throw new Error(text(targetRow?.failure_reason, "email_target_not_processed"));
   }
 }
 
@@ -406,40 +368,35 @@ async function sendDecisionEmail(service: SupabaseClient, input: EmailEventInput
     return { id: eventId, status };
   }
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const claimed = await claimEmailEvent(service, eventId);
-    if (!claimed) break;
-    try {
-      await sendEmailThroughProvider(claimed);
-      const { data, error } = await service
-        .from("admin_email_events")
-        .update({
-          status: "sent",
-          sent_at: new Date().toISOString(),
-          failure_reason: null,
-        })
-        .eq("id", eventId)
-        .select("id,status")
-        .single();
-      if (error) throw error;
-      status = text((data as Row).status);
-      break;
-    } catch (error) {
-      const failureReason = error instanceof Error ? error.message : "email_send_failed";
-      const { data } = await service
+  try {
+    await triggerEmailDispatcher(eventId);
+  } catch (error) {
+    const failureReason = error instanceof Error ? error.message : "email_dispatch_failed";
+    const { data: current } = await service
+      .from("admin_email_events")
+      .select("status,failure_reason")
+      .eq("id", eventId)
+      .maybeSingle();
+    const currentStatus = text((current as Row | null)?.status);
+    if (currentStatus !== "failed" && currentStatus !== "dead" && currentStatus !== "sent") {
+      await service
         .from("admin_email_events")
         .update({
           status: "failed",
           failure_reason: failureReason,
           last_attempt_at: new Date().toISOString(),
         })
-        .eq("id", eventId)
-        .select("id,status")
-        .maybeSingle();
-      status = text((data as Row | null)?.status) || "failed";
+        .eq("id", eventId);
     }
   }
 
+  const { data: latest, error: latestError } = await service
+    .from("admin_email_events")
+    .select("id,status,failure_reason,sent_at")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (latestError) throw latestError;
+  status = text((latest as Row | null)?.status) || status;
   return { id: eventId, status };
 }
 

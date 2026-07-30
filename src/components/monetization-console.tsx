@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   BadgeCheck,
@@ -27,6 +27,7 @@ import { downloadExcel } from "@/lib/admin/excel";
 import type { Lang } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
 import { adminValueLabel } from "@/lib/admin/format";
+import { AdminImage } from "@/components/admin-image";
 
 type Row = Record<string, unknown>;
 type FounderTrialTier = { from: string; to: string; days: string };
@@ -133,6 +134,11 @@ type BillingEditorState = {
   merchant: Row;
   value: string;
   reason: string;
+};
+
+type ManualPlanChangeState = {
+  request: Row;
+  planId: string;
 };
 
 type FilePreview = {
@@ -793,6 +799,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
     useState<DraftCommission>(emptyCommission);
   const [billingEditor, setBillingEditor] =
     useState<BillingEditorState | null>(null);
+  const [manualPlanChange, setManualPlanChange] = useState<ManualPlanChangeState | null>(null);
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
   const [documentPreviewMerchantId, setDocumentPreviewMerchantId] = useState<string | null>(null);
   const [founderTrialTiers, setFounderTrialTiers] = useState<FounderTrialTier[]>([
@@ -803,14 +810,14 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
 
   const l = labels[lang];
 
-  async function token() {
+  const token = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     if (!accessToken) throw new Error("auth_required");
     return accessToken;
-  }
+  }, []);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -857,7 +864,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [from, lang, l.loadError, to, token]);
 
   async function post(
     action: string,
@@ -922,12 +929,15 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
     const response = await fetch(`/api/admin/monetization?${params.toString()}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
-    const payload = (await response.json().catch(() => ({}))) as { data?: { url?: string }; error?: string };
+    const payload = (await response.json().catch(() => ({}))) as {
+      data?: { url?: string; mimeType?: string; sizeBytes?: number };
+      error?: string;
+    };
     if (!response.ok || !payload.data?.url) {
       setError(humanizeAdminError(payload.error ?? "signed_link_failed", lang));
       return;
     }
-    const mime = asString(row.proof_mime_type ?? row.mime_type);
+    const mime = asString(payload.data.mimeType ?? row.proof_mime_type ?? row.mime_type);
     setFilePreview({
       url: payload.data.url,
       title: previewTitle(table, row, lang),
@@ -940,7 +950,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -1201,6 +1211,28 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           </div>
         </div>
       ) : null}
+      {manualPlanChange ? (
+        <ManualPlanChangeModal
+          lang={lang}
+          state={manualPlanChange}
+          plans={(data?.plans ?? []).filter((plan) => Boolean(plan.is_active) || asString(plan.id) === asString(manualPlanChange.request.plan_id))}
+          busy={Boolean(busy)}
+          onChange={(planId) => setManualPlanChange((current) => current ? { ...current, planId } : current)}
+          onClose={() => setManualPlanChange(null)}
+          onSave={async () => {
+            if (!manualPlanChange.planId || manualPlanChange.planId === asString(manualPlanChange.request.plan_id)) {
+              setManualPlanChange(null);
+              return;
+            }
+            const ok = await post(
+              "update_manual_payment_plan",
+              { id: manualPlanChange.request.id, plan_id: manualPlanChange.planId },
+              l.planUpdated,
+            );
+            if (ok) setManualPlanChange(null);
+          }}
+        />
+      ) : null}
       {filePreview ? <FilePreviewModal lang={lang} preview={filePreview} onClose={() => setFilePreview(null)} /> : null}
       {documentPreview ? (
         <StoreDocumentsModal
@@ -1271,7 +1303,10 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
               }
             >
               <Wallet size={18} />
-              {lang === "ar" ? "التحويل اليدوي" : "Manual payment"}
+              <span className="payment-mode-copy">
+                <strong>{lang === "ar" ? "التحويل اليدوي" : "Manual payment"}</strong>
+                <small>{flagEnabled("manual_payments_enabled") ? l.enabled : l.disabled}</small>
+              </span>
             </button>
             <button
               className={flagEnabled("electronic_payments_enabled") ? "primary-button" : "soft-button"}
@@ -1284,14 +1319,20 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
               }
             >
               <CreditCard size={18} />
-              {lang === "ar" ? "الدفع الإلكتروني" : "Electronic payment"}
+              <span className="payment-mode-copy">
+                <strong>{lang === "ar" ? "الدفع الإلكتروني" : "Electronic payment"}</strong>
+                <small>{flagEnabled("electronic_payments_enabled") ? l.enabled : l.disabled}</small>
+              </span>
             </button>
           </div>
           <div className="mini-table">
             {filtered?.flags.filter((flag) => featureFlagLabels[asString(flag.key)]).slice(0, 12).map((flag) => (
-              <div key={asString(flag.key)}>
+              <div key={asString(flag.key)} className="feature-status-row">
                 <span>{featureFlagLabel(flag.key, lang)}</span>
-                <strong>{cell(flag.updated_at, lang)}</strong>
+                <span className={Boolean(flag.is_enabled) ? "status-pill active" : "status-pill expired"}>
+                  {Boolean(flag.is_enabled) ? l.enabled : l.disabled}
+                </span>
+                <small>{lang === "ar" ? "آخر تعديل: " : "Last updated: "}{cell(flag.updated_at, lang)}</small>
               </div>
             ))}
           </div>
@@ -1302,9 +1343,6 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
 
   function renderManualPayments() {
     const requests = filtered?.manualRequests ?? [];
-    const planOptions = (filtered?.plans ?? []).filter(
-      (plan) => Boolean(plan.is_active) || requests.some((request) => asString(request.plan_id) === asString(plan.id))
-    );
     return (
       <article className="content-panel inner-panel">
         <TabGuide
@@ -1332,28 +1370,24 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           ]}
           renderActions={(row) => (
             <>
-              <select
-                className="tiny-select"
-                aria-label={l.changePlan}
-                value={asString(row.plan_id)}
-                disabled={!["submitted", "under_review"].includes(String(row.status)) || Boolean(busy)}
-                onChange={(event) => {
-                  const planId = event.target.value;
-                  if (planId && planId !== asString(row.plan_id)) {
-                    void post("update_manual_payment_plan", { id: row.id, plan_id: planId }, l.planUpdated);
-                  }
-                }}
+              <button
+                type="button"
+                className="tiny-button"
+                disabled={String(row.status) !== "submitted" || Boolean(busy)}
+                onClick={() => setManualPlanChange({ request: row, planId: asString(row.plan_id) })}
               >
-                <option value="">{l.changePlan}</option>
-                {planOptions.map((plan) => (
-                  <option key={asString(plan.id)} value={asString(plan.id)}>
-                    {planOptionLabel(plan, lang)}
-                  </option>
-                ))}
-              </select>
-              <button className="tiny-button" disabled={!hasProofFile(row)} onClick={() => void openProof("manual_payment_requests", row)}>
+                <CreditCard size={15} />
+                {l.changePlan}
+              </button>
+              <button
+                type="button"
+                className="tiny-button"
+                disabled={!hasProofFile(row)}
+                title={!hasProofFile(row) ? (lang === "ar" ? "لم يتم رفع إثبات" : "No proof uploaded") : undefined}
+                onClick={() => void openProof("manual_payment_requests", row)}
+              >
                 <Eye size={15} />
-                {l.viewProof}
+                {hasProofFile(row) ? l.viewProof : (lang === "ar" ? "لم يتم رفع إثبات" : "No proof uploaded")}
               </button>
               <button
                 className="tiny-button"
@@ -1560,6 +1594,9 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
                   </span>
                 </div>
                 <div className="row-actions">
+                  <span className={Boolean(gateway.is_enabled) ? "status-pill active" : "status-pill muted"}>
+                    {Boolean(gateway.is_enabled) ? l.enabled : l.disabled}
+                  </span>
                   <button className="tiny-button" onClick={() => setGatewayDraft(gatewayDraftFrom(gateway))}>
                     {l.edit}
                   </button>
@@ -1705,6 +1742,10 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
               <button className="tiny-button" onClick={() => adjustBillingPreference(row)}>
                 {lang === "ar" ? "تعديل المحاسبة" : "Change billing"}
               </button>
+              <button className="tiny-button" onClick={() => setDocumentPreviewMerchantId(asString(row.id))}>
+                <FileText size={15} />
+                {lang === "ar" ? "ملفات المتجر" : "Store files"}
+              </button>
               <button className="tiny-button" onClick={() => toggleFounderBadge(row)}>
                 <Sparkles size={15} />
                 {Boolean(row.founder_badge_enabled) ? (lang === "ar" ? "سحب شارة المؤسس" : "Remove founder badge") : (lang === "ar" ? "منح شارة المؤسس" : "Grant founder badge")}
@@ -1728,60 +1769,6 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
               </button>
               <button className="tiny-button danger" disabled={Boolean(row.free_trial_stopped_at)} onClick={() => stopTrial(row)}>
                 {lang === "ar" ? "إيقاف الفترة" : "Stop trial"}
-              </button>
-            </>
-          )}
-        />
-      </article>
-    );
-  }
-
-  function renderDocuments() {
-    return (
-      <article className="content-panel inner-panel">
-        <TabGuide
-          lang={lang}
-          title={lang === "ar" ? "المستندات دي بتاعة إيه؟" : "What these documents are"}
-          ar="دي مستندات مراجعة المتجر والفروع، مش إثبات دفع الاشتراك. هنا بتوافق أو ترفض كل ملف مرفوع لوحده: صورة واجهة، بطاقة صاحب المتجر، أو بطاقة مدير الفرع. قبول الملفات المطلوبة يساعدك تقبل المتجر أو الفرع من موافقات المتاجر، والرفض بيحتاج سبب واضح عشان المتجر يعرف يصلح إيه."
-          en="These are store and branch review documents, not subscription payment proof. Here you approve or reject each uploaded file separately: storefront photo, store owner ID, or branch manager ID. Approved required files help you approve the store or branch from store approvals, and rejection needs a clear reason."
-          icon={<FileText size={20} />}
-        />
-        <h2>{lang === "ar" ? "مراجعة مستندات المتاجر والفروع" : "Merchant and branch document review"}</h2>
-        <p>{lang === "ar" ? "زر ملفات المتجر يفتح كل ملفات المتجر وفروعه في كارت واحد فوق الصفحة. لو الملف قديم أو تجريبي ومش مرفوع فعلياً هتظهر رسالة توضح السبب." : "Store files opens all store and branch files in one card over the page. If a record is old or test data without a real upload, a clear message will appear."}</p>
-        <DataTable
-          rows={filtered?.documents ?? []}
-          lang={lang}
-          empty={l.noData}
-          columns={[
-            ["store_name", lang === "ar" ? "المتجر" : "Store"],
-            ["branch_name", lang === "ar" ? "الفرع" : "Branch"],
-            ["manager_name", lang === "ar" ? "اسم المسؤول" : "Responsible person"],
-            ["kind", lang === "ar" ? "نوع المستند" : "Document"],
-            ["status", lang === "ar" ? "الحالة" : "Status"],
-            ["reviewed_at", lang === "ar" ? "آخر مراجعة" : "Reviewed"]
-          ]}
-          renderActions={(row) => (
-            <>
-              <button className="tiny-button" onClick={() => setDocumentPreviewMerchantId(asString(row.merchant_id))}>
-                <FileText size={15} />
-                {l.storeFiles}
-              </button>
-              <button className="tiny-button" disabled={!hasProofFile(row)} onClick={() => void openProof("merchant_documents", row)}>
-                <Eye size={15} />
-                {l.viewFile}
-              </button>
-              <button className="tiny-button" disabled={row.status === "approved"} onClick={() => void post("review_document", { id: row.id, approved: true })}>
-                {l.approve}
-              </button>
-              <button
-                className="tiny-button danger"
-                disabled={row.status === "rejected"}
-                onClick={() => {
-                  const reason = window.prompt(l.reasonPrompt);
-                  if (reason) void post("review_document", { id: row.id, approved: false, reason });
-                }}
-              >
-                {l.reject}
               </button>
             </>
           )}
@@ -2244,6 +2231,68 @@ function rowsForTab(tab: string, data: MonetizationData) {
   return [data.summary];
 }
 
+function ManualPlanChangeModal({
+  lang,
+  state,
+  plans,
+  busy,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  lang: Lang;
+  state: ManualPlanChangeState;
+  plans: Row[];
+  busy: boolean;
+  onChange: (planId: string) => void;
+  onClose: () => void;
+  onSave: () => Promise<void>;
+}) {
+  const currentPlan = plans.find((plan) => asString(plan.id) === asString(state.request.plan_id));
+  const nextPlan = plans.find((plan) => asString(plan.id) === state.planId);
+  const discountPercent = Math.min(100, Math.max(0, asNumber(state.request.discount_percent)));
+  const currentAmount = asNumber(state.request.final_amount);
+  const nextOriginal = nextPlan ? asNumber(nextPlan.monthly_price) : 0;
+  const nextAmount = nextPlan ? Math.max(0, nextOriginal - (nextOriginal * discountPercent) / 100) : 0;
+  const difference = nextAmount - currentAmount;
+  const editable = asString(state.request.status) === "submitted";
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal-card manual-plan-change-modal" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="modal-close-button" onClick={onClose} aria-label={lang === "ar" ? "إغلاق" : "Close"}><X size={20} /></button>
+        <h2>{lang === "ar" ? "تغيير خطة طلب الدفع" : "Change payment request plan"}</h2>
+        <p>{lang === "ar" ? "التغيير بيعدل الطلب والمبلغ فقط. الاشتراك مش هيتفعل غير بعد قبول الطلب." : "This updates the request and amount only. The subscription is activated only after approval."}</p>
+        <div className="review-details-grid">
+          <div className="review-detail-item"><strong>{lang === "ar" ? "المتجر" : "Store"}</strong><span>{cell(state.request.store_name, lang)}</span></div>
+          <div className="review-detail-item"><strong>{lang === "ar" ? "الخطة الحالية" : "Current plan"}</strong><span>{currentPlan ? planOptionLabel(currentPlan, lang) : cell(lang === "ar" ? state.request.plan_name_ar : state.request.plan_name_en, lang)}</span></div>
+          <div className="review-detail-item"><strong>{lang === "ar" ? "المبلغ الحالي" : "Current amount"}</strong><span>{money(currentAmount, state.request.currency, lang)}</span></div>
+          <div className="review-detail-item"><strong>{lang === "ar" ? "حالة الطلب" : "Request status"}</strong><span>{displayValue("status", state.request, lang)}</span></div>
+        </div>
+        <label className="modal-field">
+          <span>{lang === "ar" ? "الخطة الجديدة" : "New plan"}</span>
+          <select value={state.planId} onChange={(event) => onChange(event.target.value)} disabled={!editable || busy}>
+            <option value="">{lang === "ar" ? "اختار الخطة" : "Choose a plan"}</option>
+            {plans.map((plan) => <option key={asString(plan.id)} value={asString(plan.id)}>{planOptionLabel(plan, lang)}{!Boolean(plan.is_active) ? (lang === "ar" ? " (متوقفة)" : " (inactive)") : ""}</option>)}
+          </select>
+        </label>
+        {nextPlan ? (
+          <div className="plan-price-preview">
+            <div><span>{lang === "ar" ? "السعر الجديد" : "New price"}</span><strong>{money(nextAmount, nextPlan.currency, lang)}</strong></div>
+            <div><span>{lang === "ar" ? "الفرق" : "Difference"}</span><strong className={difference > 0 ? "danger-text" : "success-text"}>{difference > 0 ? "+" : ""}{money(difference, nextPlan.currency, lang)}</strong></div>
+          </div>
+        ) : null}
+        {!editable ? <div className="alert">{lang === "ar" ? "لا يمكن تغيير الخطة بعد بدء المراجعة أو قبول الطلب أو رفضه." : "The plan cannot be changed after review starts, approval, or rejection."}</div> : null}
+        <div className="modal-actions modal-actions-save-only">
+          <button type="button" className="primary-button" disabled={!editable || busy || !state.planId || state.planId === asString(state.request.plan_id)} onClick={() => void onSave()}>
+            <Save size={17} />{lang === "ar" ? "تأكيد تغيير الخطة" : "Confirm plan change"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FilePreviewModal({
   lang,
   preview,
@@ -2268,7 +2317,7 @@ function FilePreviewModal({
         </div>
         <div className="proof-preview-frame">
           {preview.isImage ? (
-            <img src={preview.url} alt={preview.title} />
+            <AdminImage src={preview.url} alt={preview.title} width={1200} height={900} sizes="(max-width: 768px) 100vw, 900px" preserveOriginal />
           ) : preview.isPdf ? (
             <iframe title={preview.title} src={preview.url} />
           ) : (

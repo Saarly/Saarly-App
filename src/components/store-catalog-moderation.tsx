@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Ban, RefreshCw, Search, Store, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
 import { humanizeAdminError } from "@/lib/admin/messages";
+import { AdminImage } from "@/components/admin-image";
 
 type StoreRow = {
   id: string;
@@ -86,18 +87,18 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     );
   }, [productQuery, products]);
 
-  async function accessToken() {
+  const accessToken = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     if (!token) throw new Error("auth_required");
     return token;
-  }
+  }, []);
 
-  async function resolveImageUrl(
+  const resolveImageUrl = useCallback(async (
     value: string | null | undefined,
     bucket: string,
     fallbackBucket = bucket,
-  ) {
+  ) => {
     const trimmed = value?.trim();
     if (!trimmed) return null;
     const token = await accessToken();
@@ -116,13 +117,13 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
       data?: { url?: string };
     };
     return response.ok ? payload.data?.url ?? null : null;
-  }
+  }, [accessToken]);
 
-  function productImageValues(product: ProductRow) {
+  const productImageValues = useCallback((product: ProductRow) => {
     return Array.from(new Set([...(product.image_urls ?? []), product.image_url].filter(Boolean) as string[]));
-  }
+  }, []);
 
-  async function loadStores() {
+  const loadStores = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -168,9 +169,9 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [accessToken, lang, resolveImageUrl]);
 
-  async function loadProducts(storeId: string) {
+  const loadProducts = useCallback(async (storeId: string) => {
     setLoadingProducts(true);
     setError(null);
     try {
@@ -201,7 +202,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
     } finally {
       setLoadingProducts(false);
     }
-  }
+  }, [accessToken, lang, productImageValues, resolveImageUrl]);
 
   async function postAdminAction(body: Record<string, unknown>) {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -323,14 +324,13 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
 
   useEffect(() => {
     void loadStores();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadStores]);
 
   useEffect(() => {
     if (selectedStore) {
       void loadProducts(selectedStore.id);
     }
-  }, [selectedStore?.id]);
+  }, [loadProducts, selectedStore]);
 
   return (
     <section className="content-panel catalog-panel">
@@ -370,7 +370,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                   onClick={() => selectStore(store)}
                 >
                   {storeImages[store.id] ? (
-                    <img src={storeImages[store.id] ?? ""} alt={store.store_name} />
+                    <AdminImage src={storeImages[store.id] ?? ""} alt={store.store_name} width={520} height={320} sizes="(max-width: 768px) 100vw, 260px" />
                   ) : (
                     <div className="image-placeholder branded-image-placeholder">
                       <Store size={28} />
@@ -447,7 +447,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                   return (
                     <article className="moderation-product-card" key={product.id}>
                       {images[0] ? (
-                        <img src={images[0]} alt={product.free_name} />
+                        <AdminImage src={images[0]} alt={product.free_name} width={640} height={420} sizes="(max-width: 768px) 100vw, 320px" />
                       ) : (
                         <div className="image-placeholder branded-image-placeholder">
                           <AlertTriangle size={28} />
@@ -457,7 +457,7 @@ export function StoreCatalogModeration({ lang }: { lang: Lang }) {
                       {images.length > 1 ? (
                         <div className="thumb-row">
                           {images.slice(1).map((image) => (
-                            <img src={image} alt={product.free_name} key={image} />
+                            <AdminImage src={image} alt={product.free_name} width={180} height={120} sizes="90px" key={image} />
                           ))}
                         </div>
                       ) : null}

@@ -380,6 +380,18 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "Refund needs the payment company connection to be completed first.";
   }
 
+  if (message.includes("proof_not_uploaded")) {
+    return lang === "ar"
+      ? "لم يتم رفع إثبات دفع لهذا الطلب."
+      : "No payment proof was uploaded for this request.";
+  }
+
+  if (message.includes("proof_file_missing")) {
+    return lang === "ar"
+      ? "مسار إثبات الدفع مسجل، لكن الملف نفسه غير موجود في التخزين."
+      : "The payment proof path is saved, but the file is missing from storage.";
+  }
+
   if (message.includes("file_not_available") || message.includes("file_record_not_found")) {
     return lang === "ar" ? "الملف غير متاح حاليًا." : "The file is not available right now.";
   }

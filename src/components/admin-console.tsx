@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
@@ -24,6 +25,8 @@ import { StaffManagement } from "@/components/staff-management";
 import { MonetizationConsole } from "@/components/monetization-console";
 import { ComplaintsConsole } from "@/components/complaints-console";
 import { PageGuide } from "@/components/page-guide";
+import { OrdersConsole } from "@/components/orders-console";
+import { ShippingCompaniesConsole } from "@/components/shipping-companies-console";
 
 const navigationGroups = [
   {
@@ -93,7 +96,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
       .filter((group) => group.sections.length > 0);
   }, [navSections]);
 
-  async function loadProfile(currentSession: Session | null) {
+  const loadProfile = useCallback(async (currentSession: Session | null) => {
     if (!currentSession?.user) {
       setProfile(null);
       setProfileError(null);
@@ -146,7 +149,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     } finally {
       setCheckingProfile(false);
     }
-  }
+  }, [lang]);
 
   useEffect(() => {
     const savedLang = window.localStorage.getItem("saarly-admin-lang");
@@ -169,7 +172,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     });
 
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [loadProfile]);
 
   useEffect(() => {
     function applyDocumentState() {
@@ -238,7 +241,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
     return (
       <main className="login-page">
         <section className="login-card">
-          <img className="brand-logo brand-logo-large" src="/saarly-logo.png" alt={lang === "ar" ? "سعرلي" : "Saarly"} />
+          <Image className="brand-logo brand-logo-large" src="/saarly-logo.png" alt={lang === "ar" ? "سعرلي" : "Saarly"} width={260} height={92} priority />
           <h1>{t("unauthorized", lang)}</h1>
           {profileError ? <p className="login-error-detail">{profileError}</p> : null}
           <button className="ghost-button" onClick={() => void retryProfileCheck()} disabled={checkingProfile}>
@@ -270,7 +273,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
       ) : null}
       <aside className={menuOpen ? "sidebar open" : "sidebar"}>
         <div className="sidebar-brand">
-          <img className="brand-logo brand-logo-sidebar" src="/saarly-logo.png" alt={lang === "ar" ? "سعرلي" : "Saarly"} />
+          <Image className="brand-logo brand-logo-sidebar" src="/saarly-logo.png" alt={lang === "ar" ? "سعرلي" : "Saarly"} width={120} height={42} priority />
           <div>
             <strong>{t("appName", lang)}</strong>
             <span>
@@ -364,6 +367,10 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
           </section>
         ) : section.mode === "dashboard" ? (
           <DashboardPanel lang={lang} />
+        ) : section.mode === "orders" ? (
+          <OrdersConsole lang={lang} />
+        ) : section.mode === "shipping" ? (
+          <ShippingCompaniesConsole lang={lang} />
         ) : section.mode === "support" ? (
           <SupportConsole lang={lang} profile={profile} />
         ) : section.mode === "reports" ? (
