@@ -2569,7 +2569,7 @@ function ReviewDetailsModal({
     ];
   }, [row, section.id]);
 
-  const displayDocuments = useMemo(() => {
+  const displayDocuments = useMemo<Row[]>(() => {
     const storedByKind = new Map(
       approvalDocuments.map((document) => [String(document.kind ?? ""), document]),
     );

@@ -37,3 +37,8 @@ test("stored review records are merged with direct application images", () => {
   assert.match(dataSection, /extraStoredDocuments/);
   assert.match(dataSection, /return \[\.\.\.specifiedDocuments, \.\.\.extraStoredDocuments\]/);
 });
+
+test("inline approval document list keeps the full Row type for TypeScript builds", () => {
+  assert.match(dataSection, /const displayDocuments = useMemo<Row\[\]>\(\(\) => \{/);
+  assert.match(dataSection, /document\._display_key \?\? document\.id/);
+});
