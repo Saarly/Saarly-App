@@ -42,11 +42,11 @@ test("generic row editor cannot change approval decisions", () => {
 });
 
 test("merchant document review is atomic", () => {
-  assert.match(monetizationRoute, /admin_review_merchant_document_as/);
-  const start = monetizationRoute.indexOf("async function reviewDocument");
-  const end = monetizationRoute.indexOf("async function", start + 20);
-  const block = monetizationRoute.slice(start, end > start ? end : undefined);
-  assert.doesNotMatch(block, /\.from\([\"']merchant_documents[\"']\)\s*\.update/s);
+  assert.match(actionRoute, /admin_review_merchant_document_as/);
+  const start = actionRoute.indexOf("async function reviewApprovalDocument");
+  const end = actionRoute.indexOf("async function", start + 20);
+  const block = actionRoute.slice(start, end > start ? end : undefined);
+  assert.doesNotMatch(block, /\.from\(["']merchant_documents["']\)\s*\.update/s);
 });
 
 test("manual payment plan cannot change after review starts", () => {

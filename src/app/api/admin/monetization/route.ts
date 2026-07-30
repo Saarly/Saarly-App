@@ -1163,26 +1163,6 @@ async function setMerchantTrial(service: SupabaseClient, actor: AdminActor, payl
   return data;
 }
 
-async function reviewDocument(service: SupabaseClient, actor: AdminActor, payload: Row) {
-  const documentId = id(payload.id);
-  const approved = boolValue(payload.approved, false);
-  const reason = text(payload.reason);
-  if (!documentId) throw new Error("document_required");
-  if (!approved && reason.length < 3) throw new Error("rejection_reason_required");
-
-  const before = ((await service.from("merchant_documents").select("*").eq("id", documentId).maybeSingle()).data as Row | null) ?? null;
-  if (!before) throw new Error("document_not_found");
-
-  const { data, error } = await service.rpc("admin_review_merchant_document_as", {
-    p_actor_id: actor.id,
-    p_document_id: documentId,
-    p_approved: approved,
-    p_rejection_reason: approved ? null : reason,
-  });
-  if (error) throw error;
-  return data;
-}
-
 async function setBadge(service: SupabaseClient, actor: AdminActor, payload: Row) {
   const merchantId = id(payload.merchant_id);
   const badgeType = text(payload.badge_type);
@@ -1685,7 +1665,6 @@ async function handleAction(service: SupabaseClient, actor: AdminActor, body: Ro
   if (action === "update_merchant") return updateMerchant(service, actor, payload);
   if (action === "set_merchant_badges") return setMerchantBadges(service, actor, payload);
   if (action === "set_merchant_trial") return setMerchantTrial(service, actor, payload);
-  if (action === "review_document") return reviewDocument(service, actor, payload);
   if (action === "set_badge") return setBadge(service, actor, payload);
   if (action === "settle_commissions") return settleCommissions(service, actor, payload);
   if (action === "retry_email_event") return retryEmailEvent(service, actor, payload);

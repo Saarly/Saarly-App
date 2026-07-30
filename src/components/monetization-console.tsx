@@ -1241,11 +1241,6 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           preview={documentPreview}
           onClose={() => setDocumentPreviewMerchantId(null)}
           onOpen={(row) => void openProof("merchant_documents", row)}
-          onApprove={(row) => void post("review_document", { id: row.id, approved: true })}
-          onReject={(row) => {
-            const reason = window.prompt(l.reasonPrompt);
-            if (reason) void post("review_document", { id: row.id, approved: false, reason });
-          }}
         />
       ) : null}
       {filePreview ? (
@@ -1753,7 +1748,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
               </button>
               <button className="tiny-button" onClick={() => setDocumentPreviewMerchantId(asString(row.id))}>
                 <FileText size={15} />
-                {lang === "ar" ? "ملفات المتجر" : "Store files"}
+                {lang === "ar" ? "عرض الملفات" : "View files"}
               </button>
               <button className="tiny-button" onClick={() => toggleFounderBadge(row)}>
                 <Sparkles size={15} />
@@ -2359,15 +2354,11 @@ function StoreDocumentsModal({
   preview,
   onClose,
   onOpen,
-  onApprove,
-  onReject
 }: {
   lang: Lang;
   preview: StoreDocumentPreview;
   onClose: () => void;
   onOpen: (row: Row) => void;
-  onApprove: (row: Row) => void;
-  onReject: (row: Row) => void;
 }) {
   const l = labels[lang];
   return (
@@ -2383,14 +2374,18 @@ function StoreDocumentsModal({
           </button>
         </div>
 
+        <p className="muted store-documents-readonly-note">
+          {lang === "ar"
+            ? "الملفات هنا للعرض والمتابعة فقط. قبول أو رفض ملفات المتجر يتم من صفحة موافقات المتاجر، وملفات الفروع من صفحة موافقات الفروع."
+            : "Files here are read-only. Review store files from Merchant approvals and branch files from Branch approvals."}
+        </p>
+
         <DocumentFilesSection
           title={lang === "ar" ? "ملفات المتجر الأساسية" : "Main store files"}
           rows={preview.storeDocuments}
           lang={lang}
           empty={l.noStoreDocuments}
           onOpen={onOpen}
-          onApprove={onApprove}
-          onReject={onReject}
         />
 
         <div className="document-branch-list">
@@ -2402,8 +2397,6 @@ function StoreDocumentsModal({
               lang={lang}
               empty={l.noStoreDocuments}
               onOpen={onOpen}
-              onApprove={onApprove}
-              onReject={onReject}
             />
           ))}
           {preview.extraBranchDocuments.length ? (
@@ -2413,8 +2406,6 @@ function StoreDocumentsModal({
               lang={lang}
               empty={l.noStoreDocuments}
               onOpen={onOpen}
-              onApprove={onApprove}
-              onReject={onReject}
             />
           ) : null}
         </div>
@@ -2429,16 +2420,12 @@ function DocumentFilesSection({
   lang,
   empty,
   onOpen,
-  onApprove,
-  onReject
 }: {
   title: string;
   rows: Row[];
   lang: Lang;
   empty: string;
   onOpen: (row: Row) => void;
-  onApprove: (row: Row) => void;
-  onReject: (row: Row) => void;
 }) {
   const l = labels[lang];
   return (
@@ -2460,14 +2447,7 @@ function DocumentFilesSection({
                   <Eye size={15} />
                   {l.viewFile}
                 </button>
-                <button className="tiny-button" disabled={row.status === "approved"} onClick={() => onApprove(row)}>
-                  <Check size={15} />
-                  {l.approve}
-                </button>
-                <button className="tiny-button danger" disabled={row.status === "rejected"} onClick={() => onReject(row)}>
-                  <X size={15} />
-                  {l.reject}
-                </button>
+
               </div>
             </div>
           ))}

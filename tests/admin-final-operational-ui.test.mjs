@@ -74,10 +74,16 @@ test("manual payment proof links distinguish absent and missing objects and pres
   assert.match(monetization, /preserveOriginal/);
 });
 
-test("merchant document review is reachable from the visible merchant controls", () => {
+test("document review lives in approval pages while founders stays read-only", () => {
   assert.match(monetization, /setDocumentPreviewMerchantId\(asString\(row\.id\)\)/);
-  assert.match(monetization, /ملفات المتجر/);
-  assert.match(monetization, /review_document/);
+  assert.match(monetization, /عرض الملفات/);
+  assert.match(monetization, /الملفات هنا للعرض والمتابعة فقط/);
+  assert.doesNotMatch(monetization, /review_document/);
+  assert.match(dataSection, /review_merchant_document/);
+  assert.match(dataSection, /review_branch_document/);
+  assert.match(dataSection, /قبول الملف/);
+  assert.match(dataSection, /رفض الملف/);
+  assert.match(actionRoute, /approval_documents/);
 });
 
 test("legacy manual proof paths keep the real payment-proof bucket", () => {

@@ -542,6 +542,8 @@ function actionRequiresServiceRole(action: string) {
     "delete_merchant",
     "restore_merchant",
     "signed_admin_file",
+    "review_merchant_document",
+    "review_branch_document",
   ].includes(action);
 }
 
@@ -777,6 +779,8 @@ function permissionKeyFor(action: string, table?: string) {
   if (["set_merchant_badges", "set_merchant_trial"].includes(action)) return "monetization";
   if (["assign_complaint_admin", "send_complaint_message_admin", "resolve_complaint_admin", "set_complaint_status_admin", "set_support_complaint_labels"].includes(action)) return "complaints";
   if (action === "signed_admin_file") return "merchant_approvals";
+  if (action === "review_merchant_document") return "merchant_approvals";
+  if (action === "review_branch_document") return "branch_approvals";
   if (action === "update_referral_settings") return "referrals";
   if (action === "set_user_password" || action === "delete_user_account")
     return "users";
@@ -2579,6 +2583,45 @@ async function removeAdminStaffAccess(
   return { id: targetUserId, fallback_role: fallbackRole, admin_access_removed: true };
 }
 
+async function reviewApprovalDocument(
+  service: ServiceClient,
+  actorId: string,
+  documentId: string,
+  approved: boolean,
+  rejectionReason: string | null,
+  expectedScope: "merchant" | "branch",
+) {
+  const { data: before, error: lookupError } = await service
+    .from("merchant_documents")
+    .select("id,merchant_id,branch_id,kind,status,rejection_reason")
+    .eq("id", documentId)
+    .maybeSingle();
+
+  if (lookupError) throw new Error(lookupError.message);
+  if (!before) throw new Error("document_not_found");
+
+  const isBranchDocument = Boolean(before.branch_id);
+  if (expectedScope === "branch" && !isBranchDocument) {
+    throw new Error("branch_document_required");
+  }
+  if (expectedScope === "merchant" && isBranchDocument) {
+    throw new Error("merchant_document_required");
+  }
+  if (!approved && (!rejectionReason || rejectionReason.trim().length < 3)) {
+    throw new Error("rejection_reason_required");
+  }
+
+  const { data, error } = await service.rpc("admin_review_merchant_document_as", {
+    p_actor_id: actorId,
+    p_document_id: documentId,
+    p_approved: approved,
+    p_rejection_reason: approved ? null : rejectionReason?.trim() ?? null,
+  });
+  if (error) throw new Error(error.message);
+
+  return data;
+}
+
 async function getAdminProfile(service: ServiceClient, auth: AdminAuth) {
   const { data: userRow, error: userError } = await service
     .from("users")
@@ -2849,8 +2892,48 @@ export async function GET(req: NextRequest) {
         return jsonError(error.message, 400);
       }
 
+      let sectionRows = ((data ?? []) as AnyRow[]);
+      if (["merchant-approvals", "branch-approvals"].includes(section.id) && sectionRows.length > 0) {
+        const ids = sectionRows
+          .map((row) => String(row.id ?? "").trim())
+          .filter(Boolean);
+
+        let documentsQuery = service
+          .from("merchant_documents")
+          .select("id,merchant_id,branch_id,manager_name,kind,storage_bucket,storage_path,mime_type,file_size_bytes,status,rejection_reason,reviewed_at,created_at")
+          .order("created_at", { ascending: true });
+
+        documentsQuery =
+          section.id === "merchant-approvals"
+            ? documentsQuery.in("merchant_id", ids).is("branch_id", null)
+            : documentsQuery.in("branch_id", ids);
+
+        const { data: documentRows, error: documentsError } = await documentsQuery;
+        if (documentsError) {
+          return jsonError(documentsError.message, 400);
+        }
+
+        const documentsByTarget = new Map<string, AnyRow[]>();
+        for (const document of (documentRows ?? []) as AnyRow[]) {
+          const targetId = String(
+            section.id === "merchant-approvals"
+              ? document.merchant_id ?? ""
+              : document.branch_id ?? "",
+          ).trim();
+          if (!targetId) continue;
+          const current = documentsByTarget.get(targetId) ?? [];
+          current.push(document);
+          documentsByTarget.set(targetId, current);
+        }
+
+        sectionRows = sectionRows.map((row) => ({
+          ...row,
+          approval_documents: documentsByTarget.get(String(row.id ?? "")) ?? [],
+        }));
+      }
+
       return NextResponse.json(
-        { data: data ?? [] },
+        { data: sectionRows },
         { headers: { "Cache-Control": "no-store, max-age=0" } },
       );
     }
@@ -2964,6 +3047,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: { url } });
     } catch (fileError) {
       return jsonError(serviceActionErrorMessage(fileError), 400);
+    }
+  }
+
+  if (action === "review_merchant_document" || action === "review_branch_document") {
+    try {
+      const documentId = requiredText(id, "document_id");
+      const approved = body.payload?.approved === true;
+      const reason = String(body.payload?.reason ?? "").trim() || null;
+      const result = await reviewApprovalDocument(
+        service,
+        auth.userId,
+        documentId,
+        approved,
+        reason,
+        action === "review_branch_document" ? "branch" : "merchant",
+      );
+      return NextResponse.json({ data: result });
+    } catch (documentError) {
+      return jsonError(serviceActionErrorMessage(documentError), 400);
     }
   }
 

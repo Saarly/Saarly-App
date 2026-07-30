@@ -9,8 +9,10 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  Check,
   ChevronDown,
   ChevronLeft,
+  Eye,
   ImageUp,
   Plus,
   RefreshCw,
@@ -209,8 +211,8 @@ export function DataSection({
     return grouped;
   }, [filteredRows]);
 
-  const loadRows = useCallback(async () => {
-    if (!section.source) return;
+  const loadRows = useCallback(async (): Promise<Row[]> => {
+    if (!section.source) return [];
     setLoading(true);
     setError(null);
 
@@ -220,7 +222,7 @@ export function DataSection({
       setRows([]);
       setError(humanizeAdminError("auth_required", lang));
       setLoading(false);
-      return;
+      return [];
     }
 
     const response = await fetch(`/api/admin/action?section=${encodeURIComponent(section.id)}`, {
@@ -234,9 +236,11 @@ export function DataSection({
       error?: string;
     };
 
-    setRows((payload.data ?? []) as Row[]);
+    const loadedRows = (payload.data ?? []) as Row[];
+    setRows(loadedRows);
     setError(response.ok ? null : humanizeAdminError(payload.error ?? "load_failed", lang));
     setLoading(false);
+    return loadedRows;
   }, [lang, section.id, section.source]);
 
   const loadLocationOptions = useCallback(async () => {
@@ -371,6 +375,40 @@ export function DataSection({
       );
     }
     return payload;
+  }
+
+  async function reviewApprovalDocument(document: Row, approved: boolean) {
+    const documentId = String(document.id ?? "").trim();
+    if (!documentId) return;
+
+    let reason = "";
+    if (!approved) {
+      reason = window.prompt(t("reason", lang))?.trim() ?? "";
+      if (!reason) return;
+    }
+
+    try {
+      await postAdminAction({
+        action:
+          section.id === "branch-approvals"
+            ? "review_branch_document"
+            : "review_merchant_document",
+        id: documentId,
+        payload: { approved, reason: approved ? null : reason },
+      });
+
+      const selectedId = reviewingDetails
+        ? rowIdFor(section, reviewingDetails)
+        : "";
+      const refreshedRows = await loadRows();
+      if (selectedId) {
+        setReviewingDetails(
+          refreshedRows.find((item) => rowIdFor(section, item) === selectedId) ?? null,
+        );
+      }
+    } catch (reviewError) {
+      setError(humanizeAdminError(reviewError, lang));
+    }
   }
 
   async function uploadAdBannerImage(file: File | null) {
@@ -1389,6 +1427,9 @@ export function DataSection({
           section={section}
           row={reviewingDetails}
           onClose={() => setReviewingDetails(null)}
+          onReviewDocument={(document, approved) =>
+            void reviewApprovalDocument(document, approved)
+          }
         />
       ) : null}
     </section>
@@ -2474,12 +2515,21 @@ function ReviewDetailsModal({
   section,
   row,
   onClose,
+  onReviewDocument,
 }: {
   lang: Lang;
   section: SectionConfig;
   row: Row;
   onClose: () => void;
+  onReviewDocument: (document: Row, approved: boolean) => void;
 }) {
+  const approvalDocuments = useMemo(
+    () =>
+      Array.isArray(row.approval_documents)
+        ? (row.approval_documents as Row[])
+        : [],
+    [row.approval_documents],
+  );
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [loadingImages, setLoadingImages] = useState(true);
 
@@ -2508,11 +2558,16 @@ function ReviewDetailsModal({
   }, [row, section.id]);
 
   useEffect(() => {
-    async function resolveUrl(path: unknown, bucket: unknown, fallbackBucket: string) {
-      if (typeof path !== "string" || !path.trim()) return "";
+    async function resolveUrl(
+      key: string,
+      path: unknown,
+      bucket: unknown,
+      fallbackBucket: string,
+    ) {
+      if (typeof path !== "string" || !path.trim()) return [key, ""] as const;
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      if (!token) return "";
+      if (!token) return [key, ""] as const;
       const response = await fetch("/api/admin/action", {
         method: "POST",
         headers: {
@@ -2531,23 +2586,31 @@ function ReviewDetailsModal({
       const payload = (await response.json().catch(() => ({}))) as {
         data?: { url?: string };
       };
-      return response.ok ? String(payload.data?.url ?? "") : "";
+      return [key, response.ok ? String(payload.data?.url ?? "") : ""] as const;
     }
 
     async function loadImages() {
       setLoadingImages(true);
-      const entries = await Promise.all(
-        documentSpecs.map(async (spec) => {
-          const bucket = spec.bucketKey ? row[spec.bucketKey] : null;
-          const url = await resolveUrl(row[spec.key], bucket, spec.fallbackBucket);
-          return [spec.key, url] as const;
-        }),
-      );
+      const sourceEntries =
+        approvalDocuments.length > 0
+          ? approvalDocuments.map((document) =>
+              resolveUrl(
+                String(document.id ?? ""),
+                document.storage_path,
+                document.storage_bucket,
+                approvalDocumentFallbackBucket(document.kind),
+              ),
+            )
+          : documentSpecs.map((spec) => {
+              const bucket = spec.bucketKey ? row[spec.bucketKey] : null;
+              return resolveUrl(spec.key, row[spec.key], bucket, spec.fallbackBucket);
+            });
+      const entries = await Promise.all(sourceEntries);
       setImageUrls(Object.fromEntries(entries));
       setLoadingImages(false);
     }
     void loadImages();
-  }, [documentSpecs, row]);
+  }, [approvalDocuments, documentSpecs, row]);
 
   const detailItems = reviewDetailItems(section.id, row, lang);
 
@@ -2558,8 +2621,8 @@ function ReviewDetailsModal({
         <h2>{lang === "ar" ? "مراجعة بيانات ومستندات الطلب" : "Review application details and documents"}</h2>
         <p className="muted">
           {lang === "ar"
-            ? "الصور والمستندات معروضة للمراجعة داخل صفحة الموافقة، ولا توجد خطوة اعتماد منفصلة لها."
-            : "Images and documents are reviewed here and do not require a separate approval step."}
+            ? "راجع كل ملف من هنا واقبله أو ارفضه، وبعدها اتخذ قرار قبول أو رفض المتجر أو الفرع من صفحة الموافقات."
+            : "Review and approve or reject each file here, then make the final store or branch decision from the approvals page."}
         </p>
         <div className="review-details-grid">
           {detailItems.map((item) => (
@@ -2573,38 +2636,136 @@ function ReviewDetailsModal({
         <h3 className="review-documents-title">{lang === "ar" ? "الصور والمستندات" : "Images and documents"}</h3>
         {loadingImages ? (
           <div className="empty-state">{t("loading", lang)}</div>
-        ) : (
-          <div className="review-documents-grid">
-            {documentSpecs.map((spec) => {
-              const url = imageUrls[spec.key];
-              const label = lang === "ar" ? spec.ar : spec.en;
+        ) : approvalDocuments.length > 0 ? (
+          <div className="approval-document-list">
+            {approvalDocuments.map((document, index) => {
+              const documentId = String(document.id ?? "");
+              const url = imageUrls[documentId];
+              const label = approvalDocumentKindLabel(document.kind, lang);
+              const status = String(document.status ?? "pending");
               return (
-                <article className="review-document-card" key={spec.key}>
-                  <strong>{label}</strong>
-                  {url ? (
-                    <a href={url} target="_blank" rel="noreferrer">
-                      <AdminImage src={url} alt={label} width={720} height={520} sizes="(max-width: 768px) 100vw, 360px" preserveOriginal />
-                      <span>{lang === "ar" ? "فتح بالحجم الكامل" : "Open full size"}</span>
-                    </a>
-                  ) : (
-                    <div className="missing-document">
-                      <ImageUp size={28} />
-                      <span>
-                        {spec.optional
-                          ? lang === "ar" ? "غير مرفوع أو غير مطلوب" : "Not uploaded or not required"
-                          : lang === "ar" ? "لم يتم رفع هذه الصورة" : "This image was not uploaded"}
-                      </span>
-                    </div>
-                  )}
+                <article className="approval-document-row" key={documentId || `${label}-${index}`}>
+                  <div className="approval-document-summary">
+                    <strong>{label}</strong>
+                    <span className={`status-pill ${approvalDocumentStatusTone(status)}`}>
+                      {approvalDocumentStatusLabel(status, lang)}
+                    </span>
+                    {document.rejection_reason ? (
+                      <small>
+                        {lang === "ar" ? "سبب الرفض: " : "Rejection reason: "}
+                        {String(document.rejection_reason)}
+                      </small>
+                    ) : null}
+                  </div>
+                  <div className="row-actions">
+                    {url ? (
+                      <a className="tiny-button" href={url} target="_blank" rel="noreferrer">
+                        <Eye size={15} />
+                        {lang === "ar" ? "عرض الملف" : "View file"}
+                      </a>
+                    ) : (
+                      <button className="tiny-button" type="button" disabled>
+                        <Eye size={15} />
+                        {lang === "ar" ? "الملف غير متاح" : "File unavailable"}
+                      </button>
+                    )}
+                    <button
+                      className="tiny-button"
+                      type="button"
+                      disabled={status === "approved"}
+                      onClick={() => onReviewDocument(document, true)}
+                    >
+                      <Check size={15} />
+                      {lang === "ar" ? "قبول الملف" : "Approve file"}
+                    </button>
+                    <button
+                      className="tiny-button danger"
+                      type="button"
+                      disabled={status === "rejected"}
+                      onClick={() => onReviewDocument(document, false)}
+                    >
+                      <X size={15} />
+                      {lang === "ar" ? "رفض الملف" : "Reject file"}
+                    </button>
+                  </div>
                 </article>
               );
             })}
           </div>
+        ) : (
+          <>
+            <div className="review-documents-grid">
+              {documentSpecs.map((spec) => {
+                const url = imageUrls[spec.key];
+                const label = lang === "ar" ? spec.ar : spec.en;
+                return (
+                  <article className="review-document-card" key={spec.key}>
+                    <strong>{label}</strong>
+                    {url ? (
+                      <a href={url} target="_blank" rel="noreferrer">
+                        <AdminImage src={url} alt={label} width={720} height={520} sizes="(max-width: 768px) 100vw, 360px" preserveOriginal />
+                        <span>{lang === "ar" ? "فتح بالحجم الكامل" : "Open full size"}</span>
+                      </a>
+                    ) : (
+                      <div className="missing-document">
+                        <ImageUp size={28} />
+                        <span>
+                          {spec.optional
+                            ? lang === "ar" ? "غير مرفوع أو غير مطلوب" : "Not uploaded or not required"
+                            : lang === "ar" ? "لم يتم رفع هذه الصورة" : "This image was not uploaded"}
+                        </span>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+            <p className="muted approval-documents-legacy-note">
+              {lang === "ar"
+                ? "السجل ده قديم ومفيش له حالات مراجعة ملفات منفصلة؛ القرار النهائي للمتجر أو الفرع ما زال متاحًا من صفحة الموافقات."
+                : "This is a legacy record without separate document review states; the final store or branch decision remains available on the approvals page."}
+            </p>
+          </>
         )}
-
       </div>
     </div>
   );
+}
+
+function approvalDocumentKindLabel(value: unknown, lang: Lang) {
+  const kind = String(value ?? "");
+  const labels: Record<string, { ar: string; en: string }> = {
+    store_front: { ar: "صورة واجهة المتجر", en: "Storefront image" },
+    store_owner_id_front: { ar: "بطاقة صاحب المتجر - الوجه الأمامي", en: "Store owner ID - front" },
+    store_owner_id_back: { ar: "بطاقة صاحب المتجر - الوجه الخلفي", en: "Store owner ID - back" },
+    commercial_register: { ar: "السجل التجاري", en: "Commercial register" },
+    branch_front: { ar: "صورة واجهة الفرع", en: "Branch storefront image" },
+    branch_manager_id_front: { ar: "بطاقة مدير الفرع - الوجه الأمامي", en: "Branch manager ID - front" },
+    branch_manager_id_back: { ar: "بطاقة مدير الفرع - الوجه الخلفي", en: "Branch manager ID - back" },
+  };
+  return labels[kind]?.[lang] ?? (lang === "ar" ? "مستند" : "Document");
+}
+
+function approvalDocumentFallbackBucket(value: unknown) {
+  const kind = String(value ?? "");
+  if (kind === "store_front" || kind === "branch_front") return "storefront-photos";
+  if (kind === "commercial_register") return "commercial-registers";
+  return "merchant-ids";
+}
+
+function approvalDocumentStatusLabel(value: string, lang: Lang) {
+  const labels: Record<string, { ar: string; en: string }> = {
+    pending: { ar: "بانتظار المراجعة", en: "Pending review" },
+    approved: { ar: "مقبول", en: "Approved" },
+    rejected: { ar: "مرفوض", en: "Rejected" },
+  };
+  return labels[value]?.[lang] ?? value;
+}
+
+function approvalDocumentStatusTone(value: string) {
+  if (value === "approved") return "active";
+  if (value === "rejected") return "expired";
+  return "muted";
 }
 
 function reviewDetailItems(sectionId: string, row: Row, lang: Lang) {
