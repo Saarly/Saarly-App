@@ -2583,6 +2583,107 @@ async function removeAdminStaffAccess(
   return { id: targetUserId, fallback_role: fallbackRole, admin_access_removed: true };
 }
 
+const legacyApprovalDocumentSources = {
+  merchant: {
+    view: "admin_active_merchants_readable",
+    kinds: {
+      store_front: { path: "store_front_image_url", bucket: "store_front_bucket", fallbackBucket: "storefront-photos" },
+      store_owner_id_front: { path: "owner_id_front_image_url", bucket: "owner_id_front_bucket", fallbackBucket: "merchant-ids" },
+      store_owner_id_back: { path: "owner_id_back_image_url", bucket: "owner_id_back_bucket", fallbackBucket: "merchant-ids" },
+      commercial_register: { path: "commercial_register_url", bucket: "commercial_register_bucket", fallbackBucket: "commercial-registers" },
+    },
+  },
+  branch: {
+    view: "admin_branches_readable",
+    kinds: {
+      branch_front: { path: "front_image_url", bucket: "front_image_bucket", fallbackBucket: "storefront-photos" },
+      branch_manager_id_front: { path: "manager_id_front_image_url", bucket: "manager_id_front_bucket", fallbackBucket: "merchant-ids" },
+      branch_manager_id_back: { path: "manager_id_back_image_url", bucket: "manager_id_back_bucket", fallbackBucket: "merchant-ids" },
+      commercial_register: { path: "commercial_register_url", bucket: "commercial_register_bucket", fallbackBucket: "commercial-registers" },
+    },
+  },
+} as const;
+
+function inferApprovalMimeType(path: string) {
+  const normalized = path.split("?")[0].toLowerCase();
+  if (normalized.endsWith(".pdf")) return "application/pdf";
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+  return null;
+}
+
+async function ensureLegacyApprovalDocument(
+  service: ServiceClient,
+  payload: AnyRow | undefined,
+  expectedScope: "merchant" | "branch",
+) {
+  const legacy = (payload?.legacy_document ?? null) as AnyRow | null;
+  if (!legacy) throw new Error("document_id_required");
+
+  const targetId = requiredText(legacy.target_id, "target_id");
+  const kind = requiredText(legacy.kind, "document_kind");
+  const scopeConfig = legacyApprovalDocumentSources[expectedScope];
+  const sourceConfig = scopeConfig.kinds[kind as keyof typeof scopeConfig.kinds];
+  if (!sourceConfig) throw new Error("invalid_document_kind");
+
+  const { data: sourceRow, error: sourceError } = await service
+    .from(scopeConfig.view)
+    .select("*")
+    .eq("id", targetId)
+    .maybeSingle();
+  if (sourceError) throw new Error(sourceError.message);
+  if (!sourceRow) throw new Error("approval_target_not_found");
+
+  const storagePath = String(sourceRow[sourceConfig.path] ?? "").trim();
+  if (!storagePath) throw new Error("document_not_uploaded");
+  const storageBucket = String(
+    (sourceConfig.bucket ? sourceRow[sourceConfig.bucket] : null)
+      ?? sourceConfig.fallbackBucket,
+  ).trim() || sourceConfig.fallbackBucket;
+
+  const merchantId = expectedScope === "merchant"
+    ? targetId
+    : requiredText(sourceRow.merchant_id, "merchant_id");
+  const branchId = expectedScope === "branch" ? targetId : null;
+
+  let existingQuery = service
+    .from("merchant_documents")
+    .select("id")
+    .eq("merchant_id", merchantId)
+    .eq("kind", kind)
+    .eq("storage_path", storagePath)
+    .limit(1);
+  existingQuery = branchId
+    ? existingQuery.eq("branch_id", branchId)
+    : existingQuery.is("branch_id", null);
+  const { data: existing, error: existingError } = await existingQuery.maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+  if (existing?.id) return String(existing.id);
+
+  const { data: inserted, error: insertError } = await service
+    .from("merchant_documents")
+    .insert({
+      merchant_id: merchantId,
+      branch_id: branchId,
+      manager_name: expectedScope === "branch" ? sourceRow.manager_name ?? null : null,
+      kind,
+      storage_bucket: storageBucket,
+      storage_path: storagePath,
+      mime_type: inferApprovalMimeType(storagePath),
+      status: "pending",
+      metadata: {
+        source: "legacy_approval_fields",
+        imported_during_admin_review: true,
+      },
+    })
+    .select("id")
+    .single();
+  if (insertError) throw new Error(insertError.message);
+  return requiredText(inserted?.id, "document_id");
+}
+
 async function reviewApprovalDocument(
   service: ServiceClient,
   actorId: string,
@@ -3052,7 +3153,12 @@ export async function POST(req: NextRequest) {
 
   if (action === "review_merchant_document" || action === "review_branch_document") {
     try {
-      const documentId = requiredText(id, "document_id");
+      const expectedScope = action === "review_branch_document" ? "branch" : "merchant";
+      const documentId = String(id ?? "").trim() || await ensureLegacyApprovalDocument(
+        service,
+        body.payload,
+        expectedScope,
+      );
       const approved = body.payload?.approved === true;
       const reason = String(body.payload?.reason ?? "").trim() || null;
       const result = await reviewApprovalDocument(
@@ -3061,7 +3167,7 @@ export async function POST(req: NextRequest) {
         documentId,
         approved,
         reason,
-        action === "review_branch_document" ? "branch" : "merchant",
+        expectedScope,
       );
       return NextResponse.json({ data: result });
     } catch (documentError) {

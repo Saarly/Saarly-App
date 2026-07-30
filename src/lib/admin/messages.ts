@@ -158,6 +158,24 @@ export function humanizeAdminError(error: unknown, lang: Lang) {
       : "Hostinger rejected the mailbox login. Review the info@saarly.app mailbox password in SMTP_PASS.";
   }
 
+  if (message.includes("document_not_uploaded")) {
+    return lang === "ar"
+      ? "الملف ده مش مرفوع، لذلك لا يمكن قبوله أو رفضه."
+      : "This file was not uploaded, so it cannot be approved or rejected.";
+  }
+
+  if (message.includes("approval_target_not_found")) {
+    return lang === "ar"
+      ? "تعذر العثور على طلب المتجر أو الفرع. حدّث الصفحة وحاول مرة أخرى."
+      : "The store or branch application could not be found. Refresh and try again.";
+  }
+
+  if (message.includes("invalid_document_kind") || message.includes("document_id_required")) {
+    return lang === "ar"
+      ? "بيانات الملف غير مكتملة. حدّث الصفحة ثم حاول مرة أخرى."
+      : "The file details are incomplete. Refresh and try again.";
+  }
+
   if (message.includes("action_failed") || message.includes("load_failed")) {
     return lang === "ar"
       ? "تعذر إتمام العملية. حدّث الصفحة ثم حاول مرة أخرى."

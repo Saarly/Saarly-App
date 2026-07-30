@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronLeft,
   Eye,
+  FileText,
   ImageUp,
   Plus,
   RefreshCw,
@@ -379,7 +380,8 @@ export function DataSection({
 
   async function reviewApprovalDocument(document: Row, approved: boolean) {
     const documentId = String(document.id ?? "").trim();
-    if (!documentId) return;
+    const isLegacySource = document._legacy_source === true;
+    if (!documentId && !isLegacySource) return;
 
     let reason = "";
     if (!approved) {
@@ -393,8 +395,17 @@ export function DataSection({
           section.id === "branch-approvals"
             ? "review_branch_document"
             : "review_merchant_document",
-        id: documentId,
-        payload: { approved, reason: approved ? null : reason },
+        id: documentId || undefined,
+        payload: {
+          approved,
+          reason: approved ? null : reason,
+          legacy_document: isLegacySource
+            ? {
+                target_id: String(document._target_id ?? reviewingDetails?.id ?? ""),
+                kind: String(document.kind ?? ""),
+              }
+            : undefined,
+        },
       });
 
       const selectedId = reviewingDetails
@@ -2536,18 +2547,19 @@ function ReviewDetailsModal({
   const documentSpecs = useMemo(() => {
     if (section.id === "merchant-approvals") {
       return [
-        { key: "store_front_image_url", bucketKey: "store_front_bucket", fallbackBucket: "storefront-photos", ar: "واجهة المتجر", en: "Storefront" },
-        { key: "owner_id_front_image_url", bucketKey: "owner_id_front_bucket", fallbackBucket: "merchant-ids", ar: "هوية المالك - الوجه الأمامي", en: "Owner ID - front" },
-        { key: "owner_id_back_image_url", bucketKey: "owner_id_back_bucket", fallbackBucket: "merchant-ids", ar: "هوية المالك - الوجه الخلفي", en: "Owner ID - back" },
-        { key: "commercial_register_url", bucketKey: "commercial_register_bucket", fallbackBucket: "commercial-registers", ar: "السجل التجاري", en: "Commercial register", optional: true },
+        { key: "store_front_image_url", kind: "store_front", bucketKey: "store_front_bucket", fallbackBucket: "storefront-photos", ar: "واجهة المتجر", en: "Storefront" },
+        { key: "owner_id_front_image_url", kind: "store_owner_id_front", bucketKey: "owner_id_front_bucket", fallbackBucket: "merchant-ids", ar: "هوية المالك - الوجه الأمامي", en: "Owner ID - front" },
+        { key: "owner_id_back_image_url", kind: "store_owner_id_back", bucketKey: "owner_id_back_bucket", fallbackBucket: "merchant-ids", ar: "هوية المالك - الوجه الخلفي", en: "Owner ID - back" },
+        { key: "commercial_register_url", kind: "commercial_register", bucketKey: "commercial_register_bucket", fallbackBucket: "commercial-registers", ar: "السجل التجاري", en: "Commercial register", optional: true },
       ];
     }
     return [
-      { key: "front_image_url", fallbackBucket: "storefront-photos", ar: "واجهة الفرع", en: "Branch storefront" },
-      { key: "manager_id_front_image_url", bucketKey: "manager_id_front_bucket", fallbackBucket: "merchant-ids", ar: "هوية مدير الفرع - الوجه الأمامي", en: "Branch manager ID - front" },
-      { key: "manager_id_back_image_url", bucketKey: "manager_id_back_bucket", fallbackBucket: "merchant-ids", ar: "هوية مدير الفرع - الوجه الخلفي", en: "Branch manager ID - back" },
+      { key: "front_image_url", kind: "branch_front", fallbackBucket: "storefront-photos", ar: "واجهة الفرع", en: "Branch storefront" },
+      { key: "manager_id_front_image_url", kind: "branch_manager_id_front", bucketKey: "manager_id_front_bucket", fallbackBucket: "merchant-ids", ar: "هوية مدير الفرع - الوجه الأمامي", en: "Branch manager ID - front" },
+      { key: "manager_id_back_image_url", kind: "branch_manager_id_back", bucketKey: "manager_id_back_bucket", fallbackBucket: "merchant-ids", ar: "هوية مدير الفرع - الوجه الخلفي", en: "Branch manager ID - back" },
       {
         key: "commercial_register_url",
+        kind: "commercial_register",
         bucketKey: "commercial_register_bucket",
         fallbackBucket: "commercial-registers",
         ar: row.uses_parent_commercial_register === false ? "السجل التجاري المستقل للفرع" : "السجل التجاري للمتجر الرئيسي",
@@ -2556,6 +2568,56 @@ function ReviewDetailsModal({
       },
     ];
   }, [row, section.id]);
+
+  const displayDocuments = useMemo(() => {
+    const storedByKind = new Map(
+      approvalDocuments.map((document) => [String(document.kind ?? ""), document]),
+    );
+    const specifiedKinds = new Set(documentSpecs.map((spec) => spec.kind));
+
+    const specifiedDocuments = documentSpecs.map((spec) => {
+      const stored = storedByKind.get(spec.kind);
+      if (stored) {
+        return {
+          ...stored,
+          _display_key: `stored:${String(stored.id ?? spec.kind)}`,
+          _legacy_source: false,
+          _optional: Boolean(spec.optional),
+          _label_ar: spec.ar,
+          _label_en: spec.en,
+        } satisfies Row;
+      }
+
+      const storagePath = row[spec.key];
+      const storageBucket = spec.bucketKey
+        ? row[spec.bucketKey] ?? spec.fallbackBucket
+        : spec.fallbackBucket;
+      return {
+        id: "",
+        kind: spec.kind,
+        storage_path: storagePath,
+        storage_bucket: storageBucket,
+        mime_type: inferApprovalDocumentMimeType(storagePath),
+        status: "pending",
+        _display_key: `legacy:${spec.kind}`,
+        _legacy_source: true,
+        _target_id: row.id,
+        _optional: Boolean(spec.optional),
+        _label_ar: spec.ar,
+        _label_en: spec.en,
+      } satisfies Row;
+    });
+
+    const extraStoredDocuments = approvalDocuments
+      .filter((document) => !specifiedKinds.has(String(document.kind ?? "")))
+      .map((document, index) => ({
+        ...document,
+        _display_key: `stored-extra:${String(document.id ?? index)}`,
+        _legacy_source: false,
+      } satisfies Row));
+
+    return [...specifiedDocuments, ...extraStoredDocuments];
+  }, [approvalDocuments, documentSpecs, row]);
 
   useEffect(() => {
     async function resolveUrl(
@@ -2591,26 +2653,20 @@ function ReviewDetailsModal({
 
     async function loadImages() {
       setLoadingImages(true);
-      const sourceEntries =
-        approvalDocuments.length > 0
-          ? approvalDocuments.map((document) =>
-              resolveUrl(
-                String(document.id ?? ""),
-                document.storage_path,
-                document.storage_bucket,
-                approvalDocumentFallbackBucket(document.kind),
-              ),
-            )
-          : documentSpecs.map((spec) => {
-              const bucket = spec.bucketKey ? row[spec.bucketKey] : null;
-              return resolveUrl(spec.key, row[spec.key], bucket, spec.fallbackBucket);
-            });
+      const sourceEntries = displayDocuments.map((document) =>
+        resolveUrl(
+          String(document._display_key ?? document.id ?? ""),
+          document.storage_path,
+          document.storage_bucket,
+          approvalDocumentFallbackBucket(document.kind),
+        ),
+      );
       const entries = await Promise.all(sourceEntries);
       setImageUrls(Object.fromEntries(entries));
       setLoadingImages(false);
     }
     void loadImages();
-  }, [approvalDocuments, documentSpecs, row]);
+  }, [displayDocuments]);
 
   const detailItems = reviewDetailItems(section.id, row, lang);
 
@@ -2636,43 +2692,86 @@ function ReviewDetailsModal({
         <h3 className="review-documents-title">{lang === "ar" ? "الصور والمستندات" : "Images and documents"}</h3>
         {loadingImages ? (
           <div className="empty-state">{t("loading", lang)}</div>
-        ) : approvalDocuments.length > 0 ? (
-          <div className="approval-document-list">
-            {approvalDocuments.map((document, index) => {
-              const documentId = String(document.id ?? "");
-              const url = imageUrls[documentId];
-              const label = approvalDocumentKindLabel(document.kind, lang);
-              const status = String(document.status ?? "pending");
+        ) : (
+          <div className="approval-document-grid">
+            {displayDocuments.map((document, index) => {
+              const displayKey = String(document._display_key ?? document.id ?? index);
+              const url = imageUrls[displayKey];
+              const storagePath = String(document.storage_path ?? "").trim();
+              const label = String(
+                (lang === "ar" ? document._label_ar : document._label_en)
+                  ?? approvalDocumentKindLabel(document.kind, lang),
+              );
+              const status = storagePath ? String(document.status ?? "pending") : "unavailable";
+              const isImage = approvalDocumentIsImage(document);
+              const isPdf = approvalDocumentIsPdf(document);
+              const canReview = Boolean(storagePath && url);
+
               return (
-                <article className="approval-document-row" key={documentId || `${label}-${index}`}>
+                <article className="approval-document-card" key={displayKey}>
                   <div className="approval-document-summary">
                     <strong>{label}</strong>
                     <span className={`status-pill ${approvalDocumentStatusTone(status)}`}>
                       {approvalDocumentStatusLabel(status, lang)}
                     </span>
-                    {document.rejection_reason ? (
-                      <small>
-                        {lang === "ar" ? "سبب الرفض: " : "Rejection reason: "}
-                        {String(document.rejection_reason)}
-                      </small>
-                    ) : null}
                   </div>
-                  <div className="row-actions">
+
+                  <div className="approval-document-preview">
+                    {url && isImage ? (
+                      <a href={url} target="_blank" rel="noreferrer" aria-label={`${lang === "ar" ? "فتح" : "Open"} ${label}`}>
+                        <AdminImage
+                          className="approval-document-image"
+                          src={url}
+                          alt={label}
+                          width={900}
+                          height={620}
+                          sizes="(max-width: 768px) 100vw, 420px"
+                          preserveOriginal
+                        />
+                      </a>
+                    ) : url && isPdf ? (
+                      <iframe
+                        className="approval-document-pdf"
+                        src={`${url}#toolbar=0&navpanes=0`}
+                        title={label}
+                      />
+                    ) : url ? (
+                      <a className="approval-document-generic" href={url} target="_blank" rel="noreferrer">
+                        <FileText size={38} />
+                        <span>{lang === "ar" ? "اضغط لفتح المستند" : "Open document"}</span>
+                      </a>
+                    ) : (
+                      <div className="missing-document">
+                        <ImageUp size={28} />
+                        <span>
+                          {!storagePath
+                            ? document._optional
+                              ? lang === "ar" ? "غير مرفوع أو غير مطلوب" : "Not uploaded or not required"
+                              : lang === "ar" ? "لم يتم رفع هذا الملف" : "This file was not uploaded"
+                            : lang === "ar" ? "تعذر تجهيز معاينة الملف" : "The file preview could not be prepared"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {document.rejection_reason ? (
+                    <small className="approval-document-rejection">
+                      {lang === "ar" ? "سبب الرفض: " : "Rejection reason: "}
+                      {String(document.rejection_reason)}
+                    </small>
+                  ) : null}
+
+                  <div className="row-actions approval-document-actions">
                     {url ? (
                       <a className="tiny-button" href={url} target="_blank" rel="noreferrer">
                         <Eye size={15} />
-                        {lang === "ar" ? "عرض الملف" : "View file"}
+                        {lang === "ar" ? "فتح بالحجم الكامل" : "Open full size"}
                       </a>
-                    ) : (
-                      <button className="tiny-button" type="button" disabled>
-                        <Eye size={15} />
-                        {lang === "ar" ? "الملف غير متاح" : "File unavailable"}
-                      </button>
-                    )}
+                    ) : null}
                     <button
                       className="tiny-button"
                       type="button"
-                      disabled={status === "approved"}
+                      disabled={!canReview || status === "approved"}
                       onClick={() => onReviewDocument(document, true)}
                     >
                       <Check size={15} />
@@ -2681,7 +2780,7 @@ function ReviewDetailsModal({
                     <button
                       className="tiny-button danger"
                       type="button"
-                      disabled={status === "rejected"}
+                      disabled={!canReview || status === "rejected"}
                       onClick={() => onReviewDocument(document, false)}
                     >
                       <X size={15} />
@@ -2692,44 +2791,30 @@ function ReviewDetailsModal({
               );
             })}
           </div>
-        ) : (
-          <>
-            <div className="review-documents-grid">
-              {documentSpecs.map((spec) => {
-                const url = imageUrls[spec.key];
-                const label = lang === "ar" ? spec.ar : spec.en;
-                return (
-                  <article className="review-document-card" key={spec.key}>
-                    <strong>{label}</strong>
-                    {url ? (
-                      <a href={url} target="_blank" rel="noreferrer">
-                        <AdminImage src={url} alt={label} width={720} height={520} sizes="(max-width: 768px) 100vw, 360px" preserveOriginal />
-                        <span>{lang === "ar" ? "فتح بالحجم الكامل" : "Open full size"}</span>
-                      </a>
-                    ) : (
-                      <div className="missing-document">
-                        <ImageUp size={28} />
-                        <span>
-                          {spec.optional
-                            ? lang === "ar" ? "غير مرفوع أو غير مطلوب" : "Not uploaded or not required"
-                            : lang === "ar" ? "لم يتم رفع هذه الصورة" : "This image was not uploaded"}
-                        </span>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-            <p className="muted approval-documents-legacy-note">
-              {lang === "ar"
-                ? "السجل ده قديم ومفيش له حالات مراجعة ملفات منفصلة؛ القرار النهائي للمتجر أو الفرع ما زال متاحًا من صفحة الموافقات."
-                : "This is a legacy record without separate document review states; the final store or branch decision remains available on the approvals page."}
-            </p>
-          </>
         )}
       </div>
     </div>
   );
+}
+
+function inferApprovalDocumentMimeType(value: unknown) {
+  const path = String(value ?? "").split("?")[0].toLowerCase();
+  if (path.endsWith(".pdf")) return "application/pdf";
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".webp")) return "image/webp";
+  if (path.endsWith(".gif")) return "image/gif";
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  return "";
+}
+
+function approvalDocumentIsImage(document: Row) {
+  const mime = String(document.mime_type ?? inferApprovalDocumentMimeType(document.storage_path)).toLowerCase();
+  return mime.startsWith("image/");
+}
+
+function approvalDocumentIsPdf(document: Row) {
+  const mime = String(document.mime_type ?? inferApprovalDocumentMimeType(document.storage_path)).toLowerCase();
+  return mime === "application/pdf" || String(document.storage_path ?? "").toLowerCase().split("?")[0].endsWith(".pdf");
 }
 
 function approvalDocumentKindLabel(value: unknown, lang: Lang) {
@@ -2758,6 +2843,7 @@ function approvalDocumentStatusLabel(value: string, lang: Lang) {
     pending: { ar: "بانتظار المراجعة", en: "Pending review" },
     approved: { ar: "مقبول", en: "Approved" },
     rejected: { ar: "مرفوض", en: "Rejected" },
+    unavailable: { ar: "غير مرفوع", en: "Not uploaded" },
   };
   return labels[value]?.[lang] ?? value;
 }
@@ -2765,6 +2851,7 @@ function approvalDocumentStatusLabel(value: string, lang: Lang) {
 function approvalDocumentStatusTone(value: string) {
   if (value === "approved") return "active";
   if (value === "rejected") return "expired";
+  if (value === "unavailable") return "muted";
   return "muted";
 }
 
