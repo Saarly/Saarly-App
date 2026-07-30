@@ -724,6 +724,19 @@ button:not(:disabled):active {
   width: min(900px, 100%);
 }
 
+.store-documents-backdrop {
+  z-index: 50;
+}
+
+.file-preview-backdrop {
+  z-index: 60;
+}
+
+.file-preview-actions {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
 .proof-preview-frame {
   min-height: 280px;
   max-height: min(620px, calc(100vh - 220px));

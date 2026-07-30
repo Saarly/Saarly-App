@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
   BadgeCheck,
   Ban,
   Check,
@@ -1233,8 +1235,7 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
           }}
         />
       ) : null}
-      {filePreview ? <FilePreviewModal lang={lang} preview={filePreview} onClose={() => setFilePreview(null)} /> : null}
-      {documentPreview ? (
+      {documentPreview && !filePreview ? (
         <StoreDocumentsModal
           lang={lang}
           preview={documentPreview}
@@ -1245,6 +1246,14 @@ export function MonetizationConsole({ lang }: { lang: Lang }) {
             const reason = window.prompt(l.reasonPrompt);
             if (reason) void post("review_document", { id: row.id, approved: false, reason });
           }}
+        />
+      ) : null}
+      {filePreview ? (
+        <FilePreviewModal
+          lang={lang}
+          preview={filePreview}
+          onClose={() => setFilePreview(null)}
+          returnToDocuments={Boolean(documentPreview)}
         />
       ) : null}
     </section>
@@ -2296,15 +2305,17 @@ function ManualPlanChangeModal({
 function FilePreviewModal({
   lang,
   preview,
-  onClose
+  onClose,
+  returnToDocuments = false
 }: {
   lang: Lang;
   preview: FilePreview;
   onClose: () => void;
+  returnToDocuments?: boolean;
 }) {
   const l = labels[lang];
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+    <div className="modal-backdrop file-preview-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-card proof-preview-modal" onClick={(event) => event.stopPropagation()}>
         <div className="panel-title-row">
           <div>
@@ -2326,12 +2337,17 @@ function FilePreviewModal({
             </div>
           )}
         </div>
-        <div className="modal-actions">
+        <div className="modal-actions file-preview-actions">
+          {returnToDocuments ? (
+            <button type="button" className="soft-button" onClick={onClose}>
+              {lang === "ar" ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}
+              {lang === "ar" ? "الرجوع لمستندات المتجر" : "Back to store documents"}
+            </button>
+          ) : null}
           <a className="soft-button" href={preview.url} target="_blank" rel="noreferrer">
             <ExternalLink size={17} />
             {l.openFile}
           </a>
-
         </div>
       </div>
     </div>
@@ -2355,7 +2371,7 @@ function StoreDocumentsModal({
 }) {
   const l = labels[lang];
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+    <div className="modal-backdrop store-documents-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-card store-documents-modal" onClick={(event) => event.stopPropagation()}>
         <div className="panel-title-row">
           <div>
