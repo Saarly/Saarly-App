@@ -223,27 +223,50 @@ async function upsertNotification(
   message: NotificationMessage,
 ) {
   if (!userId) return undefined;
+  const dedupeKey = text(message.dedupeKey);
+  if (dedupeKey) {
+    const { data: existing, error: existingError } = await service
+      .from("notifications")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("dedupe_key", dedupeKey)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    const existingId = text((existing as Row | null)?.id);
+    if (existingId) return existingId;
+  }
+
   const { data, error } = await service
     .from("notifications")
-    .upsert(
-      {
-        user_id: userId,
-        type: message.type,
-        title_ar: message.titleAr,
-        title_en: message.titleEn,
-        body_ar: message.bodyAr,
-        body_en: message.bodyEn,
-        deep_link: message.deepLink,
-        is_read: false,
-        dedupe_key: message.dedupeKey,
-        payload: message.payload,
-        push_status: "pending",
-      },
-      { onConflict: "user_id,dedupe_key", ignoreDuplicates: true },
-    )
+    .insert({
+      user_id: userId,
+      type: message.type,
+      title_ar: message.titleAr,
+      title_en: message.titleEn,
+      body_ar: message.bodyAr,
+      body_en: message.bodyEn,
+      deep_link: message.deepLink,
+      is_read: false,
+      dedupe_key: dedupeKey || null,
+      payload: message.payload,
+      push_status: "pending",
+    })
     .select("id")
-    .maybeSingle();
-  if (error) throw error;
+    .single();
+  if (error) {
+    if (dedupeKey) {
+      const { data: raced, error: racedError } = await service
+        .from("notifications")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("dedupe_key", dedupeKey)
+        .maybeSingle();
+      if (racedError) throw racedError;
+      const racedId = text((raced as Row | null)?.id);
+      if (racedId) return racedId;
+    }
+    throw error;
+  }
   return text((data as Row | null)?.id) || undefined;
 }
 

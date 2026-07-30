@@ -649,7 +649,21 @@ function excelColumnLabel(key: string, lang: Lang) {
 
 function downloadExcelRows(name: string, rows: Row[], lang: Lang) {
   const safeRows: Row[] = rows.length ? rows : [{ message: lang === "ar" ? "لا توجد بيانات في هذا التقرير" : "No data in this report" }];
-  const columns = Array.from(new Set(safeRows.flatMap((row) => Object.keys(row)))).slice(0, 30);
+  const allColumns = Array.from(new Set(safeRows.flatMap((row) => Object.keys(row))));
+  const priorityColumns = [
+    "store_name",
+    "merchant_email",
+    lang === "ar" ? "plan_name_ar" : "plan_name_en",
+    "provider",
+    "amount",
+    "final_amount",
+    "currency",
+    "status",
+    "webhook_signature_valid",
+    "processed_at",
+    "created_at",
+  ].filter((key) => allColumns.includes(key));
+  const columns = [...priorityColumns, ...allColumns.filter((key) => !priorityColumns.includes(key))].slice(0, 30);
   downloadExcel({
     filename: name,
     sheetName: name,

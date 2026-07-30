@@ -99,11 +99,28 @@ function moneyValue(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function jsonObject(value: unknown): Row {
+  return isRecord(value) ? value : {};
+}
+
 function safeDate(value: unknown) {
   const raw = text(value);
   if (!raw) return null;
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function dateValue(value: unknown) {
+  const raw = text(value);
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addDays(date: Date, days: number) {
+  const copy = new Date(date.getTime());
+  copy.setUTCDate(copy.getUTCDate() + days);
+  return copy;
 }
 
 function startsWithSafeDate(value: unknown) {
@@ -208,6 +225,150 @@ async function writeAudit(
     old_data: oldData,
     new_data: newData
   });
+}
+
+async function ensureManualPaymentSubscription(
+  service: SupabaseClient,
+  actor: AdminActor,
+  request: Row,
+  operation: "new_subscription" | "renewal"
+) {
+  const requestId = id(request.id);
+  const merchantId = id(request.merchant_id);
+  const planId = id(request.plan_id);
+  if (!requestId || !merchantId || !planId) {
+    throw new Error("manual_payment_subscription_context_missing");
+  }
+
+  const { data: existingSubscriptions, error: existingError } = await service
+    .from("merchant_subscriptions")
+    .select("*")
+    .eq("source_payment_request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (existingError) throw existingError;
+  const existingSubscription = ((existingSubscriptions ?? []) as Row[])[0];
+  if (existingSubscription) return existingSubscription;
+
+  const { data: plan, error: planError } = await service
+    .from("subscription_plans")
+    .select("id,grace_months,duration_days,billing_period_months")
+    .eq("id", planId)
+    .maybeSingle();
+  if (planError) throw planError;
+
+  const { data: currentSubscriptions, error: currentError } = await service
+    .from("merchant_subscriptions")
+    .select("id,ends_at,source_payment_request_id,status")
+    .eq("merchant_id", merchantId)
+    .in("status", ["active", "trialing", "past_due"])
+    .order("ends_at", { ascending: false })
+    .limit(1);
+  if (currentError) throw currentError;
+
+  const now = new Date();
+  const currentSubscription = ((currentSubscriptions ?? []) as Row[])[0] ?? null;
+  const latestEnd = dateValue(currentSubscription?.ends_at);
+  const startsAt = latestEnd && latestEnd.getTime() > now.getTime() ? latestEnd : now;
+  const durationDays = Math.max(
+    1,
+    intValue(request.duration_days, intValue(plan?.duration_days, Math.max(1, intValue(plan?.billing_period_months, 1)) * 30))
+  );
+  const endsAt = addDays(startsAt, durationDays);
+  const planSnapshot = jsonObject(request.plan_snapshot);
+  const priceSnapshot = {
+    ...jsonObject(request.price_snapshot),
+    original_amount: moneyValue(numberValue(request.original_amount, numberValue(jsonObject(request.price_snapshot).original_amount, 0))),
+    discount_percent: moneyValue(numberValue(request.discount_percent, numberValue(jsonObject(request.price_snapshot).discount_percent, 0))),
+    discount_amount: moneyValue(numberValue(request.discount_amount, numberValue(jsonObject(request.price_snapshot).discount_amount, 0))),
+    final_amount: moneyValue(numberValue(request.final_amount, numberValue(jsonObject(request.price_snapshot).final_amount, 0))),
+    currency: safeCurrency(request.currency || jsonObject(request.price_snapshot).currency)
+  };
+  if (currentSubscription) {
+    const previousSourcePaymentRequestId = text(currentSubscription.source_payment_request_id) || null;
+    const { data, error } = await service
+      .from("merchant_subscriptions")
+      .update({
+        plan_id: planId,
+        status: "active",
+        ends_at: endsAt.toISOString(),
+        next_billing_at: endsAt.toISOString(),
+        billing_model: "monthly_subscription",
+        grace_months: Math.max(0, intValue(planSnapshot.grace_months, intValue(plan?.grace_months, 0))),
+        balance_due: 0,
+        metadata: {
+          ...jsonObject(currentSubscription.metadata),
+          source: "manual_payment_request",
+          operation,
+          previous_source_payment_request_id: previousSourcePaymentRequestId,
+          reviewed_request_status: request.status,
+          transfer_reference: text(request.transfer_reference)
+        },
+        source_payment_request_id: requestId,
+        price_snapshot: priceSnapshot,
+        started_by: actor.id,
+        updated_at: now.toISOString()
+      })
+      .eq("id", String(currentSubscription.id))
+      .select("*")
+      .single();
+    if (error) throw error;
+    await writeAudit(
+      service,
+      actor.id,
+      "extend_manual_payment_subscription",
+      "merchant_subscriptions",
+      String((data as Row).id),
+      currentSubscription,
+      data as Row
+    );
+    return data as Row;
+  }
+
+  const subscriptionRow = {
+    merchant_id: merchantId,
+    plan_id: planId,
+    status: "active",
+    starts_at: startsAt.toISOString(),
+    ends_at: endsAt.toISOString(),
+    next_billing_at: endsAt.toISOString(),
+    billing_model: "monthly_subscription",
+    grace_months: Math.max(0, intValue(planSnapshot.grace_months, intValue(plan?.grace_months, 0))),
+    balance_due: 0,
+    auto_renew: false,
+    metadata: {
+      source: "manual_payment_request",
+      operation,
+      reviewed_request_status: request.status,
+      transfer_reference: text(request.transfer_reference)
+    },
+    source_payment_request_id: requestId,
+    price_snapshot: priceSnapshot,
+    started_by: actor.id,
+    created_at: now.toISOString(),
+    updated_at: now.toISOString()
+  };
+
+  const { data, error } = await service
+    .from("merchant_subscriptions")
+    .insert(subscriptionRow)
+    .select("*")
+    .single();
+  if (!error) {
+    await writeAudit(service, actor.id, "activate_manual_payment_subscription", "merchant_subscriptions", String((data as Row).id), null, data as Row);
+    return data as Row;
+  }
+
+  const { data: racedSubscriptions, error: racedError } = await service
+    .from("merchant_subscriptions")
+    .select("*")
+    .eq("source_payment_request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (racedError) throw racedError;
+  const racedSubscription = ((racedSubscriptions ?? []) as Row[])[0];
+  if (racedSubscription) return racedSubscription;
+  throw error;
 }
 
 async function rows(
@@ -662,14 +823,25 @@ async function savePlan(service: SupabaseClient, actor: AdminActor, payload: Row
 
 async function saveDiscount(service: SupabaseClient, actor: AdminActor, payload: Row) {
   const discountId = id(payload.id);
+  const hasPercent = payload.discount_percent !== null && payload.discount_percent !== "" && payload.discount_percent !== undefined;
+  const hasAmount = payload.discount_amount !== null && payload.discount_amount !== "" && payload.discount_amount !== undefined;
+  const discountPercent = hasPercent
+    ? Math.min(100, Math.max(0, numberValue(payload.discount_percent, 0)))
+    : null;
+  const discountAmount = hasAmount && !hasPercent
+    ? Math.max(0, numberValue(payload.discount_amount, 0))
+    : null;
+  if ((discountPercent === null || discountPercent <= 0) && (discountAmount === null || discountAmount <= 0)) {
+    throw new Error("discount_value_required");
+  }
   const row = {
     code: text(payload.code) || `discount-${Date.now()}`,
     name_ar: text(payload.name_ar),
     name_en: text(payload.name_en),
     description_ar: text(payload.description_ar) || null,
     description_en: text(payload.description_en) || null,
-    discount_percent: payload.discount_percent === null || payload.discount_percent === "" ? null : Math.min(100, Math.max(0, numberValue(payload.discount_percent, 0))),
-    discount_amount: payload.discount_amount === null || payload.discount_amount === "" ? null : Math.max(0, numberValue(payload.discount_amount, 0)),
+    discount_percent: discountPercent,
+    discount_amount: discountAmount,
     currency: safeCurrency(payload.currency),
     applies_to: discountAppliesTo.has(text(payload.applies_to)) ? text(payload.applies_to) : "both",
     starts_at: safeDate(payload.starts_at),
@@ -1069,9 +1241,18 @@ async function reviewManualPayment(service: SupabaseClient, actor: AdminActor, p
     p_rejection_reason: approved ? null : reason
   });
   if (error) throw error;
-  const reviewedRequest = (data ?? {}) as Row;
+  const { data: latestRequest, error: latestRequestError } = await service
+    .from("manual_payment_requests")
+    .select("*")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (latestRequestError) throw latestRequestError;
+  const reviewedRequest = ((latestRequest ?? data ?? requestBefore) as Row);
   const finalStatus = text(reviewedRequest.status);
   const finalApproved = finalStatus === "approved" ? true : finalStatus === "rejected" ? false : approved;
+  if (finalApproved) {
+    await ensureManualPaymentSubscription(service, actor, reviewedRequest, operation);
+  }
   const decisionResult = await dispatchSubscriptionDecisionEvents(service, {
     requestId,
     approved: finalApproved,

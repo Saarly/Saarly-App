@@ -7,6 +7,7 @@ import { LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t, tr } from "@/lib/admin/i18n";
+import { resolveInitialAdminLanguage } from "@/lib/admin/language";
 import type { AdminProfile } from "@/lib/admin/types";
 import { findSection, sectionIsAllowed, visibleSections } from "@/lib/admin/sections";
 import { humanizeAdminError } from "@/lib/admin/messages";
@@ -75,6 +76,11 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
 
   const section = useMemo(() => findSection(initialSection), [initialSection]);
   const navSections = useMemo(() => visibleSections(profile), [profile]);
+  const pageTitle = lang === "ar" ? "لوحة إدارة سعرلي" : "Saarly Admin Panel";
+  const pageDescription =
+    lang === "ar"
+      ? "لوحة إدارة عمليات سعرلي والدعم والمدفوعات والإعدادات."
+      : "Admin panel for Saarly operations, support, payments, and settings.";
   const groupedNavigation = useMemo(() => {
     const visibleById = new Map(navSections.map((item) => [item.id, item]));
     return navigationGroups
@@ -145,7 +151,7 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
   useEffect(() => {
     const savedLang = window.localStorage.getItem("saarly-admin-lang");
     const savedTheme = window.localStorage.getItem("saarly-admin-theme");
-    if (savedLang === "ar" || savedLang === "en") setLang(savedLang);
+    setLang(resolveInitialAdminLanguage(window.location.search, savedLang));
     if (savedTheme === "light" || savedTheme === "dark") setTheme(savedTheme);
 
     supabase.auth.getSession().then(async ({ data }) => {
@@ -166,24 +172,43 @@ export function AdminConsole({ initialSection = "dashboard" }: { initialSection?
   }, []);
 
   useEffect(() => {
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-    document.documentElement.dataset.theme = theme;
-    document.title = lang === "ar" ? "لوحة إدارة سعرلي" : "Saarly Admin Panel";
-    const description =
-      lang === "ar"
-        ? "لوحة إدارة عمليات سعرلي والدعم والمدفوعات والإعدادات."
-        : "Admin panel for Saarly operations, support, payments, and settings.";
-    let descriptionMeta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!descriptionMeta) {
-      descriptionMeta = document.createElement("meta");
-      descriptionMeta.name = "description";
-      document.head.appendChild(descriptionMeta);
+    function applyDocumentState() {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      document.documentElement.dataset.theme = theme;
+      const titleTags = Array.from(document.head.querySelectorAll("title"));
+      const titleTag = titleTags[0] ?? document.createElement("title");
+      if (titleTag.textContent !== pageTitle) titleTag.textContent = pageTitle;
+      if (!titleTag.parentElement) document.head.appendChild(titleTag);
+      titleTags.slice(1).forEach((extraTitleTag) => extraTitleTag.remove());
+      if (document.title !== pageTitle) document.title = pageTitle;
+      let descriptionMeta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+      if (!descriptionMeta) {
+        descriptionMeta = document.createElement("meta");
+        descriptionMeta.name = "description";
+        document.head.appendChild(descriptionMeta);
+      }
+      if (descriptionMeta.content !== pageDescription) descriptionMeta.content = pageDescription;
     }
-    descriptionMeta.content = description;
+
+    applyDocumentState();
+    const titleSyncTimers = [0, 100, 500].map((delay) =>
+      window.setTimeout(applyDocumentState, delay)
+    );
+    const headObserver = new MutationObserver(applyDocumentState);
+    headObserver.observe(document.head, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
     window.localStorage.setItem("saarly-admin-lang", lang);
     window.localStorage.setItem("saarly-admin-theme", theme);
-  }, [lang, theme]);
+
+    return () => {
+      titleSyncTimers.forEach((titleSyncTimer) => window.clearTimeout(titleSyncTimer));
+      headObserver.disconnect();
+    };
+  }, [lang, pageDescription, pageTitle, theme]);
 
   async function signOut() {
     setBooting(false);
