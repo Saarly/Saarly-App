@@ -994,9 +994,6 @@ async function saveGateway(service: SupabaseClient, actor: AdminActor, payload: 
   if (!paymentProviders.has(provider)) throw new Error("payment_provider_not_supported");
 
   const before = ((await service.from("payment_settings").select("*").eq("provider", provider).maybeSingle()).data as Row | null) ?? null;
-  const isConnected = Boolean(before?.is_connected);
-  const requestedEnabled = boolValue(payload.is_enabled, Boolean(before?.is_enabled));
-  const isEnabled = requestedEnabled && isConnected;
 
   const configuration = isRecord(payload.configuration) ? { ...payload.configuration } : {};
   delete configuration.secret;
@@ -1005,11 +1002,19 @@ async function saveGateway(service: SupabaseClient, actor: AdminActor, payload: 
   delete configuration.password;
 
   const secretReference = text(payload.secret_reference) || text(before?.secret_reference) || null;
+  const previousMetadata = isRecord(before?.metadata) ? before.metadata : {};
+  const connectionVerified =
+    Boolean(before?.is_connected) &&
+    text(previousMetadata.last_test_result) === "connection_succeeded" &&
+    Boolean(secretReference);
+  const requestedEnabled = boolValue(payload.is_enabled, Boolean(before?.is_enabled));
+  const isEnabled = requestedEnabled && connectionVerified;
   const metadata = {
-    ...(isRecord(before?.metadata) ? before?.metadata : {}),
+    ...previousMetadata,
     secret_masked: secretReference ? "********" : null,
     updated_by: actor.email,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+    ...(connectionVerified ? {} : { last_test_result: secretReference ? "adapter_required" : "secret_reference_required" })
   };
 
   const row = {
@@ -1018,8 +1023,8 @@ async function saveGateway(service: SupabaseClient, actor: AdminActor, payload: 
     display_name_en: text(payload.display_name_en) || provider,
     is_enabled: isEnabled,
     gateway_environment: text(payload.gateway_environment, "test") === "production" ? "production" : "test",
-    config_status: isEnabled ? "connected" : secretReference ? "configured" : "not_configured",
-    is_connected: isConnected,
+    config_status: connectionVerified ? "connected" : secretReference ? "configured" : "not_configured",
+    is_connected: connectionVerified,
     configuration,
     secret_reference: secretReference,
     webhook_url: text(payload.webhook_url) || null,
@@ -1047,22 +1052,20 @@ async function testGateway(service: SupabaseClient, actor: AdminActor, payload: 
   if (!paymentProviders.has(provider)) throw new Error("payment_provider_not_supported");
   const before = ((await service.from("payment_settings").select("*").eq("provider", provider).maybeSingle()).data as Row | null) ?? null;
   const secretReference = text(before?.secret_reference);
-  const alreadyConnected = Boolean(before?.is_connected);
   const row = {
-    config_status: alreadyConnected ? "connected" : secretReference ? "configured" : "not_configured",
-    is_connected: alreadyConnected,
+    config_status: secretReference ? "configured" : "not_configured",
+    is_connected: false,
     last_connection_check_at: new Date().toISOString(),
-    is_enabled: alreadyConnected ? Boolean(before?.is_enabled) : false,
+    is_enabled: false,
     metadata: {
       ...(isRecord(before?.metadata) ? before?.metadata : {}),
-      last_test_result: alreadyConnected ? "connection_already_active" : secretReference ? "adapter_required" : "secret_reference_required"
+      last_test_result: secretReference ? "adapter_required" : "secret_reference_required"
     },
     updated_at: new Date().toISOString()
   };
   const { data, error } = await service.from("payment_settings").update(row).eq("provider", provider).select("*").single();
   if (error) throw error;
   await writeAudit(service, actor.id, "test_payment_gateway", "payment_settings", provider, before, data as Row);
-  if (alreadyConnected) return data;
   throw new Error(secretReference ? "payment_adapter_required_before_connection" : "gateway_secret_reference_required");
 }
 
@@ -1638,7 +1641,41 @@ async function handleAction(service: SupabaseClient, actor: AdminActor, body: Ro
 
   if (action === "set_feature_flag") {
     const key = text(payload.key);
-    const flag = await setFlag(service, actor, key, boolValue(payload.enabled, false), isRecord(payload.configuration) ? payload.configuration : null);
+    const enabled = boolValue(payload.enabled, false);
+
+    if (key === "merchant_commission_enabled") {
+      const { data: currentSettings, error: settingsError } = await service
+        .from("commission_settings")
+        .select("global_rate, category_rates")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (settingsError) throw settingsError;
+
+      const currentRate = numberValue((currentSettings as Row | null)?.global_rate, 0);
+      const commission = await configureCommissions(service, actor, {
+        is_enabled: enabled,
+        global_rate: currentRate > 0 ? currentRate : 3,
+        category_rates: isRecord((currentSettings as Row | null)?.category_rates)
+          ? (currentSettings as Row).category_rates
+          : {},
+      });
+      const { data: flag, error: flagError } = await service
+        .from("feature_flags")
+        .select("*")
+        .eq("key", key)
+        .single();
+      if (flagError) throw flagError;
+      return { flag, commission, applied_count: 0 };
+    }
+
+    const flag = await setFlag(
+      service,
+      actor,
+      key,
+      enabled,
+      isRecord(payload.configuration) ? payload.configuration : null,
+    );
     let applied_count = 0;
     if (key === "monetization_enabled" && payload.apply_existing_founder_tiers === true) {
       const { data, error } = await service.rpc("admin_apply_founder_trial_tiers_as", { p_actor_id: actor.id });

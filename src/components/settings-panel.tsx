@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, ImageUp, Plus, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
+import { ImageUp, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Lang } from "@/lib/admin/i18n";
 import { t } from "@/lib/admin/i18n";
@@ -18,37 +18,6 @@ type Flag = {
   configuration: Record<string, unknown> | null;
 };
 
-type PaymentProvider = {
-  id: string;
-  provider: string;
-  is_enabled: boolean;
-  is_direct_to_merchant_supported?: boolean | null;
-  configuration: Record<string, unknown> | null;
-  webhook_secret_name: string | null;
-  webhook_signature_header: string | null;
-};
-
-type ProviderDraft = {
-  merchant_id: string;
-  account_label: string;
-  settlement_account: string;
-  wallet_number: string;
-  api_secret_name: string;
-  webhook_secret_name: string;
-  webhook_signature_header: string;
-  direct_to_merchant: boolean;
-  instructions: string;
-};
-
-type SubscriptionPlan = {
-  id: string;
-  name_ar: string | null;
-  name_en: string | null;
-  monthly_price: number | null;
-  is_active: boolean;
-  billing_period_months?: number | null;
-  grace_months?: number | null;
-};
 
 type PriceAlertStats = {
   total_alerts?: number | null;
@@ -116,52 +85,14 @@ function defaultReferralRewards(audience: ReferralAudience) {
     .map((reward) => ({ ...reward }));
 }
 
-const monetizationKeys = [
-  "monetization_enabled",
-  "merchant_monthly_subscription_enabled",
-  "merchant_commission_enabled",
-  "merchant_can_choose_billing_model",
-  "buyer_in_app_payment_enabled",
-  "price_alerts",
-  "referrals_enabled"
-];
+const settingsKeys = ["price_alerts", "referrals_enabled"];
 
 const flagLabels: Record<string, { ar: string; en: string; hintAr: string; hintEn: string }> = {
-  monetization_enabled: {
-    ar: "\u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u062f\u0641\u0648\u0639",
-    en: "Enable paid system",
-    hintAr: "\u0644\u0648 \u0645\u0642\u0641\u0648\u0644\u0629\u060c \u0623\u064a \u0627\u0634\u062a\u0631\u0627\u0643\u0627\u062a \u0623\u0648 \u062f\u0641\u0639 \u0647\u062a\u0641\u0636\u0644 \u0645\u062e\u0641\u064a\u0629 \u0645\u0646 \u0627\u0644\u062a\u0637\u0628\u064a\u0642.",
-    hintEn: "When off, all paid screens stay hidden."
-  },
-  merchant_monthly_subscription_enabled: {
-    ar: "\u0627\u0634\u062a\u0631\u0627\u0643 \u0634\u0647\u0631\u064a \u0644\u0644\u0645\u062a\u0627\u062c\u0631",
-    en: "Merchant monthly subscriptions",
-    hintAr: "\u064a\u0638\u0647\u0631 \u0644\u0644\u0645\u062a\u062c\u0631 \u062e\u064a\u0627\u0631 \u0627\u0644\u0627\u0634\u062a\u0631\u0627\u0643 \u0627\u0644\u0634\u0647\u0631\u064a.",
-    hintEn: "Shows the monthly subscription option to stores."
-  },
-  merchant_commission_enabled: {
-    ar: "\u0646\u0633\u0628\u0629 \u0639\u0644\u0649 \u0643\u0644 \u0641\u0627\u062a\u0648\u0631\u0629",
-    en: "Commission per order",
-    hintAr: "\u064a\u062d\u0633\u0628 \u0645\u0633\u062a\u062d\u0642\u0627\u062a \u0633\u0639\u0631\u0644\u064a \u0639\u0644\u0649 \u0645\u0628\u064a\u0639\u0627\u062a \u0627\u0644\u0645\u062a\u062c\u0631.",
-    hintEn: "Calculates Saarly dues on store sales."
-  },
-  merchant_can_choose_billing_model: {
-    ar: "\u0627\u0644\u0645\u062a\u062c\u0631 \u064a\u062e\u062a\u0627\u0631 \u0637\u0631\u064a\u0642\u0629 \u0627\u0644\u0645\u062d\u0627\u0633\u0628\u0629",
-    en: "Store chooses billing model",
-    hintAr: "\u064a\u0638\u0647\u0631 \u0644\u0644\u0645\u062a\u062c\u0631 \u0627\u062e\u062a\u064a\u0627\u0631: \u0627\u0634\u062a\u0631\u0627\u0643 \u0623\u0648 \u0646\u0633\u0628\u0629.",
-    hintEn: "Lets stores choose subscription or commission."
-  },
-  buyer_in_app_payment_enabled: {
-    ar: "\u062f\u0641\u0639 \u0627\u0644\u0639\u0645\u064a\u0644 \u062f\u0627\u062e\u0644 \u0627\u0644\u062a\u0637\u0628\u064a\u0642",
-    en: "Buyer in-app payment",
-    hintAr: "\u0628\u0639\u062f \u0642\u0628\u0648\u0644 \u0627\u0644\u0639\u0631\u0636\u060c \u0627\u0644\u0639\u0645\u064a\u0644 \u064a\u0642\u062f\u0631 \u064a\u062f\u0641\u0639 \u0644\u0644\u0645\u062a\u062c\u0631 \u0645\u0646 \u0627\u0644\u062a\u0637\u0628\u064a\u0642.",
-    hintEn: "Allows buyers to pay stores inside the app."
-  },
   referrals_enabled: {
-    ar: "\u062f\u0639\u0648\u0629 \u0627\u0644\u0623\u0635\u062f\u0642\u0627\u0621",
+    ar: "دعوة الأصدقاء",
     en: "Referrals",
-    hintAr: "\u064a\u0641\u062a\u062d \u0634\u0627\u0634\u0629 \u0627\u062f\u0639\u0648 \u0623\u0635\u062d\u0627\u0628\u0643 \u0648\u0627\u0644\u0645\u0643\u0627\u0641\u0622\u062a.",
-    hintEn: "Enables invite codes and rewards."
+    hintAr: "تشغيل رموز الدعوات والمكافآت للمشترين والمتاجر.",
+    hintEn: "Enables invite codes and rewards for buyers and merchants."
   },
   price_alerts: {
     ar: "تنبيهات الأسعار",
@@ -193,9 +124,6 @@ function priceAlertStatusLabel(status: string, lang: Lang) {
 
 export function SettingsPanel({ lang }: { lang: Lang }) {
   const [flags, setFlags] = useState<Flag[]>([]);
-  const [providers, setProviders] = useState<PaymentProvider[]>([]);
-  const [providerDrafts, setProviderDrafts] = useState<Record<string, ProviderDraft>>({});
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [priceAlertStats, setPriceAlertStats] = useState<PriceAlertStats | null>(null);
   const [priceAlertLogs, setPriceAlertLogs] = useState<PriceAlertLog[]>([]);
   const [referralDraft, setReferralDraft] = useState<ReferralSettingsDraft>(defaultReferralSettingsDraft());
@@ -205,20 +133,12 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
   const loadSettings = useCallback(async () => {
     setError(null);
 
-    const [flagResult, providerResult, planResult, priceStatsResult, priceLogsResult] = await Promise.all([
+    const [flagResult, priceStatsResult, priceLogsResult] = await Promise.all([
       supabase
         .from("feature_flags")
         .select("key, description_ar, description_en, is_enabled, configuration")
-        .in("key", monetizationKeys)
+        .in("key", settingsKeys)
         .order("key", { ascending: true }),
-      supabase
-        .from("payment_settings")
-        .select("id, provider, is_enabled, is_direct_to_merchant_supported, configuration, webhook_secret_name, webhook_signature_header")
-        .order("provider", { ascending: true }),
-      supabase
-        .from("subscription_plans")
-        .select("id, name_ar, name_en, monthly_price, is_active, billing_period_months, grace_months")
-        .order("monthly_price", { ascending: true }),
       supabase.rpc("admin_price_alert_stats"),
       supabase
         .from("price_alert_history")
@@ -228,16 +148,12 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
     ]);
 
     const nextFlags = (flagResult.data ?? []) as Flag[];
-    const nextProviders = (providerResult.data ?? []) as PaymentProvider[];
     setFlags(nextFlags);
-    setProviders(nextProviders);
-    setProviderDrafts(Object.fromEntries(nextProviders.map((provider) => [provider.id, providerDraftFrom(provider)])));
-    setPlans((planResult.data ?? []) as SubscriptionPlan[]);
     setPriceAlertStats((priceStatsResult.data as PriceAlertStats | null) ?? null);
     setPriceAlertLogs((priceLogsResult.data ?? []) as PriceAlertLog[]);
     setReferralDraft(referralDraftFromFlags(nextFlags));
 
-    const firstError = flagResult.error ?? providerResult.error ?? planResult.error ?? priceStatsResult.error ?? priceLogsResult.error;
+    const firstError = flagResult.error ?? priceStatsResult.error ?? priceLogsResult.error;
     setError(firstError ? humanizeAdminError(firstError.message, lang) : null);
   }, [lang]);
 
@@ -271,13 +187,11 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
     setSavingKey(key, true);
     setError(null);
 
-    if (table === "feature_flags") {
-      setFlags((current) => current.map((flag) => (flag.key === id ? { ...flag, is_enabled: enabled } : flag)));
-    } else if (table === "payment_settings") {
-      setProviders((current) => current.map((provider) => (provider.id === id ? { ...provider, is_enabled: enabled } : provider)));
-    } else if (table === "subscription_plans") {
-      setPlans((current) => current.map((plan) => (plan.id === id ? { ...plan, is_active: enabled } : plan)));
+    if (table !== "feature_flags") {
+      setSavingKey(key, false);
+      throw new Error("settings_table_not_allowed");
     }
+    setFlags((current) => current.map((flag) => (flag.key === id ? { ...flag, is_enabled: enabled } : flag)));
 
     try {
       await postAction({ action: "toggle_active", table, id, payload: { enabled } });
@@ -314,58 +228,6 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
       await loadSettings();
     } catch (cleanupError) {
       setError(humanizeAdminError(cleanupError, lang));
-    } finally {
-      setSavingKey(key, false);
-    }
-  }
-
-  function updateProviderDraft(id: string, values: Partial<ProviderDraft>) {
-    setProviderDrafts((current) => ({
-      ...current,
-      [id]: {
-        ...(current[id] ?? emptyProviderDraft()),
-        ...values
-      }
-    }));
-  }
-
-  async function saveProviderSettings(provider: PaymentProvider) {
-    const key = `provider-save:${provider.id}`;
-    const draft = providerDrafts[provider.id] ?? providerDraftFrom(provider);
-    const configuration = providerConfigurationFromDraft(provider, draft);
-    setSavingKey(key, true);
-    setError(null);
-
-    try {
-      await postAction({
-        action: "update_row",
-        table: "payment_settings",
-        id: provider.id,
-        values: {
-          provider: provider.provider,
-          is_enabled: provider.is_enabled,
-          is_direct_to_merchant_supported: draft.direct_to_merchant,
-          configuration,
-          webhook_secret_name: emptyToNull(draft.webhook_secret_name),
-          webhook_signature_header: emptyToNull(draft.webhook_signature_header)
-        }
-      });
-      setProviders((current) =>
-        current.map((item) =>
-          item.id === provider.id
-            ? {
-                ...item,
-                is_direct_to_merchant_supported: draft.direct_to_merchant,
-                configuration,
-                webhook_secret_name: emptyToNull(draft.webhook_secret_name),
-                webhook_signature_header: emptyToNull(draft.webhook_signature_header)
-              }
-            : item
-        )
-      );
-    } catch (saveError) {
-      setError(humanizeAdminError(saveError, lang));
-      await loadSettings();
     } finally {
       setSavingKey(key, false);
     }
@@ -483,11 +345,11 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
       <div className="section-head">
         <div>
           <span className="eyebrow">{lang === "ar" ? "\u062a\u062d\u0643\u0645 \u0627\u0644\u0623\u062f\u0645\u0646" : "Admin control"}</span>
-          <h1>{lang === "ar" ? "تحقيق الدخل" : "Monetization"}</h1>
+          <h1>{lang === "ar" ? "إعدادات المزايا" : "Feature settings"}</h1>
           <p>
             {lang === "ar"
-              ? "\u0645\u0646 \u0647\u0646\u0627 \u062a\u0641\u062a\u062d \u0623\u0648 \u062a\u0642\u0641\u0644 \u0623\u064a \u062c\u0632\u0621 \u0645\u062f\u0641\u0648\u0639 \u0641\u064a \u0627\u0644\u062a\u0637\u0628\u064a\u0642. \u0644\u0648 \u0643\u0644\u0647 \u0645\u0642\u0641\u0648\u0644\u060c \u0627\u0644\u062a\u0637\u0628\u064a\u0642 \u064a\u0641\u0636\u0644 \u0645\u062c\u0627\u0646\u064a."
-              : "Turn paid app features on or off. When all are off, the app remains free."}
+              ? "إدارة تنبيهات الأسعار والدعوات والمكافآت. إدارة الاشتراكات والدفع والعمولات موجودة في صفحة تحقيق الدخل فقط."
+              : "Manage price alerts, referrals, and rewards. Subscriptions, payments, and commissions are managed only from the monetization page."}
           </p>
         </div>
         <button className="soft-button" onClick={loadSettings}>
@@ -700,166 +562,6 @@ export function SettingsPanel({ lang }: { lang: Lang }) {
         </div>
       </article>
 
-      <div className="settings-grid">
-        <article className="ops-card full-width">
-          <h2>
-            <CreditCard size={18} />
-            {lang === "ar" ? "\u0637\u0631\u0642 \u0627\u0644\u062f\u0641\u0639" : "Payment methods"}
-          </h2>
-          <div className="provider-settings-list">
-            {providers.map((provider) => {
-              const rowKey = `payment_settings:${provider.id}`;
-              const saveKey = `provider-save:${provider.id}`;
-              const draft = providerDrafts[provider.id] ?? providerDraftFrom(provider);
-              const isWalletProvider = provider.provider.includes("wallet") || provider.provider.includes("cash");
-              return (
-                <div className="provider-settings-card" key={provider.id}>
-                  <div className="provider-row-head">
-                    <div>
-                      <strong>{providerLabel(provider.provider, lang)}</strong>
-                      <span>
-                        {provider.is_enabled
-                          ? lang === "ar"
-                            ? "\u0645\u0641\u0639\u0644\u0629"
-                            : "Enabled"
-                          : lang === "ar"
-                            ? "\u0645\u0642\u0641\u0648\u0644\u0629"
-                            : "Disabled"}
-                      </span>
-                    </div>
-                    <label className="switch compact-switch">
-                      <input
-                        type="checkbox"
-                        checked={provider.is_enabled}
-                        disabled={isSaving(rowKey)}
-                        onChange={(event) => void toggleRow("payment_settings", provider.id, event.target.checked)}
-                      />
-                      <span />
-                    </label>
-                  </div>
-
-                  <div className="provider-config-grid">
-                    <label>
-                      {lang === "ar" ? "رقم حساب الدفع" : "Payment account number"}
-                      <input
-                        dir="auto"
-                        value={draft.merchant_id}
-                        onChange={(event) => updateProviderDraft(provider.id, { merchant_id: event.target.value })}
-                      />
-                    </label>
-                    <label>
-                      {lang === "ar" ? "\u0627\u0633\u0645 \u0627\u0644\u062d\u0633\u0627\u0628 \u0644\u0644\u0639\u0631\u0636" : "Display account name"}
-                      <input
-                        dir="auto"
-                        value={draft.account_label}
-                        onChange={(event) => updateProviderDraft(provider.id, { account_label: event.target.value })}
-                      />
-                    </label>
-                    <label>
-                      {lang === "ar" ? "\u062d\u0633\u0627\u0628 \u0627\u0644\u062a\u062d\u0635\u064a\u0644" : "Settlement account"}
-                      <input
-                        dir="auto"
-                        value={draft.settlement_account}
-                        onChange={(event) => updateProviderDraft(provider.id, { settlement_account: event.target.value })}
-                      />
-                    </label>
-                    {isWalletProvider ? (
-                      <label>
-                        {lang === "ar" ? "\u0631\u0642\u0645 \u0627\u0644\u0645\u062d\u0641\u0638\u0629" : "Wallet number"}
-                        <input
-                          dir="ltr"
-                          value={draft.wallet_number}
-                          onChange={(event) => updateProviderDraft(provider.id, { wallet_number: event.target.value })}
-                        />
-                      </label>
-                    ) : null}
-                    <label>
-                      {lang === "ar" ? "اسم بيانات ربط الدفع" : "Saved payment connection name"}
-                      <input
-                        dir="ltr"
-                        value={draft.api_secret_name}
-                        onChange={(event) => updateProviderDraft(provider.id, { api_secret_name: event.target.value })}
-                        placeholder=""
-                      />
-                    </label>
-                    <label>
-                      {lang === "ar" ? "اسم بيانات تأكيد الدفع" : "Payment confirmation name"}
-                      <input
-                        dir="ltr"
-                        value={draft.webhook_secret_name}
-                        onChange={(event) => updateProviderDraft(provider.id, { webhook_secret_name: event.target.value })}
-                        placeholder=""
-                      />
-                    </label>
-                    <label>
-                      {lang === "ar" ? "اسم حقل تأكيد الدفع" : "Payment confirmation field"}
-                      <input
-                        dir="ltr"
-                        value={draft.webhook_signature_header}
-                        onChange={(event) => updateProviderDraft(provider.id, { webhook_signature_header: event.target.value })}
-                        placeholder=""
-                      />
-                    </label>
-                    <label className="provider-wide-field">
-                      {lang === "ar" ? "ملاحظات الإدارة" : "Admin notes"}
-                      <textarea
-                        dir="auto"
-                        value={draft.instructions}
-                        onChange={(event) => updateProviderDraft(provider.id, { instructions: event.target.value })}
-                      />
-                    </label>
-                  </div>
-
-                  <div className="provider-actions-row">
-                    <label className="checkbox-field">
-                      <input
-                        type="checkbox"
-                        checked={draft.direct_to_merchant}
-                        onChange={(event) => updateProviderDraft(provider.id, { direct_to_merchant: event.target.checked })}
-                      />
-                      <span>{lang === "ar" ? "\u064a\u062f\u0639\u0645 \u0627\u0644\u062f\u0641\u0639 \u0644\u0644\u0645\u062a\u062c\u0631 \u0645\u0628\u0627\u0634\u0631\u0629" : "Supports direct-to-store payment"}</span>
-                    </label>
-                    <button className="soft-button" disabled={isSaving(saveKey)} onClick={() => void saveProviderSettings(provider)}>
-                      <Save size={16} />
-                      {isSaving(saveKey) ? (lang === "ar" ? "\u062c\u0627\u0631\u064a \u0627\u0644\u062d\u0641\u0638" : "Saving") : t("save", lang)}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </article>
-
-        <article className="ops-card full-width">
-          <h2>
-            <ShieldCheck size={18} />
-            {lang === "ar" ? "\u062e\u0637\u0637 \u0627\u0644\u0627\u0634\u062a\u0631\u0627\u0643" : "Subscription plans"}
-          </h2>
-          <div className="mini-list">
-            {plans.map((plan) => {
-              const rowKey = `subscription_plans:${plan.id}`;
-              return (
-                <div key={plan.id}>
-                  <strong>{lang === "ar" ? plan.name_ar ?? plan.name_en : plan.name_en ?? plan.name_ar}</strong>
-                  <span>
-                    {Number(plan.monthly_price ?? 0).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}{" "}
-                    {lang === "ar" ? "\u062c\u0646\u064a\u0647 \u0634\u0647\u0631\u064a\u0627" : "EGP/month"}
-                  </span>
-                  <label className="switch compact-switch">
-                    <input
-                      type="checkbox"
-                      checked={plan.is_active}
-                      disabled={isSaving(rowKey)}
-                      onChange={(event) => void toggleRow("subscription_plans", plan.id, event.target.checked)}
-                    />
-                    <span />
-                  </label>
-                </div>
-              );
-            })}
-          </div>
-        </article>
-      </div>
     </section>
   );
 }
@@ -1032,21 +734,6 @@ function ReferralRewardEditor({
   );
 }
 
-function providerDraftFrom(provider: PaymentProvider): ProviderDraft {
-  const config = provider.configuration ?? {};
-  return {
-    merchant_id: stringConfig(config, "merchant_id", "merchantId"),
-    account_label: stringConfig(config, "account_label", "accountLabel"),
-    settlement_account: stringConfig(config, "settlement_account", "settlementAccount"),
-    wallet_number: stringConfig(config, "wallet_number", "walletNumber"),
-    api_secret_name: stringConfig(config, "api_secret_name", "apiSecretName"),
-    webhook_secret_name: provider.webhook_secret_name ?? "",
-    webhook_signature_header: provider.webhook_signature_header ?? "",
-    direct_to_merchant: Boolean(provider.is_direct_to_merchant_supported),
-    instructions: stringConfig(config, "instructions", "notes")
-  };
-}
-
 function defaultReferralSettingsDraft(): ReferralSettingsDraft {
   return {
     target_confirmed_registrations: "10",
@@ -1126,32 +813,6 @@ function rewardExists(rewards: ReferralRewardOptionDraft[], rewardType: Referral
   return rewards.some((reward) => reward.reward_type === rewardType && reward.is_active);
 }
 
-function emptyProviderDraft(): ProviderDraft {
-  return {
-    merchant_id: "",
-    account_label: "",
-    settlement_account: "",
-    wallet_number: "",
-    api_secret_name: "",
-    webhook_secret_name: "",
-    webhook_signature_header: "",
-    direct_to_merchant: false,
-    instructions: ""
-  };
-}
-
-function providerConfigurationFromDraft(provider: PaymentProvider, draft: ProviderDraft) {
-  return {
-    ...(provider.configuration ?? {}),
-    merchant_id: emptyToNull(draft.merchant_id),
-    account_label: emptyToNull(draft.account_label),
-    settlement_account: emptyToNull(draft.settlement_account),
-    wallet_number: emptyToNull(draft.wallet_number),
-    api_secret_name: emptyToNull(draft.api_secret_name),
-    instructions: emptyToNull(draft.instructions)
-  };
-}
-
 function stringConfig(config: Record<string, unknown>, ...keys: string[]) {
   for (const key of keys) {
     const value = config[key];
@@ -1165,18 +826,3 @@ function stringConfig(config: Record<string, unknown>, ...keys: string[]) {
   return "";
 }
 
-function emptyToNull(value: string) {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
-
-function providerLabel(provider: string, lang: Lang) {
-  const labels: Record<string, { ar: string; en: string }> = {
-    visa: { ar: "\u0641\u064a\u0632\u0627", en: "Visa" },
-    meeza: { ar: "\u0645\u064a\u0632\u0629", en: "Meeza" },
-    wallet: { ar: "\u0645\u062d\u0627\u0641\u0638 \u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629", en: "Wallets" },
-    wallets: { ar: "\u0645\u062d\u0627\u0641\u0638 \u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629", en: "Wallets" },
-    vodafone_cash: { ar: "\u0641\u0648\u062f\u0627\u0641\u0648\u0646 \u0643\u0627\u0634", en: "Vodafone Cash" }
-  };
-  return labels[provider]?.[lang] ?? provider;
-}
