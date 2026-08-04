@@ -21,6 +21,7 @@ const metricKeys = [
   ["pending_merchants_count", { ar: "متاجر معلقة", en: "Pending stores" }],
   ["pending_branches_count", { ar: "فروع معلقة", en: "Pending branches" }],
   ["awaiting_orders_count", { ar: "بانتظار التأكيد", en: "Awaiting confirmation" }],
+  ["confirmed_orders_count", { ar: "إجمالي الطلبات المؤكدة", en: "Total confirmed orders" }],
   ["open_support_chats_count", { ar: "محادثات دعم مفتوحة", en: "Open support chats" }]
 ] as const;
 

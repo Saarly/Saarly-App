@@ -1189,7 +1189,34 @@ export function DataSection({
         </div>
       ) : null}
 
+      {!loading && section.id === "referrals" && filteredRows.length > 0 ? (
+        <div className="referral-admin-grid">
+          {filteredRows.map((row) => (
+            <article className="referral-admin-card" key={rowIdFor(section, row) || JSON.stringify(row)}>
+              <div className="referral-admin-card-head">
+                <div>
+                  <strong>{String(localizedValue(row, "referrer_name", lang) ?? "-")}</strong>
+                  <span>{String(localizedValue(row, "referral_code", lang) ?? "-")}</span>
+                </div>
+                <span className="status-pill ok">{String(localizedValue(row, "confirmed_registrations", lang) ?? 0)} {lang === "ar" ? "إحالة" : "referrals"}</span>
+              </div>
+              <div className="referral-admin-details">
+                {(section.columns ?? []).filter((column) => !["referrer_name", "referral_code", "confirmed_registrations"].includes(column.key)).map((column) => (
+                  <div key={column.key}>
+                    <span>{tr(column.label, lang)}</span>
+                    <strong className={column.tone ? `cell-${column.tone}` : undefined}>
+                      {formatSectionCell(section, column.key, localizedValue(row, column.key, lang), column.tone, lang)}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
+
       {!loading &&
+      section.id !== "referrals" &&
       !["categories", "cities", "ads"].includes(section.id) &&
       filteredRows.length > 0 ? (
         <div className="data-table-wrap">

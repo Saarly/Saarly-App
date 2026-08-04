@@ -216,14 +216,15 @@ async function fallbackAdminReport(
 
   const { data } = await service
     .from("admin_referrals_rewards_dashboard_readable")
-    .select("id,referral_id,referrer_name,rewarded_user_name,referral_code,reward_type,delivery_status,delivered_at,confirmed_registrations,target_confirmed_registrations,remaining_registrations,status_ar,status_en,created_at")
+    .select("id,referral_id,referrer_name,referrer_email,referrer_mobile,rewarded_user_name,referral_code,reward_type,delivery_status,reward_delivery_status_ar,reward_delivery_status_en,delivered_at,confirmed_registrations,target_confirmed_registrations,standard_target_confirmed_registrations,first_milestone_target_confirmed_registrations,remaining_registrations,status_ar,status_en,created_at")
     .order("created_at", { ascending: false })
     .limit(1000);
-  return ((data ?? []) as AnyRow[]).map((row) => ({
-    ...row,
-    referral_id: row.referral_id ?? row.id,
-    referrer_email: row.referrer_name,
-  }));
+  return ((data ?? []) as AnyRow[])
+    .filter((row) => Number(row.confirmed_registrations ?? 0) > 0)
+    .map((row) => ({
+      ...row,
+      referral_id: row.referral_id ?? row.id,
+    }));
 }
 
 const fullAdminPermissions = {
@@ -2852,14 +2853,19 @@ export async function GET(req: NextRequest) {
     if (url.searchParams.get("dashboard") === "1") {
       const dashboardSection = findSection("dashboard");
       if (!sectionIsAllowed(dashboardSection, profile)) return jsonError("permission_denied", 403);
-      const [overviewResult, merchantsResult, branchesResult] = await Promise.all([
+      const [overviewResult, confirmedOrdersResult, merchantsResult, branchesResult] = await Promise.all([
         service.from("admin_dashboard_overview").select("*").maybeSingle(),
+        service.from("orders").select("id", { count: "exact", head: true }).eq("status", "confirmed"),
         service.from("admin_active_merchants_readable").select("id,store_name,owner_name,approval_status,approval_status_ar,approval_status_en,created_at").eq("approval_status", "pending").order("created_at", { ascending: false }).limit(6),
         service.from("admin_branches_readable").select("id,branch_name,store_name,city_name,city_name_ar,city_name_en,approval_status,approval_status_ar,approval_status_en,created_at").eq("approval_status", "pending").order("created_at", { ascending: false }).limit(6),
       ]);
-      const loadError = overviewResult.error ?? merchantsResult.error ?? branchesResult.error;
+      const loadError = overviewResult.error ?? confirmedOrdersResult.error ?? merchantsResult.error ?? branchesResult.error;
       if (loadError) return jsonError(loadError.message, 400);
-      return NextResponse.json({ data: { overview: overviewResult.data ?? null, pendingMerchants: merchantsResult.data ?? [], pendingBranches: branchesResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+      const overview = {
+        ...(overviewResult.data ?? {}),
+        confirmed_orders_count: Number(confirmedOrdersResult.count ?? 0),
+      };
+      return NextResponse.json({ data: { overview, pendingMerchants: merchantsResult.data ?? [], pendingBranches: branchesResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
     }
 
     if (url.searchParams.get("catalog") === "1") {

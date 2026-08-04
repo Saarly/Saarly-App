@@ -3860,3 +3860,79 @@ button:not(:disabled):active {
     grid-template-columns: 1fr;
   }
 }
+
+/* Responsive referral dashboard: compact on desktop, cards on phones. */
+.referral-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.referral-admin-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-soft);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.referral-admin-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.referral-admin-card-head > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.referral-admin-card-head strong,
+.referral-admin-card-head span {
+  overflow-wrap: anywhere;
+}
+
+.referral-admin-card-head > div > span {
+  color: var(--green);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.referral-admin-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+.referral-admin-details > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+}
+
+.referral-admin-details span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.referral-admin-details strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1050px) {
+  .referral-admin-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .referral-admin-card-head { flex-direction: column; }
+  .referral-admin-details { grid-template-columns: 1fr; }
+}
