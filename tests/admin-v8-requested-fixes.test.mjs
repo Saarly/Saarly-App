@@ -70,7 +70,7 @@ test("reports keep authenticated RPCs and add protected readable-data fallbacks"
   assert.match(actionRoute, /fallbackAdminReport/);
   assert.match(actionRoute, /admin_orders_readable/);
   assert.match(actionRoute, /admin_active_merchants_readable/);
-  assert.match(actionRoute, /admin_referral_rewards_readable/);
+  assert.match(actionRoute, /admin_referrals_rewards_dashboard_readable/);
   assert.match(actionRoute, /if \(reportRows\.length === 0\)/);
   assert.match(serverClient, /SUPABASE_SERVICE_ROLE_KEY \?\?/);
   assert.match(serverClient, /Authorization: `Bearer \$\{accessToken\}`/);
