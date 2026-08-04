@@ -50,6 +50,11 @@ export const sections: SectionConfig[] = [
         tone: "status",
       },
       {
+        key: "resubmission_status_ar",
+        label: { ar: "إعادة المراجعة", en: "Resubmission" },
+        tone: "status",
+      },
+      {
         key: "rejection_reason",
         label: { ar: "سبب الرفض", en: "Rejection reason" },
         tone: "long",
@@ -96,6 +101,11 @@ export const sections: SectionConfig[] = [
       {
         key: "approval_status_ar",
         label: { ar: "الحالة", en: "Status" },
+        tone: "status",
+      },
+      {
+        key: "resubmission_status_ar",
+        label: { ar: "إعادة المراجعة", en: "Resubmission" },
         tone: "status",
       },
       {
@@ -788,7 +798,7 @@ export const sections: SectionConfig[] = [
     href: "/admin/referrals",
     icon: "Gift",
     mode: "table",
-    source: "admin_referral_rewards_readable",
+    source: "admin_referrals_rewards_dashboard_readable",
     sourceKind: "view",
     orderBy: "created_at",
     title: { ar: "الإحالات والمكافآت", en: "Referrals and rewards" },
@@ -815,9 +825,31 @@ export const sections: SectionConfig[] = [
         tone: "status",
       },
       {
+        key: "status_ar",
+        label: { ar: "الحالة", en: "Status" },
+        tone: "status",
+      },
+      {
+        key: "remaining_registrations",
+        label: { ar: "المتبقي للاستحقاق", en: "Remaining" },
+      },
+      {
         key: "reward_type",
         label: { ar: "المكافأة", en: "Reward" },
         tone: "status",
+      },
+      {
+        key: "milestone_number",
+        label: { ar: "الاستحقاق", en: "Milestone" },
+        tone: "status",
+      },
+      {
+        key: "qualified_registrations",
+        label: { ar: "إحالات الاستحقاق", en: "Qualified referrals" },
+      },
+      {
+        key: "confirmed_registrations",
+        label: { ar: "إجمالي الإحالات", en: "Total referrals" },
       },
       {
         key: "delivery_status",

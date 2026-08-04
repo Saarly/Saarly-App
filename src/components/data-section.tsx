@@ -83,6 +83,9 @@ export function DataSection({
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState<"all" | "merchant" | "buyer">("all");
+  const [approvalFilter, setApprovalFilter] = useState<
+    "all" | "needs_review" | "approved" | "rejected" | "resubmitted"
+  >("all");
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [reviewingDetails, setReviewingDetails] = useState<Row | null>(null);
@@ -103,6 +106,15 @@ export function DataSection({
     );
     if (section.id === "users" && userRoleFilter !== "all") {
       result = result.filter((row) => String(row.role ?? "").toLowerCase() === userRoleFilter);
+    }
+    if (["merchant-approvals", "branch-approvals"].includes(section.id) && approvalFilter !== "all") {
+      result = result.filter((row) => {
+        const status = String(row.approval_status ?? "pending").toLowerCase();
+        const resubmitted = Boolean(row.has_resubmitted_documents);
+        if (approvalFilter === "needs_review") return status === "pending" || resubmitted;
+        if (approvalFilter === "resubmitted") return resubmitted;
+        return status === approvalFilter;
+      });
     }
     if (section.id === "suspicious-matches") {
       result = result.filter((row) => {
@@ -128,7 +140,7 @@ export function DataSection({
       });
     }
     return result;
-  }, [query, rows, section.id, section.searchKeys, userRoleFilter]);
+  }, [approvalFilter, query, rows, section.id, section.searchKeys, userRoleFilter]);
 
   const adCountries = useMemo(() => {
     return Array.from(
@@ -362,6 +374,7 @@ export function DataSection({
     });
 
     const payload = (await response.json().catch(() => ({}))) as {
+      data?: Row;
       error?: string;
       warnings?: string[];
     };
@@ -390,7 +403,7 @@ export function DataSection({
     }
 
     try {
-      await postAdminAction({
+      const result = await postAdminAction({
         action:
           section.id === "branch-approvals"
             ? "review_branch_document"
@@ -408,15 +421,43 @@ export function DataSection({
         },
       });
 
+      const reviewedDocument: Row = result.data ?? {
+        ...document,
+        status: approved ? "approved" : "rejected",
+        rejection_reason: approved ? null : reason,
+        reviewed_at: new Date().toISOString(),
+      };
       const selectedId = reviewingDetails
         ? rowIdFor(section, reviewingDetails)
-        : "";
-      const refreshedRows = await loadRows();
-      if (selectedId) {
-        setReviewingDetails(
-          refreshedRows.find((item) => rowIdFor(section, item) === selectedId) ?? null,
-        );
-      }
+        : String(document._target_id ?? "");
+      const patchApprovalRow = (current: Row): Row => {
+        if (rowIdFor(section, current) !== selectedId) return current;
+        const documents = Array.isArray(current.approval_documents)
+          ? (current.approval_documents as Row[])
+          : [];
+        const nextDocuments = documents.some(
+          (item) => String(item.id ?? "") === String(reviewedDocument.id ?? ""),
+        )
+          ? documents.map((item) =>
+              String(item.id ?? "") === String(reviewedDocument.id ?? "")
+                ? { ...item, ...reviewedDocument }
+                : item,
+            )
+          : [...documents, reviewedDocument];
+        const pendingResubmissions = nextDocuments.filter(
+          (item) => approvalDocumentWasResubmitted(item),
+        ).length;
+        return {
+          ...current,
+          approval_documents: nextDocuments,
+          has_resubmitted_documents: pendingResubmissions > 0,
+          resubmitted_documents_count: pendingResubmissions,
+          resubmission_status_ar: pendingResubmissions > 0 ? "مراجعة مجددًا" : "",
+          resubmission_status_en: pendingResubmissions > 0 ? "Resubmitted" : "",
+        };
+      };
+      setRows((current) => current.map(patchApprovalRow));
+      setReviewingDetails((current) => current ? patchApprovalRow(current) : current);
     } catch (reviewError) {
       setError(humanizeAdminError(reviewError, lang));
     }
@@ -452,6 +493,7 @@ export function DataSection({
 
   async function runRowAction(action: string, row: Row) {
     try {
+      let actionResult: Awaited<ReturnType<typeof postAdminAction>> | undefined;
       const id = rowIdFor(section, row);
       if (!id) return;
 
@@ -463,7 +505,7 @@ export function DataSection({
       if (action.includes("reject")) {
         const reason = window.prompt(t("reason", lang));
         if (!reason) return;
-        await postAdminAction({ action, id, payload: { reason } });
+        actionResult = await postAdminAction({ action, id, payload: { reason } });
       } else if (action === "toggle_active") {
         const table = section.editableTable;
         if (!table) return;
@@ -471,7 +513,7 @@ export function DataSection({
           table === "feature_flags" || table === "payment_settings"
             ? "is_enabled"
             : "is_active";
-        await postAdminAction({
+        actionResult = await postAdminAction({
           action,
           table,
           id,
@@ -497,7 +539,7 @@ export function DataSection({
             : `Delete ${title || "this item"}?`,
         );
         if (!ok) return;
-        await postAdminAction({ action, table, id });
+        actionResult = await postAdminAction({ action, table, id });
       } else if (action === "delete_user_account") {
         const title = String(
           row.full_name ?? row.primary_email ?? row.mobile ?? row.id ?? "",
@@ -508,7 +550,7 @@ export function DataSection({
             : `This removes sign-in, personal data, and only this account's files. Delete ${title || "this account"}?`,
         );
         if (!ok) return;
-        await postAdminAction({ action, id });
+        actionResult = await postAdminAction({ action, id });
       } else if (action === "set_user_password") {
         const password = window.prompt(
           lang === "ar"
@@ -537,12 +579,39 @@ export function DataSection({
           );
           return;
         }
-        await postAdminAction({ action, id, payload: { password } });
+        actionResult = await postAdminAction({ action, id, payload: { password } });
       } else {
-        await postAdminAction({ action, id });
+        actionResult = await postAdminAction({ action, id });
       }
 
-      await loadRows();
+      if (action === "delete_row" || action === "delete_user_account") {
+        setRows((current) => current.filter((item) => rowIdFor(section, item) !== id));
+      } else {
+        const returned = actionResult?.data ?? {};
+        setRows((current) => current.map((item) => {
+          if (rowIdFor(section, item) !== id) return item;
+          const next = { ...item, ...returned };
+          if (action === "approve_merchant" || action === "approve_branch") {
+            Object.assign(next, {
+              approval_status: "approved",
+              approval_status_ar: "مقبول",
+              approval_status_en: "Approved",
+              rejection_reason: null,
+              has_resubmitted_documents: false,
+              resubmitted_documents_count: 0,
+              resubmission_status_ar: "",
+              resubmission_status_en: "",
+            });
+          } else if (action === "reject_merchant" || action === "reject_branch") {
+            Object.assign(next, {
+              approval_status: "rejected",
+              approval_status_ar: "مرفوض",
+              approval_status_en: "Rejected",
+            });
+          }
+          return next;
+        }));
+      }
     } catch (actionError) {
       setError(humanizeAdminError(actionError, lang));
     }
@@ -635,24 +704,34 @@ export function DataSection({
       }
 
       if (editing === "new") {
-        await postAdminAction({
+        const result = await postAdminAction({
           action: "create_row",
           table: section.editableTable,
           values,
           payload: section.id === "cities" ? { place_kind: String(formValues.place_kind ?? "city") } : undefined,
         });
+        if (result.data) {
+          setRows((current) => [result.data as Row, ...current]);
+        }
       } else if (editing && typeof editing === "object") {
-        await postAdminAction({
+        const editedId = rowIdFor(section, editing);
+        const result = await postAdminAction({
           action: "update_row",
           table: section.editableTable,
-          id: rowIdFor(section, editing),
+          id: editedId,
           values,
           payload: section.id === "cities" ? { place_kind: String(formValues.place_kind ?? "city") } : undefined,
         });
+        if (result.data) {
+          setRows((current) => current.map((item) =>
+            rowIdFor(section, item) === editedId
+              ? { ...item, ...(result.data as Row) }
+              : item,
+          ));
+        }
       }
 
       setEditing(null);
-      await loadRows();
     } catch (saveError) {
       setError(humanizeAdminError(saveError, lang));
     }
@@ -714,6 +793,26 @@ export function DataSection({
                 key={value}
                 className={userRoleFilter === value ? "active" : undefined}
                 onClick={() => setUserRoleFilter(value as "all" | "merchant" | "buyer")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {["merchant-approvals", "branch-approvals"].includes(section.id) ? (
+          <div className="role-filter" role="group" aria-label={lang === "ar" ? "فلترة الموافقات" : "Filter approvals"}>
+            {[
+              ["all", lang === "ar" ? "الكل" : "All"],
+              ["needs_review", lang === "ar" ? "يحتاج موافقة" : "Needs approval"],
+              ["approved", lang === "ar" ? "تمت الموافقة" : "Approved"],
+              ["rejected", lang === "ar" ? "مرفوض" : "Rejected"],
+              ["resubmitted", lang === "ar" ? "مراجعة مجددًا" : "Resubmitted"],
+            ].map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className={approvalFilter === value ? "active" : undefined}
+                onClick={() => setApprovalFilter(value as typeof approvalFilter)}
               >
                 {label}
               </button>
@@ -2491,6 +2590,9 @@ function finalApprovalBlockReason(action: string, row: Row, lang: Lang) {
   const documents = Array.isArray(row.approval_documents)
     ? (row.approval_documents as Row[])
     : [];
+  const currentDocuments = documents.filter(
+    (document) => !String(document.superseded_by ?? "").trim(),
+  );
   const requiredKinds = action === "approve_merchant"
     ? ["store_front", "store_owner_id_front", "store_owner_id_back"]
     : [
@@ -2500,11 +2602,11 @@ function finalApprovalBlockReason(action: string, row: Row, lang: Lang) {
         ...(row.uses_parent_commercial_register === false ? ["commercial_register"] : []),
       ];
   const approvedKinds = new Set(
-    documents
+    currentDocuments
       .filter((document) => String(document.status ?? "") === "approved")
       .map((document) => String(document.kind ?? "")),
   );
-  const hasRejected = documents.some((document) => String(document.status ?? "") === "rejected");
+  const hasRejected = currentDocuments.some((document) => String(document.status ?? "") === "rejected");
   if (hasRejected) {
     return lang === "ar"
       ? "لا يمكن قبول الطلب قبل استبدال كل ملف مرفوض وقبول البديل."
@@ -2652,6 +2754,9 @@ function ReviewDetailsModal({
 
     return [...specifiedDocuments, ...extraStoredDocuments];
   }, [approvalDocuments, documentSpecs, row]);
+  const resubmittedDocumentsCount = displayDocuments.filter(approvalDocumentWasResubmitted).length;
+  const hasResubmittedDocuments =
+    Boolean(row.has_resubmitted_documents) || resubmittedDocumentsCount > 0;
 
   useEffect(() => {
     async function resolveUrl(
@@ -2714,6 +2819,13 @@ function ReviewDetailsModal({
             ? "راجع كل ملف من هنا واقبله أو ارفضه، وبعدها اتخذ قرار قبول أو رفض المتجر أو الفرع من صفحة الموافقات."
             : "Review and approve or reject each file here, then make the final store or branch decision from the approvals page."}
         </p>
+        {hasResubmittedDocuments ? (
+          <div className="alert">
+            {lang === "ar"
+              ? `مراجعة مجددًا: تم رفع ${resubmittedDocumentsCount || row.resubmitted_documents_count || 1} ملف بعد رفض سابق، راجع الملفات المعلّمة قبل اتخاذ القرار النهائي.`
+              : `Resubmitted: ${resubmittedDocumentsCount || row.resubmitted_documents_count || 1} file(s) were uploaded after a previous rejection. Review the marked files before the final decision.`}
+          </div>
+        ) : null}
         <div className="review-details-grid">
           {detailItems.map((item) => (
             <div key={item.key} className="review-detail-item">
@@ -2740,6 +2852,7 @@ function ReviewDetailsModal({
               const isImage = approvalDocumentIsImage(document);
               const isPdf = approvalDocumentIsPdf(document);
               const canReview = Boolean(storagePath && url);
+              const isResubmitted = approvalDocumentWasResubmitted(document);
 
               return (
                 <article className="approval-document-card" key={displayKey}>
@@ -2748,6 +2861,11 @@ function ReviewDetailsModal({
                     <span className={`status-pill ${approvalDocumentStatusTone(status)}`}>
                       {approvalDocumentStatusLabel(status, lang)}
                     </span>
+                    {isResubmitted ? (
+                      <span className="status-pill expired">
+                        {lang === "ar" ? "مراجعة مجددًا" : "Resubmitted"}
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="approval-document-preview">
@@ -2887,6 +3005,20 @@ function approvalDocumentStatusTone(value: string) {
   if (value === "rejected") return "expired";
   if (value === "unavailable") return "muted";
   return "muted";
+}
+
+function approvalDocumentWasResubmitted(document: Row) {
+  if (document.superseded_by) return false;
+  if (String(document.status ?? "").toLowerCase() !== "pending") return false;
+  const metadata = document.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return false;
+  }
+  const typedMetadata = metadata as Row;
+  return (
+    typedMetadata.source === "mobile_rejected_document_replacement" ||
+    Boolean(typedMetadata.replaces_document_id)
+  );
 }
 
 function reviewDetailItems(sectionId: string, row: Row, lang: Lang) {

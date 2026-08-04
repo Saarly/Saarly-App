@@ -215,16 +215,14 @@ async function fallbackAdminReport(
   }
 
   const { data } = await service
-    .from("admin_referral_rewards_readable")
-    .select("id,referrer_name,rewarded_user_name,referral_code,reward_type,delivery_status,delivered_at,created_at")
+    .from("admin_referrals_rewards_dashboard_readable")
+    .select("id,referral_id,referrer_name,rewarded_user_name,referral_code,reward_type,delivery_status,delivered_at,confirmed_registrations,target_confirmed_registrations,remaining_registrations,status_ar,status_en,created_at")
     .order("created_at", { ascending: false })
     .limit(1000);
   return ((data ?? []) as AnyRow[]).map((row) => ({
     ...row,
-    referral_id: row.id,
+    referral_id: row.referral_id ?? row.id,
     referrer_email: row.referrer_name,
-    confirmed_registrations: null,
-    target_confirmed_registrations: null,
   }));
 }
 
@@ -3068,7 +3066,7 @@ export async function GET(req: NextRequest) {
 
         let documentsQuery = service
           .from("merchant_documents")
-          .select("id,merchant_id,branch_id,manager_name,kind,storage_bucket,storage_path,mime_type,file_size_bytes,status,rejection_reason,reviewed_at,created_at")
+          .select("id,merchant_id,branch_id,manager_name,kind,storage_bucket,storage_path,mime_type,file_size_bytes,status,rejection_reason,reviewed_at,superseded_by,created_at,metadata")
           .order("created_at", { ascending: true });
 
         documentsQuery =
@@ -3094,10 +3092,35 @@ export async function GET(req: NextRequest) {
           documentsByTarget.set(targetId, current);
         }
 
-        sectionRows = sectionRows.map((row) => ({
-          ...row,
-          approval_documents: documentsByTarget.get(String(row.id ?? "")) ?? [],
-        }));
+        sectionRows = sectionRows.map((row) => {
+          const approvalDocuments = documentsByTarget.get(String(row.id ?? "")) ?? [];
+          const replacementDocuments = approvalDocuments.filter((document) => {
+            const metadata = document.metadata;
+            return Boolean(
+              metadata &&
+                typeof metadata === "object" &&
+                !Array.isArray(metadata) &&
+                (
+                  (metadata as AnyRow).source === "mobile_rejected_document_replacement" ||
+                  (metadata as AnyRow).replaces_document_id
+                ),
+            );
+          });
+          const pendingResubmittedDocumentsCount = replacementDocuments.filter(
+            (document) =>
+              !document.superseded_by &&
+              String(document.status ?? "").toLowerCase() === "pending",
+          ).length;
+          return {
+            ...row,
+            approval_documents: approvalDocuments,
+            has_resubmitted_documents: pendingResubmittedDocumentsCount > 0,
+            resubmitted_documents_count: pendingResubmittedDocumentsCount,
+            resubmission_history_count: replacementDocuments.length,
+            resubmission_status_ar: pendingResubmittedDocumentsCount > 0 ? "مراجعة مجددًا" : "",
+            resubmission_status_en: pendingResubmittedDocumentsCount > 0 ? "Resubmitted" : "",
+          };
+        });
       }
 
       return NextResponse.json(
