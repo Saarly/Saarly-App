@@ -3020,7 +3020,7 @@ export async function GET(req: NextRequest) {
       const ratingUsers = new Map((ratingUsersResult.data ?? []).map((row: AnyRow) => [String(row.id), row]));
       const ratingConversations = new Map((ratingConversationsResult.data ?? []).map((row: AnyRow) => [String(row.id), row]));
       const conversationRowsById = new Map(conversationRows.map((row) => [String(row.id), row]));
-      const ratings = ratingRows.map((row) => {
+      const ratings: AnyRow[] = ratingRows.map((row): AnyRow => {
         const user = ratingUsers.get(String(row.user_id ?? "")) as AnyRow | undefined;
         const conversation = ratingConversations.get(String(row.conversation_id ?? "")) as AnyRow | undefined;
         const readableConversation = conversationRowsById.get(String(row.conversation_id ?? "")) as AnyRow | undefined;
