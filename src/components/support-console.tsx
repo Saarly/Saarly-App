@@ -43,6 +43,7 @@ type Conversation = {
   last_message_at: string | null;
   created_at: string;
   labels?: SupportLabel[] | null;
+  rating?: SupportRating | null;
 };
 type Message = {
   id: string;
@@ -53,12 +54,26 @@ type Message = {
   body: string;
   created_at: string;
 };
+type SupportRating = {
+  conversation_id: string;
+  user_id: string;
+  customer_name: string | null;
+  customer_email: string | null;
+  title: string | null;
+  stars: number;
+  sentiment: "positive" | "negative";
+  comment: string | null;
+  created_at: string;
+  assigned_support_agent_id?: string | null;
+  assigned_agent_name?: string | null;
+};
 type SupportPayload = {
   conversations: Conversation[];
   labels: SupportLabel[];
   agents: SupportAgent[];
   merchants: MerchantOption[];
   orders: OrderOption[];
+  ratings: SupportRating[];
 };
 type ComplaintDraft = {
   type: "merchant" | "order" | "wrong_price" | "other";
@@ -125,6 +140,7 @@ function senderLabel(message: Message, lang: Lang) {
 function statusLabel(status: string, lang: Lang) {
   if (status === "transferred") return lang === "ar" ? "محوّلة إلى فريق الدعم" : "Transferred to support";
   if (status === "bot") return lang === "ar" ? "مع المساعد الآلي" : "With the assistant";
+  if (status === "closed") return lang === "ar" ? "مغلقة" : "Closed";
   return friendlyStatus(status, lang);
 }
 
@@ -148,12 +164,14 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
     agents: [],
     merchants: [],
     orders: [],
+    ratings: [],
   });
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply] = useState("");
   const [search, setSearch] = useState("");
   const [labelFilter, setLabelFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"active" | "closed" | "all">("active");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -361,9 +379,12 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
         [conversation.customer_name, conversation.customer_mobile, conversation.customer_email, meaningfulTitle(conversation.title)]
           .some((value) => cleanText(value).toLowerCase().includes(needle));
       const matchesLabel = !labelFilter || (conversation.labels ?? []).some((label) => label.id === labelFilter);
-      return matchesText && matchesLabel;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "closed" ? conversation.status === "closed" : conversation.status !== "closed");
+      return matchesText && matchesLabel && matchesStatus;
     });
-  }, [labelFilter, payload.conversations, search]);
+  }, [labelFilter, payload.conversations, search, statusFilter]);
 
   const selectedLabels = selected?.labels ?? [];
 
@@ -405,6 +426,17 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
             ))}
           </select>
         </label>
+        <label>
+          <Filter size={16} />
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as "active" | "closed" | "all")}
+          >
+            <option value="active">{lang === "ar" ? "المحادثات النشطة" : "Active conversations"}</option>
+            <option value="closed">{lang === "ar" ? "المحادثات المغلقة والتقييمات" : "Closed conversations & ratings"}</option>
+            <option value="all">{lang === "ar" ? "كل المحادثات" : "All conversations"}</option>
+          </select>
+        </label>
         <button className="soft-button" onClick={() => void createLabel()} disabled={busy === "new-label"}>
           <FolderPlus size={16} />
           {lang === "ar" ? "تصنيف جديد" : "New label"}
@@ -432,6 +464,21 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
                     <bdi>{assignedLabel(conversation, lang)}</bdi>
                   </span>
                 </div>
+                {conversation.rating ? (
+                  <div className="queue-item-rating">
+                    <span className="support-rating-stars" aria-label={`${conversation.rating.stars}/5`}>
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <i key={index} className={index < conversation.rating!.stars ? "filled" : ""}>★</i>
+                      ))}
+                    </span>
+                    <b className={conversation.rating.sentiment === "positive" ? "positive" : "negative"}>
+                      {conversation.rating.sentiment === "positive"
+                        ? (lang === "ar" ? "إيجابي" : "Positive")
+                        : (lang === "ar" ? "سلبي" : "Negative")}
+                    </b>
+                    {cleanText(conversation.rating.comment) ? <small>{cleanText(conversation.rating.comment)}</small> : null}
+                  </div>
+                ) : null}
                 <div className="support-labels">
                   {(conversation.labels ?? []).map((label) => (
                     <i key={label.id} style={{ backgroundColor: label.color_hex }}>
@@ -460,13 +507,35 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
                   {safeContact(selected.customer_mobile, selected.customer_email) ? (
                     <small className="chat-contact"><bdi>{safeContact(selected.customer_mobile, selected.customer_email)}</bdi></small>
                   ) : null}
+                  {selected.rating ? (
+                    <div className="conversation-rating-inline">
+                      <div>
+                        <strong>{lang === "ar" ? "تقييم هذه المحادثة" : "Conversation rating"}</strong>
+                        <span className="support-rating-stars" aria-label={`${selected.rating.stars}/5`}>
+                          {Array.from({ length: 5 }, (_, index) => (
+                            <i key={index} className={index < selected.rating!.stars ? "filled" : ""}>★</i>
+                          ))}
+                        </span>
+                      </div>
+                      <b className={selected.rating.sentiment === "positive" ? "positive" : "negative"}>
+                        {selected.rating.sentiment === "positive"
+                          ? (lang === "ar" ? "إيجابي" : "Positive")
+                          : (lang === "ar" ? "سلبي" : "Negative")}
+                      </b>
+                      {cleanText(selected.rating.comment) ? <p>{cleanText(selected.rating.comment)}</p> : null}
+                    </div>
+                  ) : selected.status === "closed" ? (
+                    <small className="muted">{lang === "ar" ? "لم يرسل العميل تقييمًا لهذه المحادثة بعد." : "The customer has not rated this conversation yet."}</small>
+                  ) : null}
                 </div>
                 <div className="row-actions">
-                  <button className="tiny-button" onClick={() => void assign()} disabled={busy === "assign"}>
-                    <UserRoundCheck size={15} />
-                    {t("assignToMe", lang)}
-                  </button>
-                  {profile?.role === "admin" && payload.agents.length > 0 ? (
+                  {selected.status !== "closed" ? (
+                    <button className="tiny-button" onClick={() => void assign()} disabled={busy === "assign"}>
+                      <UserRoundCheck size={15} />
+                      {t("assignToMe", lang)}
+                    </button>
+                  ) : null}
+                  {selected.status !== "closed" && profile?.role === "admin" && payload.agents.length > 0 ? (
                     <select
                       className="tiny-select"
                       value={selected.assigned_support_agent_id ?? ""}
@@ -483,13 +552,17 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
                       ))}
                     </select>
                   ) : null}
-                  <button className="tiny-button" onClick={openComplaintDialog}>
-                    {lang === "ar" ? "تحويل إلى شكوى" : "Convert to complaint"}
-                  </button>
-                  <button className="tiny-button danger" onClick={() => void closeConversation()} disabled={busy === "close"}>
-                    <XCircle size={15} />
-                    {t("closeConversation", lang)}
-                  </button>
+                  {selected.status !== "closed" ? (
+                    <>
+                      <button className="tiny-button" onClick={openComplaintDialog}>
+                        {lang === "ar" ? "تحويل إلى شكوى" : "Convert to complaint"}
+                      </button>
+                      <button className="tiny-button danger" onClick={() => void closeConversation()} disabled={busy === "close"}>
+                        <XCircle size={15} />
+                        {t("closeConversation", lang)}
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
 
@@ -530,22 +603,31 @@ export function SupportConsole({ lang, profile }: { lang: Lang; profile?: AdminP
                 <div ref={bottomRef} />
               </div>
 
-              <div className="reply-bar">
-                <input
-                  value={reply}
-                  onChange={(event) => setReply(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      void sendReply();
-                    }
-                  }}
-                  placeholder={t("message", lang)}
-                />
-                <button className="primary-button icon-button" onClick={() => void sendReply()} disabled={busy === "reply" || !reply.trim()}>
-                  <Send size={18} />
-                </button>
-              </div>
+              {selected.status === "closed" ? (
+                <div className="closed-conversation-notice">
+                  <CheckCircle2 size={18} />
+                  {lang === "ar"
+                    ? "المحادثة مغلقة. الرسائل والتقييم محفوظان للمراجعة."
+                    : "This conversation is closed. Messages and rating are kept for review."}
+                </div>
+              ) : (
+                <div className="reply-bar">
+                  <input
+                    value={reply}
+                    onChange={(event) => setReply(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        void sendReply();
+                      }
+                    }}
+                    placeholder={t("message", lang)}
+                  />
+                  <button className="primary-button icon-button" onClick={() => void sendReply()} disabled={busy === "reply" || !reply.trim()}>
+                    <Send size={18} />
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <div className="empty-chat">

@@ -3936,3 +3936,63 @@ button:not(:disabled):active {
   .referral-admin-card-head { flex-direction: column; }
   .referral-admin-details { grid-template-columns: 1fr; }
 }
+
+
+.support-ratings-panel{margin:14px 0;padding:16px;border:1px solid var(--border);border-radius:18px;background:var(--panel)}
+.support-ratings-panel h2{margin:4px 0 12px}
+.support-ratings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.support-rating-card{padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+.support-rating-card small,.support-rating-card p{display:block;margin-top:6px;color:var(--muted)}
+.support-rating-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rating-sentiment{padding:3px 8px;border-radius:999px;font-size:.72rem;font-weight:800}
+.rating-sentiment.positive{background:rgba(34,197,94,.14);color:#15803d}
+.rating-sentiment.negative{background:rgba(239,68,68,.14);color:#b91c1c}
+.support-rating-stars{display:flex;gap:2px;margin-top:7px;color:var(--border)}
+.support-rating-stars .filled{color:#d69e00}
+
+.queue-item-rating {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  text-align: start;
+}
+.queue-item-rating .support-rating-stars { margin-top: 0; }
+.queue-item-rating b { font-size: .76rem; }
+.queue-item-rating b.positive,
+.conversation-rating-inline > b.positive { color: #15803d; }
+.queue-item-rating b.negative,
+.conversation-rating-inline > b.negative { color: #b91c1c; }
+.queue-item-rating small { color: var(--muted); overflow-wrap: anywhere; }
+.conversation-rating-inline {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.conversation-rating-inline > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.conversation-rating-inline .support-rating-stars { margin-top: 0; }
+.conversation-rating-inline p { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.closed-conversation-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 700;
+}

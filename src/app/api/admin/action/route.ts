@@ -2985,7 +2985,7 @@ export async function GET(req: NextRequest) {
       const supportSection = findSection("support");
       if (!sectionIsAllowed(supportSection, profile)) return jsonError("permission_denied", 403);
       const [conversationsResult, labelsResult, agentsResult, merchantsResult, ordersResult] = await Promise.all([
-        service.from("admin_support_conversations_readable").select("*").in("status", ["bot", "transferred"]).order("last_message_at", { ascending: false, nullsFirst: false }).limit(200),
+        service.from("admin_support_conversations_readable").select("*").in("status", ["bot", "transferred", "closed"]).order("last_message_at", { ascending: false, nullsFirst: false }).limit(300),
         service.from("admin_support_labels_readable").select("*").eq("is_active", true).order("name_ar"),
         service.from("admin_staff_readable").select("id,full_name,primary_email,internal_role,staff_is_active,is_blocked,is_deleted").eq("internal_role", "support_agent").eq("staff_is_active", true).eq("is_blocked", false),
         service.from("admin_active_merchants_readable").select("id,store_name,account_email,approval_status_ar,approval_status_en").order("store_name").limit(300),
@@ -2993,7 +2993,56 @@ export async function GET(req: NextRequest) {
       ]);
       const loadError = conversationsResult.error ?? labelsResult.error ?? agentsResult.error ?? merchantsResult.error ?? ordersResult.error;
       if (loadError) return jsonError(loadError.message, 400);
-      return NextResponse.json({ data: { conversations: conversationsResult.data ?? [], labels: labelsResult.data ?? [], agents: agentsResult.data ?? [], merchants: merchantsResult.data ?? [], orders: ordersResult.data ?? [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+
+      const conversationRows = (conversationsResult.data ?? []) as AnyRow[];
+      const loadedConversationIds = conversationRows.map((row) => String(row.id ?? "")).filter(Boolean);
+      const ratingsResult = loadedConversationIds.length > 0
+        ? await service.from("support_conversation_ratings")
+          .select("conversation_id,user_id,stars,sentiment,comment,created_at")
+          .in("conversation_id", loadedConversationIds)
+          .order("created_at", { ascending: false })
+        : { data: [], error: null };
+      if (ratingsResult.error) return jsonError(ratingsResult.error.message, 400);
+
+      const ratingRows = (ratingsResult.data ?? []) as AnyRow[];
+      const ratingUserIds = [...new Set(ratingRows.map((row) => String(row.user_id ?? "")).filter(Boolean))];
+      const ratingConversationIds = [...new Set(ratingRows.map((row) => String(row.conversation_id ?? "")).filter(Boolean))];
+      const [ratingUsersResult, ratingConversationsResult] = await Promise.all([
+        ratingUserIds.length > 0
+          ? service.from("users").select("id,full_name,primary_email").in("id", ratingUserIds)
+          : Promise.resolve({ data: [], error: null }),
+        ratingConversationIds.length > 0
+          ? service.from("chat_conversations").select("id,title,assigned_support_agent_id").in("id", ratingConversationIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      const ratingLookupError = ratingUsersResult.error ?? ratingConversationsResult.error;
+      if (ratingLookupError) return jsonError(ratingLookupError.message, 400);
+      const ratingUsers = new Map((ratingUsersResult.data ?? []).map((row: AnyRow) => [String(row.id), row]));
+      const ratingConversations = new Map((ratingConversationsResult.data ?? []).map((row: AnyRow) => [String(row.id), row]));
+      const conversationRowsById = new Map(conversationRows.map((row) => [String(row.id), row]));
+      const ratings = ratingRows.map((row) => {
+        const user = ratingUsers.get(String(row.user_id ?? "")) as AnyRow | undefined;
+        const conversation = ratingConversations.get(String(row.conversation_id ?? "")) as AnyRow | undefined;
+        const readableConversation = conversationRowsById.get(String(row.conversation_id ?? "")) as AnyRow | undefined;
+        return {
+          ...row,
+          customer_name: user?.full_name ?? null,
+          customer_email: user?.primary_email ?? null,
+          title: conversation?.title ?? readableConversation?.title ?? null,
+          assigned_support_agent_id:
+            conversation?.assigned_support_agent_id ??
+            readableConversation?.assigned_support_agent_id ??
+            null,
+          assigned_agent_name: readableConversation?.assigned_agent_name ?? null,
+        };
+      });
+      const ratingsByConversation = new Map(ratings.map((rating) => [String(rating.conversation_id), rating]));
+      const conversations = conversationRows.map((row) => ({
+        ...row,
+        rating: ratingsByConversation.get(String(row.id)) ?? null,
+      }));
+
+      return NextResponse.json({ data: { conversations, labels: labelsResult.data ?? [], agents: agentsResult.data ?? [], merchants: merchantsResult.data ?? [], orders: ordersResult.data ?? [], ratings } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
     }
 
     const shippingCompanyId = url.searchParams.get("shipping_company_id");
